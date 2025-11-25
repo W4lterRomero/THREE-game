@@ -9,6 +9,7 @@ export class InputManager {
         }
 
         this.isPaused = false
+        this.enabled = true
 
         document.addEventListener("keydown", (e) => this.onKeyDown(e))
         document.addEventListener("keyup", (e) => this.onKeyUp(e))
@@ -16,7 +17,6 @@ export class InputManager {
         document.addEventListener("gamePauseChanged", (e) => {
             this.isPaused = e.detail.isPaused
             if (this.isPaused) {
-                // Reset all keys when paused
                 this.keys.forward = false
                 this.keys.backward = false
                 this.keys.left = false
@@ -27,7 +27,7 @@ export class InputManager {
     }
 
     onKeyDown(event) {
-        if (this.isPaused) return
+        if (this.isPaused || !this.enabled) return
 
         switch (event.code) {
             case "KeyW":
