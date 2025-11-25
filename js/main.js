@@ -3,55 +3,24 @@ import { SceneManager } from "./SceneManager.js"
 import { InputManager } from "./InputManager.js"
 import { Character } from "./Character.js"
 import { CameraController } from "./CameraController.js"
+import { NPC } from "./NPC.js"
 
 class Game {
     constructor() {
         this.sceneManager = new SceneManager("game-container")
         this.inputManager = new InputManager()
         this.character = new Character(this.sceneManager.scene, this.sceneManager.camera)
+        this.npc = new NPC(this.sceneManager.scene, new THREE.Vector3(5, 0, 5))
 
         this.cameraController = new CameraController(this.sceneManager.camera, this.sceneManager.renderer.domElement)
         this.character.setCameraController(this.cameraController)
 
-        this.setupUI()
         this.setupSettingsPanel()
 
         this.clock = new THREE.Clock()
 
         this.animate = this.animate.bind(this)
         requestAnimationFrame(this.animate)
-    }
-
-    setupUI() {
-        // Create camera mode indicator
-        const indicator = document.createElement("div")
-        indicator.id = "camera-indicator"
-        indicator.innerHTML = `
-            <div style="position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.7); 
-                        color: white; padding: 10px 15px; border-radius: 8px; font-family: sans-serif;
-                        font-size: 14px; z-index: 1000;">
-                <div id="camera-mode">Third Person</div>
-                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px;">
-                    [Tab] Cambiar cámara<br>
-                    [Click derecho] Rotar cámara<br>
-                    [Scroll] Zoom<br>
-                    [ESC] Configuración
-                </div>
-            </div>
-        `
-        document.body.appendChild(indicator)
-
-        // Listen for camera mode changes
-        document.addEventListener("cameraModeChanged", (e) => {
-            const modeText = document.getElementById("camera-mode")
-            if (modeText) {
-                modeText.textContent = e.detail.isFirstPerson ? "First Person" : "Third Person"
-            }
-            const settingsModeText = document.getElementById("camera-mode-text")
-            if (settingsModeText) {
-                settingsModeText.textContent = e.detail.isFirstPerson ? "First Person" : "Third Person"
-            }
-        })
     }
 
     setupSettingsPanel() {
@@ -104,6 +73,7 @@ class Game {
         const dt = this.clock.getDelta()
 
         this.character.update(dt, this.inputManager)
+        this.npc.update(dt)
 
         this.cameraController.update(this.character.getPosition(), this.character.getRotation(), dt)
 

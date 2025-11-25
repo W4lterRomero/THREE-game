@@ -22,7 +22,7 @@ export class Character {
 
         this.targetRotation = 0
         this.rotationSmoothness = 0.12
-        this.rotationOffset = Math.PI // Adjust this value to rotate the model (e.g. Math.PI, Math.PI / 2)
+        this.rotationOffset = Math.PI // Ajustar este valor para rotar el modelo (e.g. Math.PI, Math.PI / 2)
 
         this.loadModel()
     }
