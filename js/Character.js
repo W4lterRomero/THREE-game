@@ -20,6 +20,10 @@ export class Character {
         this.jumpForce = 15
         this.onGround = true
 
+        this.targetRotation = 0
+        this.rotationSmoothness = 0.12
+        this.rotationOffset = Math.PI // Adjust this value to rotate the model (e.g. Math.PI, Math.PI / 2)
+
         this.loadModel()
     }
 
@@ -33,6 +37,7 @@ export class Character {
             "https://threejs.org/examples/models/gltf/Soldier.glb",
             (gltf) => {
                 this.model = gltf.scene
+                this.model.rotation.y = this.rotationOffset
                 this.scene.add(this.model)
 
                 this.model.traverse((object) => {
@@ -86,7 +91,6 @@ export class Character {
         const hasMovement = moveX !== 0 || moveZ !== 0
 
         if (hasMovement && this.cameraController) {
-            // Get camera-relative directions
             const forward = this.cameraController.getForwardDirection()
             const right = this.cameraController.getRightDirection()
 
@@ -95,29 +99,46 @@ export class Character {
             this.direction.z = forward.z * moveZ + right.z * moveX
             this.direction.normalize()
 
-            // Rotate character to face movement direction (only in third person)
-            if (!this.cameraController.isFirstPerson) {
-                const angle = Math.atan2(this.direction.x, this.direction.z)
-                // Smooth rotation
-                const targetRotation = angle
-                const currentRotation = this.model.rotation.y
-                let diff = targetRotation - currentRotation
+            if (this.cameraController.isFirstPerson) {
+                // In First Person, character always faces camera direction
+                this.targetRotation = this.cameraController.fpYaw + this.rotationOffset
 
-                // Handle angle wrapping
-                while (diff > Math.PI) diff -= Math.PI * 2
-                while (diff < -Math.PI) diff += Math.PI * 2
+                // Calculate dot product to determine if moving forward or backward relative to camera
+                const forward = this.cameraController.getForwardDirection()
+                const moveDir = this.direction.clone()
+                const dot = forward.dot(moveDir)
 
-                this.model.rotation.y += diff * 0.15
+                // If moving backwards (dot < 0), reverse animation
+                if (this.animations["Run"]) {
+                    this.animations["Run"].timeScale = dot >= -0.1 ? 1 : -1
+                }
             } else {
-                // In first person, character faces camera direction
-                this.model.rotation.y = this.cameraController.fpYaw + Math.PI
+                // In Third Person, character faces movement direction
+                this.targetRotation = Math.atan2(this.direction.x, this.direction.z) + this.rotationOffset
+                if (this.animations["Run"]) this.animations["Run"].timeScale = 1
             }
+
+            const currentRotation = this.model.rotation.y
+            let diff = this.targetRotation - currentRotation
+
+            // Handle angle wrapping
+            while (diff > Math.PI) diff -= Math.PI * 2
+            while (diff < -Math.PI) diff += Math.PI * 2
+
+            this.model.rotation.y += diff * this.rotationSmoothness
 
             this.switchAnimation("Run")
         } else {
-            // In first person without movement, still face camera direction
             if (this.cameraController && this.cameraController.isFirstPerson) {
-                this.model.rotation.y = this.cameraController.fpYaw + Math.PI
+                this.targetRotation = this.cameraController.fpYaw + this.rotationOffset
+
+                const currentRotation = this.model.rotation.y
+                let diff = this.targetRotation - currentRotation
+
+                while (diff > Math.PI) diff -= Math.PI * 2
+                while (diff < -Math.PI) diff += Math.PI * 2
+
+                this.model.rotation.y += diff * this.rotationSmoothness
             }
             this.switchAnimation("Idle")
         }

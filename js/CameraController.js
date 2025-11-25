@@ -13,6 +13,7 @@ export class CameraController {
         this.thirdPersonHeight = 2
         this.minDistance = 2
         this.maxDistance = 20
+        this.minCameraHeight = 0.5
 
         // First person settings
         this.firstPersonHeight = 1.7
@@ -203,8 +204,13 @@ export class CameraController {
         targetCameraPos.y = characterPosition.y + this.thirdPersonHeight + verticalDist
         targetCameraPos.z = characterPosition.z - horizontalDist * Math.cos(this.theta)
 
+        targetCameraPos.y = Math.max(targetCameraPos.y, this.minCameraHeight)
+
         // Smooth camera movement
         this.currentPosition.lerp(targetCameraPos, this.smoothing)
+
+        this.currentPosition.y = Math.max(this.currentPosition.y, this.minCameraHeight)
+
         this.camera.position.copy(this.currentPosition)
 
         const targetLookAt = characterPosition.clone()
@@ -218,18 +224,17 @@ export class CameraController {
         if (this.isFirstPerson) {
             return new THREE.Vector3(Math.sin(this.fpYaw), 0, Math.cos(this.fpYaw)).normalize()
         } else {
-            // Inverted for Third Person (W moves away, S moves towards)
-            return new THREE.Vector3(Math.sin(this.theta), 0, -Math.cos(this.theta)).normalize()
+            // Same direction logic as first person, using theta
+            return new THREE.Vector3(Math.sin(this.theta), 0, Math.cos(this.theta)).normalize()
         }
     }
 
     getRightDirection() {
         if (this.isFirstPerson) {
-            // Inverted for First Person to fix A/D swap
             return new THREE.Vector3(-Math.cos(this.fpYaw), 0, Math.sin(this.fpYaw)).normalize()
         } else {
-            // Standard Right for Third Person (A moves Left, D moves Right)
-            return new THREE.Vector3(Math.cos(this.theta), 0, Math.sin(this.theta)).normalize()
+            // Same direction logic as first person, using theta
+            return new THREE.Vector3(-Math.cos(this.theta), 0, Math.sin(this.theta)).normalize()
         }
     }
 }
