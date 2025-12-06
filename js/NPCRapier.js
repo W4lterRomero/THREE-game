@@ -75,9 +75,9 @@ export class NPCRapier {
             // Anim
             this.mixer = new THREE.AnimationMixer(this.model)
             const clips = gltf.animations
-            this.animations["Idle"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "Idle"))
-            this.animations["Walk"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "Walk"))
-            this.animations["Run"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "Run"))
+            this.animations["Idle"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "idle"))
+            this.animations["Walk"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "walk"))
+            this.animations["Run"] = this.mixer.clipAction(THREE.AnimationClip.findByName(clips, "run"))
 
             this.switchAnimation("Idle")
             this.updateModelVisuals()
@@ -112,7 +112,7 @@ export class NPCRapier {
                 // Move towards
                 moveDir.subVectors(target, currentPos).normalize()
                 moveDir.y = 0 // Flatten
-                this.switchAnimation("Walk")
+                this.switchAnimation("Run")
             }
         }
 
