@@ -91,7 +91,7 @@ export class BoxCollider extends Collider {
         closestLocal.z = Math.max(-halfSize.z, Math.min(spherePosLocal.z, halfSize.z))
 
         const distance = closestLocal.distanceTo(spherePosLocal)
-        return distance < sphereCollider.radius
+        return distance < sphereCollider.radius + 0.001
     }
 
     /**

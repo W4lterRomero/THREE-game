@@ -65,6 +65,14 @@ export class Character {
                     offset: new THREE.Vector3(0, 0.9, 0),
                     layer: CollisionLayer.PLAYER,
                     collidesWithMask: CollisionLayer.REMOTE_PLAYER | CollisionLayer.NPC | CollisionLayer.ENVIRONMENT,
+                    manualResolution: true, // IMPORTANT: Disable auto resolution to handle slope logic manually
+                    id: "local-player",
+                    parent: this.model,
+                    radius: 0.4,
+                    height: 1.8,
+                    offset: new THREE.Vector3(0, 0.9, 0),
+                    layer: CollisionLayer.PLAYER,
+                    collidesWithMask: CollisionLayer.REMOTE_PLAYER | CollisionLayer.NPC | CollisionLayer.ENVIRONMENT,
                     onCollisionEnter: (other, response) => {
                         console.log(`[Character] Collision started with: ${other.id}`)
                         if (response && response.normal.y > 0.5) {
@@ -107,45 +115,8 @@ export class Character {
         this.currentAction = action
     }
 
-    update(dt, input) {
+    update(dt, input, collisionSystem) {
         if (!this.model) return
-
-        // Reset grounded state from collision for this frame (will be set by collision system later if still colliding)
-        // Actually, since collision runs AFTER update in main loop, we rely on flags set in PREVIOUS frame.
-        // But if we reset here, we lose the info from previous frame's collision?
-        // Wait.
-        // Frame 1 Update: isGroundedCollision is false (init) -> Gravity applies.
-        // Frame 1 Collision: Sets isGroundedCollision = true.
-        // Frame 2 Update: isGroundedCollision is true.
-        // We should start by setting it to false? No, if we set it to false here, we effectively treat it as "air" for this physics step until we read it? 
-        // No, we read it immediately to cancel gravity.
-        // If we reset it here, `this.isGroundedCollision` becomes false. Then we apply gravity.
-        // Then at end of frame, collision runs and sets it true.
-        // So effectively we apply 1 frame of gravity every frame?
-        //
-        // Better: Reset it to false at the very END of update? No.
-        //
-        // Standard pattern:
-        // 1. Clear flags.
-        // 2. Apply forces (Player input).
-        // 3. Move.
-        // 4. Resolve Collisions (sets flags).
-
-        // Use the flag set by the LAST frame's collision update.
-        // But we need to clear it so it doesn't stick true forever if we walk off a ledge.
-        // Who clears it?
-        // Method A: Clear at start of `collisionSystem.update`.
-        // Method B: Clear at start of `character.update`.
-
-        // If we clear at start of `character.update`, then we lose the "true" set by last frame's collision.
-        // So Frame N Collision set it true.
-        // Frame N+1 Update:
-        //   Read `isGroundedCollision` (true).
-        //   Apply logic.
-        //   Clear `isGroundedCollision` (false).
-
-        const wasGroundedByCollision = this.isGroundedCollision
-        this.isGroundedCollision = false // Reset for next collision pass
 
         this.direction.set(0, 0, 0)
 
@@ -159,6 +130,7 @@ export class Character {
 
         const hasMovement = moveX !== 0 || moveZ !== 0
 
+        // Handle rotation and direction calculation
         if (hasMovement && this.cameraController) {
             const forward = this.cameraController.getForwardDirection()
             const right = this.cameraController.getRightDirection()
@@ -169,50 +141,37 @@ export class Character {
             this.direction.normalize()
 
             if (this.cameraController.isFirstPerson) {
-                // In First Person, character always faces camera direction
                 this.targetRotation = this.cameraController.fpYaw + this.rotationOffset
-
-                // Calculate dot product to determine if moving forward or backward relative to camera
-                const forward = this.cameraController.getForwardDirection()
                 const moveDir = this.direction.clone()
                 const dot = forward.dot(moveDir)
-
-                // If moving backwards (dot < 0), reverse animation
                 if (this.animations["Run"]) {
                     this.animations["Run"].timeScale = dot >= -0.1 ? 1 : -1
                 }
             } else {
-                // In Third Person, character faces movement direction
                 this.targetRotation = Math.atan2(this.direction.x, this.direction.z) + this.rotationOffset
                 if (this.animations["Run"]) this.animations["Run"].timeScale = 1
             }
 
             const currentRotation = this.model.rotation.y
             let diff = this.targetRotation - currentRotation
-
-            // Handle angle wrapping
             while (diff > Math.PI) diff -= Math.PI * 2
             while (diff < -Math.PI) diff += Math.PI * 2
-
             this.model.rotation.y += diff * this.rotationSmoothness
 
             this.switchAnimation("Run")
         } else {
             if (this.cameraController && this.cameraController.isFirstPerson) {
                 this.targetRotation = this.cameraController.fpYaw + this.rotationOffset
-
                 const currentRotation = this.model.rotation.y
                 let diff = this.targetRotation - currentRotation
-
                 while (diff > Math.PI) diff -= Math.PI * 2
                 while (diff < -Math.PI) diff += Math.PI * 2
-
                 this.model.rotation.y += diff * this.rotationSmoothness
             }
             this.switchAnimation("Idle")
         }
 
-        // Calculate Velocity
+        // Calculate Velocity (Horizontal)
         if (hasMovement) {
             this.velocity.x = this.direction.x * this.speed
             this.velocity.z = this.direction.z * this.speed
@@ -221,39 +180,200 @@ export class Character {
             this.velocity.z = 0
         }
 
-        // Jump
-        if (this.onGround && input.keys.jump) {
-            this.velocity.y = this.jumpForce
-            this.onGround = false
+        // --- Improved Gravity and Ground Detection ---
+
+        // --- Improved Gravity and Ground Detection ---
+
+        let groundHeight = -Infinity
+        let isGrounded = false
+        let groundNormal = new THREE.Vector3(0, 1, 0)
+        let isOnSlimSlope = false
+
+        if (collisionSystem) {
+            const groundCheck = this.checkGround(collisionSystem)
+            if (groundCheck.isGrounded) {
+                groundNormal = groundCheck.normal
+
+                // Calculate slope angle
+                const up = new THREE.Vector3(0, 1, 0)
+                const angle = groundNormal.angleTo(up)
+                const maxSlopeAngle = Math.PI / 4 // 45 degrees
+
+                if (angle > maxSlopeAngle) {
+                    // Too steep! Slide.
+                    isGrounded = false // Treat as air (gravity applies)
+                    isOnSlimSlope = true
+
+                    // Slide force
+                    const slideDirection = new THREE.Vector3(0, -1, 0)
+                        .projectOnPlane(groundNormal)
+                        .normalize()
+
+                    // Apply slide velocity (stronger on steeper slopes)
+                    // Use a higher slide speed factor if requested "fast red ramp"
+                    const slideSpeed = 20 * dt
+                    this.velocity.add(slideDirection.multiplyScalar(slideSpeed))
+
+                } else {
+                    isGrounded = true
+                    groundHeight = groundCheck.groundHeight
+                }
+            }
+        } else {
+            if (this.model.position.y <= 0) {
+                isGrounded = true
+                groundHeight = 0
+            }
         }
 
-        // Gravity
-        if (!this.onGround && !wasGroundedByCollision) {
+        // Jump
+        if (isGrounded && input.keys.jump) {
+            this.velocity.y = this.jumpForce
+            this.onGround = false
+            this.model.position.y += 0.2
+        }
+        else if (isGrounded && this.velocity.y <= 0) {
+            this.onGround = true
+            this.velocity.y = 0
+
+            // PROJECT HORIZONTAL VELOCITY ONTO SLOPE
+            // This is key for smooth ramp walking without "stutter"
+            if (groundNormal.y < 0.99) { // If on a slope
+                // Project current horizontal velocity onto the plane defined by groundNormal
+                const horizontalVel = new THREE.Vector3(this.velocity.x, 0, this.velocity.z)
+                // P_new = V - (V dot N) * N
+                // Actually simpler: Vector3.projectOnPlane
+                const slopeVel = horizontalVel.clone().projectOnPlane(groundNormal).normalize().multiplyScalar(this.speed)
+
+                // Only apply if we are actually moving
+                if (hasMovement) {
+                    this.velocity.x = slopeVel.x
+                    this.velocity.y = slopeVel.y // This adds "up" velocity from the slope automatically! 
+                    this.velocity.z = slopeVel.z
+                }
+            }
+
+            // Snap to ground
+            if (Math.abs(this.model.position.y - groundHeight) < 0.5) {
+                this.model.position.y = groundHeight
+            }
+        } else {
+            this.onGround = false
             this.velocity.y -= this.gravity * dt
         }
 
         // Apply Position
         const deltaPosition = this.velocity.clone().multiplyScalar(dt)
-        this.model.position.add(deltaPosition)
 
-        // Floor Collision (World Y=0)
-        if (this.model.position.y < 0) {
-            this.model.position.y = 0
-            this.velocity.y = 0
-            this.onGround = true
-        } else if (wasGroundedByCollision) {
-            this.onGround = true
-            // Ensure we don't build up negative velocity while grounded
-            if (this.velocity.y < 0) this.velocity.y = 0
+        // Check for Wall Collisions before applying 
+        // Simple manual sweep: Check if new position overlaps environment
+        if (collisionSystem && this.collider) {
+            const nextPos = this.model.position.clone().add(deltaPosition)
+            // We need to check collision at nextPos.
+            // But we can't easily move the collider without moving the mesh (parent).
+            // So we use overlapSphere with a proxy at nextPos?
+            // Or simpler: Move, check overlap, resolve (slide).
+
+            this.model.position.add(deltaPosition)
+            this.collider.updateWorldPosition() // ensure collider follows
+
+            // Check overlap
+            const hits = collisionSystem.overlapSphere(this.model.position.clone().add(new THREE.Vector3(0, 0.9, 0)), 0.5, CollisionLayer.ENVIRONMENT)
+            // This is a rough check. Ideally we check the capsule.
+            // But let's reuse checkCollision logic via manual iteration if needed.
+            // For now, let's rely on `resolveCollision` logic but implemented MANUALLY here for "Slide".
+
+            // Actually, since we disabled auto-resolution, we can iterate colliders and resolve manually.
+            const colliders = Array.from(collisionSystem.colliders.values())
+            for (const other of colliders) {
+                if (other === this.collider) continue
+                if (!other.enabled) continue
+
+                // Skip if not Environment
+                if (!(other.layer & CollisionLayer.ENVIRONMENT)) continue
+
+                if (collisionSystem.checkCollision(this.collider, other)) {
+                    const response = collisionSystem.getCollisionResponse(this.collider, other)
+                    // If we hit a wall (horizontal normal), slide along it.
+                    // If we hit a floor (vertical normal), we ignore it (handled by checkGround).
+
+                    if (Math.abs(response.normal.y) < 0.5) { // Wall
+                        // Push out
+                        const push = response.normal.clone().multiplyScalar(response.overlap)
+                        this.model.position.add(push)
+                        this.collider.updateWorldPosition()
+                    }
+                }
+            }
         } else {
-            // If we are not at y=0 and not grounded by collision, we are in air
-            this.onGround = false
+            this.model.position.add(deltaPosition)
         }
 
-        // Update Animation Mixer
+        // Lower bound safety
+        if (this.model.position.y < -50) {
+            this.model.position.set(0, 10, 0)
+            this.velocity.set(0, 0, 0)
+        }
+
         if (this.mixer) {
             this.mixer.update(dt)
         }
+    }
+
+    checkGround(collisionSystem) {
+        if (!this.model) return { isGrounded: false }
+
+        const raySameHeight = 0.5
+        const rayLen = 1.0 // Look down far enough
+        const rayOriginCenter = this.model.position.clone()
+        rayOriginCenter.y += raySameHeight
+
+        const offsets = [
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0.3, 0, 0),
+            new THREE.Vector3(-0.3, 0, 0),
+            new THREE.Vector3(0, 0, 0.3),
+            new THREE.Vector3(0, 0, -0.3)
+        ]
+
+        // Redo to capture best hit normal? 
+        // Optimization: track bestHit object
+        // Let's rewrite the loop above properly in a following edit or now?
+        // Let's rely on standard logic:
+
+        // Actually, to make it robust, we should restructure the loop.
+        // Let's do it right.
+
+        let bestHit = null;
+
+        for (const offset of offsets) {
+            const origin = rayOriginCenter.clone().add(offset)
+            const hits = collisionSystem.raycast(origin, new THREE.Vector3(0, -1, 0), rayLen, CollisionLayer.ENVIRONMENT | CollisionLayer.DEFAULT)
+
+            for (const hit of hits) {
+                if (hit.collider.id !== "local-player") {
+                    if (!bestHit || hit.point.y > bestHit.point.y) {
+                        bestHit = hit
+                    }
+                    break
+                }
+            }
+        }
+
+        if (bestHit) {
+            const currentY = this.model.position.y
+            const diff = bestHit.point.y - currentY
+
+            if (diff <= 0.6 && diff >= -rayLen) {
+                return {
+                    isGrounded: true,
+                    groundHeight: bestHit.point.y,
+                    normal: bestHit.normal
+                }
+            }
+        }
+
+        return { isGrounded: false, normal: new THREE.Vector3(0, 1, 0) }
     }
 
     getPosition() {

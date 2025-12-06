@@ -236,7 +236,7 @@ class Game {
 
     const dt = this.clock.getDelta()
 
-    this.character.update(dt, this.inputManager)
+    this.character.update(dt, this.inputManager, this.collisionSystem)
     this.npc.update(dt)
 
     this.networkManager.update(dt)

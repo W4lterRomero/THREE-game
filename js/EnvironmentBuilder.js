@@ -124,5 +124,67 @@ export class EnvironmentBuilder {
                 0x88cc44
             )
         }
+
+        // Base Floor
+        // Y=-0.5, Height=1 -> Top at 0.
+        this.addBox(
+            new THREE.Vector3(0, -0.5, 0),
+            new THREE.Vector3(100, 1, 100),
+            new THREE.Euler(0, 0, 0),
+            0x333333
+        )
+
+        // --- TEST RAMPS ---
+
+        // 1. Walkable Ramp (Low Angle: ~15 deg)
+        // Length 8, Height 2 -> ~14 deg
+        this.addRampPhysicsTest(new THREE.Vector3(-8, 0, -5), 8, 2, 0x00ff00)
+
+        // 2. Steep Walkable Ramp (Limit: ~40 deg)
+        // Length 5, Height 3 -> ~36 deg
+        this.addRampPhysicsTest(new THREE.Vector3(-12, 0, -5), 5, 3, 0xffff00)
+
+        // 3. Sliding Ramp (Steep: ~60 deg)
+        // Length 3, Height 4 -> ~53 deg
+        this.addRampPhysicsTest(new THREE.Vector3(-16, 0, -5), 3, 4, 0xff0000)
+    }
+
+    addRampPhysicsTest(pos, length, height, color) {
+        const angle = Math.atan2(height, length) // Base length vs Height gives hypotenuse angle
+        const hypotenuse = Math.sqrt(length * length + height * height)
+
+        // Create ramp
+        const ramp = this.addBox(
+            new THREE.Vector3(0, 0, 0), // Temp pos
+            new THREE.Vector3(2, 0.5, hypotenuse),
+            new THREE.Euler(-angle, 0, 0),
+            color
+        )
+
+        // Position it explicitly: simple trigonometry
+        // Center of box needs to be at:
+        // x = pos.x
+        // y = pos.y + height/2
+        // z = pos.z + length/2
+        // BUT due to rotation, the local center is hypotenuse/2 up the ramp.
+
+        // Math matches addRamp logic but simpler for debugging visual:
+        // Start at pos.
+        // End at pos + (0, height, length)
+
+        // Midpoint:
+        ramp.position.set(
+            pos.x,
+            pos.y + height / 2,
+            pos.z + length / 2
+        )
+
+        // Add platform at top
+        this.addBox(
+            new THREE.Vector3(pos.x, height - 0.5, pos.z + length + 2), // Top platform
+            new THREE.Vector3(4, 1, 4),
+            new THREE.Euler(0, 0, 0),
+            color
+        )
     }
 }

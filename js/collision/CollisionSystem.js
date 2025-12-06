@@ -114,7 +114,14 @@ export class CollisionSystem {
     }
 
     if (a.type === ColliderType.BOX && b.type === ColliderType.CAPSULE) {
-      // Simplificación: tratar cápsula como esfera
+      // Improved: Check capsule segment against box
+      const feetPos = b.worldPosition.clone().add(new THREE.Vector3(0, -b.height / 2 + b.radius, 0))
+      const hitFeet = a.intersectsSphere({
+        worldPosition: feetPos,
+        radius: b.radius
+      })
+      if (hitFeet) return true
+
       return a.intersectsSphere({
         worldPosition: b.worldPosition,
         radius: b.radius,
@@ -122,6 +129,16 @@ export class CollisionSystem {
     }
 
     if (a.type === ColliderType.CAPSULE && b.type === ColliderType.BOX) {
+      // Improved: Check capsule segment against box
+      // For now, let's check the bottom sphere (feet) which is most important for ramps
+      const feetPos = a.worldPosition.clone().add(new THREE.Vector3(0, -a.height / 2 + a.radius, 0))
+      const hitFeet = b.intersectsSphere({
+        worldPosition: feetPos,
+        radius: a.radius
+      })
+      if (hitFeet) return true
+
+      // Check center just in case
       return b.intersectsSphere({
         worldPosition: a.worldPosition,
         radius: a.radius,
@@ -152,8 +169,45 @@ export class CollisionSystem {
       return a.getCollisionResponse(b)
     }
 
-    if (a.type === ColliderType.BOX && b.type === ColliderType.SPHERE) {
-      return a.getCollisionResponseForSphere(b)
+    if (a.type === ColliderType.CAPSULE && b.type === ColliderType.BOX) {
+      // Check if feet are colliding using simplified check
+      const feetPos = a.worldPosition.clone().add(new THREE.Vector3(0, -a.height / 2 + a.radius, 0))
+      const hitFeet = b.intersectsSphere({ worldPosition: feetPos, radius: a.radius })
+
+      if (hitFeet) {
+        return b.getCollisionResponseForSphere({ worldPosition: feetPos, radius: a.radius })
+      }
+      // Fallback to center
+      return b.getCollisionResponseForSphere({ worldPosition: a.worldPosition, radius: a.radius })
+    }
+
+    if (a.type === ColliderType.BOX && b.type === ColliderType.CAPSULE) {
+      const feetPos = b.worldPosition.clone().add(new THREE.Vector3(0, -b.height / 2 + b.radius, 0))
+      const hitFeet = a.intersectsSphere({ worldPosition: feetPos, radius: b.radius })
+
+      if (hitFeet) {
+        const response = a.getCollisionResponseForSphere({ worldPosition: feetPos, radius: b.radius })
+        // Invert normal/direction since a is Box, b is Capsule (we want push for a?)
+        // Wait, getCollisionResponse assumes returns correction for A relative to B?
+        // The interface usually returns: "How to move A out of B".
+        // intersectsSphere returns "Box vs Sphere".
+        // getCollisionResponseForSphere returns "How to move SPHERE out of BOX".
+        // Here, Sphere is B. Box is A.
+        // So response is "How to move B".
+        // We need to return "How to move A" -> Invert.
+        return {
+          direction: response.direction.clone().negate(),
+          overlap: response.overlap,
+          normal: response.normal.clone().negate()
+        }
+      }
+
+      const response = a.getCollisionResponseForSphere({ worldPosition: b.worldPosition, radius: b.radius })
+      return {
+        direction: response.direction.clone().negate(),
+        overlap: response.overlap,
+        normal: response.normal.clone().negate()
+      }
     }
 
     // Fallback: usar dirección simple
@@ -173,6 +227,7 @@ export class CollisionSystem {
     // No resolver si alguno es trigger o si ambos son estáticos
     if (a.isTrigger || b.isTrigger) return
     if (a.isStatic && b.isStatic) return
+    if (a.manualResolution || b.manualResolution) return
 
     const pushVector = response.direction.clone().multiplyScalar(response.overlap)
 
@@ -316,10 +371,46 @@ export class CollisionSystem {
       if (intersection) {
         const distance = origin.distanceTo(intersection)
         if (distance <= maxDistance) {
+          let normal = new THREE.Vector3(0, 1, 0)
+
+          if (collider.type === ColliderType.SPHERE) {
+            normal.subVectors(intersection, collider.worldPosition).normalize()
+          } else if (collider.type === ColliderType.BOX) {
+            // Calculate normal for box (approximated for AABB/OBB needs)
+            // For a rotated box, we need to bring the point to local space, find the face, apply rotation.
+
+            // 1. World to Local
+            const invRotation = collider.rotation.clone() // Euler
+            const quit = new THREE.Quaternion().setFromEuler(invRotation).invert()
+
+            // Local point relative to center
+            const localPoint = intersection.clone().sub(collider.worldPosition).applyQuaternion(quit)
+
+            // 2. Find closest face
+            const halfSize = collider.size.clone().multiplyScalar(0.5)
+            const bias = 0.001
+
+            if (Math.abs(localPoint.x - halfSize.x) < bias) normal.set(1, 0, 0)
+            else if (Math.abs(localPoint.x + halfSize.x) < bias) normal.set(-1, 0, 0)
+            else if (Math.abs(localPoint.y - halfSize.y) < bias) normal.set(0, 1, 0)
+            else if (Math.abs(localPoint.y + halfSize.y) < bias) normal.set(0, -1, 0)
+            else if (Math.abs(localPoint.z - halfSize.z) < bias) normal.set(0, 0, 1)
+            else if (Math.abs(localPoint.z + halfSize.z) < bias) normal.set(0, 0, -1)
+            else {
+              // Fallback: use direction from center?
+              // Or just Up if inside?
+              normal.set(0, 1, 0)
+            }
+
+            // 3. Local Normal to World
+            normal.applyEuler(collider.rotation).normalize()
+          }
+
           results.push({
             collider: collider,
             point: intersection,
             distance: distance,
+            normal: normal
           })
         }
       }
