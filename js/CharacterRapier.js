@@ -123,7 +123,15 @@ export class CharacterRapier {
             desiredTranslation.normalize().multiplyScalar(this.speed * dt)
 
             // Rotation Logic
-            let targetRotation = Math.atan2(desiredTranslation.x, desiredTranslation.z) + Math.PI // Offset?
+            let targetRotation = 0
+            if (this.cameraController.isFirstPerson) {
+                // In First Person: Character always faces Camera Direction (plus offset)
+                // This ensures "strafing" doesn't turn the body 90 degrees
+                targetRotation = this.cameraController.fpYaw + Math.PI
+            } else {
+                // In Third Person: Character faces Movement Direction
+                targetRotation = Math.atan2(desiredTranslation.x, desiredTranslation.z) + Math.PI
+            }
 
             // Smooth rotation
             let rotDiff = targetRotation - this.currentRotation
@@ -133,6 +141,30 @@ export class CharacterRapier {
 
             this.switchAnimation("Run")
         } else {
+            // Idle Logic with Deadzone
+            if (this.cameraController && this.cameraController.isFirstPerson) {
+                const cameraYaw = this.cameraController.fpYaw
+                const offset = Math.PI // Model offset
+                const limit = Math.PI / 2 // 90 degrees left/right = 180 total
+
+                let angleDiff = (cameraYaw + offset) - this.currentRotation
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2
+
+                if (Math.abs(angleDiff) > limit) {
+                    // Turn character to keep within limit
+                    // If Diff > Limit, we are too far left (Camera > Body + Limit)
+                    // We need Body = Camera - Limit
+                    const targetBody = (cameraYaw + offset) - (Math.sign(angleDiff) * limit)
+
+                    let correction = targetBody - this.currentRotation
+                    while (correction > Math.PI) correction -= Math.PI * 2
+                    while (correction < -Math.PI) correction += Math.PI * 2
+
+                    // Apply correction smoothly but fast
+                    this.currentRotation += correction * 5.0 * dt
+                }
+            }
             this.switchAnimation("Idle")
         }
 
