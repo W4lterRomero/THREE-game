@@ -17,6 +17,7 @@ export class CameraController {
 
         // First person settings
         this.firstPersonHeight = 1.7
+        this.firstPersonForwardOffset = 0.3
 
         this.theta = 0 // Horizontal angle
         this.phi = Math.PI / 4 // Vertical angle (45 degrees default)
@@ -39,7 +40,7 @@ export class CameraController {
         // First person look direction
         this.fpYaw = 0
         this.fpPitch = 0
-        this.maxPitch = Math.PI / 2 - 0.1
+        this.maxPitch = Math.PI / 2 - 0.35
 
         this.invertAxisX = true
         this.invertAxisY = true
@@ -183,6 +184,10 @@ export class CameraController {
         headPosition.y += this.firstPersonHeight
 
         this.camera.position.copy(headPosition)
+
+        // Add forward offset to avoid seeing inside body
+        const forwardOffset = new THREE.Vector3(Math.sin(this.fpYaw), 0, Math.cos(this.fpYaw)).multiplyScalar(this.firstPersonForwardOffset)
+        this.camera.position.add(forwardOffset)
 
         const lookDirection = new THREE.Vector3()
         lookDirection.x = Math.sin(this.fpYaw) * Math.cos(this.fpPitch)
