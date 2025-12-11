@@ -247,8 +247,26 @@ class Game {
         const settingsPanel = document.getElementById("settings-panel")
         const overlay = document.getElementById("overlay")
         const resumeBtn = document.getElementById("resume-btn")
-        const invertXCheckbox = document.getElementById("invert-x")
-        const invertYCheckbox = document.getElementById("invert-y")
+
+        // Tab switching logic
+        const tabs = document.querySelectorAll(".tab-btn")
+        const contents = document.querySelectorAll(".settings-content")
+
+        tabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                tabs.forEach(t => t.classList.remove("active"))
+                contents.forEach(c => c.classList.remove("active"))
+
+                tab.classList.add("active")
+                document.getElementById(tab.dataset.tab).classList.add("active")
+            })
+        })
+
+        // Inputs
+        const fpInvertX = document.getElementById("fp-invert-x")
+        const fpInvertY = document.getElementById("fp-invert-y")
+        const tpInvertX = document.getElementById("tp-invert-x")
+        const tpInvertY = document.getElementById("tp-invert-y")
         const tpTrackingCheckbox = document.getElementById("tp-tracking")
         const cameraModeText = document.getElementById("camera-mode-text")
 
@@ -256,8 +274,13 @@ class Game {
             if (e.detail.isPaused) {
                 settingsPanel.style.display = "block"
                 overlay.style.display = "block"
-                invertXCheckbox.checked = e.detail.invertAxisX
-                invertYCheckbox.checked = e.detail.invertAxisY
+
+                // Update inputs from controller state
+                fpInvertX.checked = e.detail.fpInvertAxisX
+                fpInvertY.checked = e.detail.fpInvertAxisY
+                tpInvertX.checked = e.detail.tpInvertAxisX
+                tpInvertY.checked = e.detail.tpInvertAxisY
+
                 if (tpTrackingCheckbox) tpTrackingCheckbox.checked = this.cameraController.alwaysRotateThirdPerson
                 cameraModeText.textContent = e.detail.isFirstPerson ? "First Person" : "Third Person"
             } else {
@@ -274,13 +297,11 @@ class Game {
             this.cameraController.togglePause()
         })
 
-        invertXCheckbox.addEventListener("change", (e) => {
-            this.cameraController.setInvertAxisX(e.target.checked)
-        })
-
-        invertYCheckbox.addEventListener("change", (e) => {
-            this.cameraController.setInvertAxisY(e.target.checked)
-        })
+        // Bind events
+        fpInvertX.addEventListener("change", (e) => this.cameraController.setFpInvertAxisX(e.target.checked))
+        fpInvertY.addEventListener("change", (e) => this.cameraController.setFpInvertAxisY(e.target.checked))
+        tpInvertX.addEventListener("change", (e) => this.cameraController.setTpInvertAxisX(e.target.checked))
+        tpInvertY.addEventListener("change", (e) => this.cameraController.setTpInvertAxisY(e.target.checked))
 
         if (tpTrackingCheckbox) {
             tpTrackingCheckbox.addEventListener("change", (e) => {

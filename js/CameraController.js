@@ -43,8 +43,11 @@ export class CameraController {
         this.fpPitch = 0
         this.maxPitch = Math.PI / 2 - 0.35
 
-        this.invertAxisX = true
-        this.invertAxisY = true
+        // Axis settings
+        this.fpInvertAxisX = true
+        this.fpInvertAxisY = true
+        this.tpInvertAxisX = true
+        this.tpInvertAxisY = true
 
         this.isPaused = false
 
@@ -92,12 +95,12 @@ export class CameraController {
 
             if (canRotate) {
                 if (this.isFirstPerson) {
-                    this.fpYaw += e.movementX * this.rotationSpeed * (this.invertAxisX ? -1 : 1)
-                    this.fpPitch -= e.movementY * this.rotationSpeed * (this.invertAxisY ? -1 : 1)
+                    this.fpYaw += e.movementX * this.rotationSpeed * (this.fpInvertAxisX ? -1 : 1)
+                    this.fpPitch -= e.movementY * this.rotationSpeed * (this.fpInvertAxisY ? -1 : 1)
                     this.fpPitch = Math.max(-this.maxPitch, Math.min(this.maxPitch, this.fpPitch))
                 } else {
-                    this.theta += e.movementX * this.rotationSpeed * (this.invertAxisX ? -1 : 1)
-                    this.phi -= e.movementY * this.rotationSpeed * (this.invertAxisY ? -1 : 1)
+                    this.theta += e.movementX * this.rotationSpeed * (this.tpInvertAxisX ? -1 : 1)
+                    this.phi -= e.movementY * this.rotationSpeed * (this.tpInvertAxisY ? -1 : 1)
                     this.phi = Math.max(this.minPhi, Math.min(this.maxPhi, this.phi))
                 }
             }
@@ -139,19 +142,29 @@ export class CameraController {
             detail: {
                 isPaused: this.isPaused,
                 isFirstPerson: this.isFirstPerson,
-                invertAxisX: this.invertAxisX,
-                invertAxisY: this.invertAxisY,
+                fpInvertAxisX: this.fpInvertAxisX,
+                fpInvertAxisY: this.fpInvertAxisY,
+                tpInvertAxisX: this.tpInvertAxisX,
+                tpInvertAxisY: this.tpInvertAxisY,
             },
         })
         document.dispatchEvent(event)
     }
 
-    setInvertAxisX(value) {
-        this.invertAxisX = value
+    setFpInvertAxisX(value) {
+        this.fpInvertAxisX = value
     }
 
-    setInvertAxisY(value) {
-        this.invertAxisY = value
+    setFpInvertAxisY(value) {
+        this.fpInvertAxisY = value
+    }
+
+    setTpInvertAxisX(value) {
+        this.tpInvertAxisX = value
+    }
+
+    setTpInvertAxisY(value) {
+        this.tpInvertAxisY = value
     }
 
     setAlwaysRotateThirdPerson(value) {

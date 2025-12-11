@@ -23,23 +23,42 @@
     <div id="settings-panel">
         <h2>Configuracion</h2>
 
-        <div class="settings-section">
-            <h3>Camara</h3>
-            <div class="setting-row">
-                <span class="setting-label">Modo de camara</span>
-                <span class="camera-mode-display" id="camera-mode-text">Tercera Persona</span>
-            </div>
+        <div class="tabs">
+            <div class="tab-btn active" data-tab="fp-settings">Primera Persona</div>
+            <div class="tab-btn" data-tab="tp-settings">Tercera Persona</div>
+        </div>
+
+        <div class="settings-content active" id="fp-settings">
+            <h3>Configuracion Primera Persona</h3>
             <div class="setting-row">
                 <span class="setting-label">Invertir eje X</span>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="invert-x" checked>
+                    <input type="checkbox" id="fp-invert-x" checked>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
             <div class="setting-row">
                 <span class="setting-label">Invertir eje Y</span>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="invert-y" checked>
+                    <input type="checkbox" id="fp-invert-y" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-content" id="tp-settings">
+            <h3>Configuracion Tercera Persona</h3>
+            <div class="setting-row">
+                <span class="setting-label">Invertir eje X</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="tp-invert-x" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Invertir eje Y</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="tp-invert-y" checked>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -49,6 +68,13 @@
                     <input type="checkbox" id="tp-tracking">
                     <span class="toggle-slider"></span>
                 </label>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="setting-row">
+                <span class="setting-label">Modo de camara</span>
+                <span class="camera-mode-display" id="camera-mode-text">Tercera Persona</span>
             </div>
             <label class="mp-checkbox">
                 <input type="checkbox" id="show-names" checked>

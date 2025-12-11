@@ -45,6 +45,40 @@ body {
     padding-bottom: 16px;
 }
 
+.tabs {
+    display: flex;
+    justify-content: space-around;
+    border-bottom: 1px solid #444;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #888;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: #ccc;
+}
+
+.tab-btn.active {
+    color: #4CAF50;
+    border-bottom: 2px solid #4CAF50;
+}
+
+.settings-content {
+    display: none;
+}
+
+.settings-content.active {
+    display: block;
+    animation: fadeIn 0.3s;
+}
+
 .settings-section {
     margin-bottom: 20px;
 }
