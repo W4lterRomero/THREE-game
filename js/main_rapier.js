@@ -56,9 +56,10 @@ class Game {
         this.npc = new NPCRapier(
             this.sceneManager.scene,
             this.world,
-            new THREE.Vector3(5, 5, 5),
-            [new THREE.Vector3(5, 0, 5), new THREE.Vector3(10, 0, 5), new THREE.Vector3(10, 0, 10), new THREE.Vector3(5, 0, 10)]
+            new THREE.Vector3(0, 0, -15), // posicion inicial
+            [new THREE.Vector3(0, 0, -15), new THREE.Vector3(5, 0, -15), new THREE.Vector3(5, 0, -10), new THREE.Vector3(0, 0, -10)] // patron de movimiento
         )
+
 
         // Impulse Platforms
         this.platforms = []
@@ -70,7 +71,7 @@ class Game {
             this.world,
             new THREE.Vector3(0, 0.1, 10), // Position
             new THREE.Vector3(0, 0, 1),    // Direction (Forward Z+)
-            1.0,                          // Strength
+            25.0,                          // Strength
             "pad"
         )
         this.platforms.push(forwardPad)

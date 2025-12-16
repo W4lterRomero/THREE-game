@@ -16,6 +16,7 @@ export class ImpulsePlatform {
 
         this.collider = null
         this.mesh = null
+        this.wasInZone = false
         this.initPhysics()
         this.initVisuals()
     }
@@ -60,38 +61,31 @@ export class ImpulsePlatform {
     update(character) {
         if (!character || !character.rigidBody || !this.collider) return
 
-        // Check intersection
-        // Rapier sensor check requires us to know if character collider is intersecting this sensor.
-        // We can do a manual bound check for simplicity (AABB).
-        // Or rely on Rapier events?
-        // Manual AABB is cheapest and robust for simple boxes.
-
         const charPos = character.getPosition()
 
         // Simple rectangular bounds check
         const halfW = this.width / 2
         const halfD = this.depth / 2
 
-        // We treat it as an infinite height column for trigger? Or just close enough?
-        // Usually pads are walked ON.
-
         const dx = Math.abs(charPos.x - this.position.x)
         const dz = Math.abs(charPos.z - this.position.z)
-        const dy = charPos.y - this.position.y // Should be close to 0 or positive
+        const dy = charPos.y - this.position.y
 
-        if (dx < halfW && dz < halfD && dy < 2.0 && dy > -0.5) {
-            // Trigger Impulse!
-            // Need cooldown?
-            // If continuous, we apply force every frame (acceleration).
-            // If instant boost, usually one-off until exit.
+        // Stricter vertical check: Must be close to the platform surface (touching)
+        // dy should be around 0.1 (platform top) to 0.5.
+        // Also check if we are physically inside the column.
+        const inZone = (dx < halfW && dz < halfD && dy >= -0.1 && dy < 0.5)
 
-            // For fun, let's make it continuous force.
-            // But if it's "Impulse", it implies instantaneous velocity change.
-            // If Character is "Kinematic", we need to modify its velocity/momentum.
-
-            // Apply Impulse
-            const force = this.direction.clone().multiplyScalar(this.strength)
-            character.applyImpulse(force)
+        if (inZone) {
+            if (!this.wasInZone) {
+                // Trigger Impulse - ONE SHOT
+                const force = this.direction.clone().multiplyScalar(this.strength)
+                character.applyImpulse(force)
+                this.wasInZone = true
+            }
+        } else {
+            // Reset when leaving the zone (e.g. jumped up high)
+            this.wasInZone = false
         }
     }
 }
