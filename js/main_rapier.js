@@ -104,6 +104,7 @@ class Game {
 
         this.setupSettingsPanel()
         this.setupMultiplayerUI()
+        this.setupInventory()
 
         // Environment (Rapier Rigidbody + Three Mesh)
         // Environment (Rapier Rigidbody + Three Mesh)
@@ -425,6 +426,22 @@ class Game {
                 chSizeVal.textContent = size + "px"
             })
         }
+    }
+    setupInventory() {
+        const slots = document.querySelectorAll(".inventory-slot")
+        document.addEventListener("keydown", (e) => {
+            if (this.inputManager && !this.inputManager.enabled) return // Don't switch if typing in chat
+
+            const key = parseInt(e.key)
+            if (key >= 1 && key <= 6) {
+                // Remove active class from all
+                slots.forEach(s => s.classList.remove("active"))
+                // Add to selected
+                if (slots[key - 1]) {
+                    slots[key - 1].classList.add("active")
+                }
+            }
+        })
     }
 }
 

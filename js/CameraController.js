@@ -108,8 +108,20 @@ export class CameraController {
 
         // Scroll to zoom in third person
         this.domElement.addEventListener("wheel", (e) => {
-            if (!this.isFirstPerson && !this.isPaused) {
-                this.thirdPersonDistance += e.deltaY * 0.01
+            if (!this.isFirstPerson && !this.isPaused && e.shiftKey) {
+                // Browsers often map Shift + Wheel to horizontal scroll (deltaX)
+                // We sum them or take the one with significant value to support both cases
+                let delta = e.deltaY
+                if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                    delta = e.deltaX
+                }
+
+                // Normalize delta for different input devices
+                if (e.deltaMode === 1) { // Line mode
+                    delta *= 40
+                }
+
+                this.thirdPersonDistance += delta * 0.01
                 this.thirdPersonDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.thirdPersonDistance))
             }
         })
