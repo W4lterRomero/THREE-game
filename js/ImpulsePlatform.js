@@ -42,10 +42,19 @@ export class ImpulsePlatform {
     }
 
     initVisuals() {
+        // Determine type based on direction
+        const isJump = this.direction.y > 0.5
+
+        // Colors
+        const lateralColor = 0x00FF00 // Green
+        const jumpColor = 0x00FFFF    // Celeste / Cyan
+
+        const color = isJump ? jumpColor : lateralColor
+
         // Base Platform
         const geometry = new THREE.BoxGeometry(this.width, this.height, this.depth)
         const material = new THREE.MeshStandardMaterial({
-            color: 0x444444,
+            color: color,
             roughness: 0.8
         })
 
@@ -54,6 +63,46 @@ export class ImpulsePlatform {
         this.mesh.position.y -= this.height / 2 // Align with flush floor
         this.mesh.receiveShadow = true
         this.scene.add(this.mesh)
+
+        // Indicator Texture
+        const textureLoader = new THREE.TextureLoader()
+        const texturePath = isJump ? 'assets/textures/salto.png' : 'assets/textures/impulso.png'
+        const texture = textureLoader.load(texturePath)
+
+        // Create a plane for the indicator
+        const arrowGeometry = new THREE.PlaneGeometry(this.width * 0.8, this.depth * 0.8)
+        const arrowMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        })
+
+        const arrowMesh = new THREE.Mesh(arrowGeometry, arrowMaterial)
+
+        // Position slightly above the platform
+        arrowMesh.position.y = this.height / 2 + 0.01
+
+        // Rotate to lie flat on the platform
+        arrowMesh.rotation.x = -Math.PI / 2
+
+        if (!isJump) {
+            // Lateral: Rotate to point in the direction of the impulse
+            const flatDir = new THREE.Vector3(this.direction.x, 0, this.direction.z).normalize()
+
+            if (flatDir.lengthSq() > 0.001) {
+                // Angle calc: we want Local +Y (which is World -Z after X-rot) to point to flatDir
+                const targetTheta = Math.atan2(this.direction.x, this.direction.z)
+                // Initial angle of World -Z is PI. Rotation needed:
+                arrowMesh.rotation.z = targetTheta - Math.PI
+            }
+        } else {
+            // Jump: Default orientation is fine (Top of texture points -Z)
+            // If we want it to face the player entering? Usually jump pads are omni or fixed.
+            // Leaving it fixed for now.
+        }
+
+        this.mesh.add(arrowMesh)
     }
 
 

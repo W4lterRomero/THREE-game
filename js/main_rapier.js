@@ -70,7 +70,7 @@ class Game {
             this.sceneManager.scene,
             this.world,
             new THREE.Vector3(0, 0.1, 10), // Position
-            new THREE.Vector3(0, 0, 1),    // Direction (Forward Z+)
+            new THREE.Vector3(1, 0, 0),    // Direction (Forward Z+)
             25.0,                          // Strength
             "pad"
         )
