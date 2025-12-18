@@ -277,11 +277,14 @@ class Game {
 
             this.ghostBaseMat.color.setHex(color)
 
-            // Texture loading (Cache this ideally, but loader caches usually)
-            // But we can't constantly load texture in loop.
-            // Let's load textures once in constructor or setupInventory if possible.
-            // For now, let's just use color. 
-            // Better: Pre-load textures.
+            // Texture loading
+            if (isJump && this.texSalto) {
+                this.ghostArrowMat.map = this.texSalto
+                this.ghostArrowMat.needsUpdate = true
+            } else if (!isJump && this.texImpulso) {
+                this.ghostArrowMat.map = this.texImpulso
+                this.ghostArrowMat.needsUpdate = true
+            }
         }
 
         // Handle Rotation
@@ -547,6 +550,11 @@ class Game {
     setupInventory() {
         this.currentInventorySlot = 0 // 0-indexed (0 to 5)
         this.placementRotationIndex = 0 // 0=Forward, 1=Right, 2=Back, 3=Left
+
+        const loader = new THREE.TextureLoader()
+        this.texImpulso = loader.load('./assets/textures/impulso.png')
+        this.texSalto = loader.load('./assets/textures/salto.png')
+
 
         const slots = document.querySelectorAll(".inventory-slot")
 
