@@ -201,9 +201,126 @@ class Game {
             this.platforms.forEach(p => p.update(this.character))
         }
 
+        // Ghost Preview Update
+        this.updatePlacementIndicator()
+
         // Render
         this.updateDebugRender()
         this.sceneManager.update()
+    }
+
+    updatePlacementIndicator() {
+        // Initialize ghost if not exists
+        if (!this.placementGhost) {
+            this.placementGhost = new THREE.Group()
+            this.sceneManager.scene.add(this.placementGhost)
+
+            // Base Box
+            const geometry = new THREE.BoxGeometry(3, 0.2, 3)
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.3,
+                wireframe: true
+            })
+            const mesh = new THREE.Mesh(geometry, material)
+            mesh.position.y -= 0.1 // Flush
+            this.placementGhost.add(mesh)
+
+            // Arrow/Icon
+            const arrowGeo = new THREE.PlaneGeometry(2.4, 2.4)
+            const arrowMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            })
+            this.ghostArrow = new THREE.Mesh(arrowGeo, arrowMat)
+            this.ghostArrow.rotation.x = -Math.PI / 2
+            this.ghostArrow.position.y = 0.05
+            this.placementGhost.add(this.ghostArrow)
+
+            // Store material refs for color changing
+            this.ghostBaseMat = material
+            this.ghostArrowMat = arrowMat
+        }
+
+        // Hide by default
+        this.placementGhost.visible = false
+
+        // Only show for slots 0 and 1
+        if (this.currentInventorySlot !== 0 && this.currentInventorySlot !== 1) return
+
+        // Raycast
+        const raycaster = new THREE.Raycaster()
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.sceneManager.camera)
+        const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
+
+        // Find valid hit
+        const hit = intersects.find(h => h.distance < 15 && h.object.type === "Mesh" && h.object !== this.placementGhost && !this.placementGhost.children.includes(h.object))
+
+        if (hit) {
+            this.placementGhost.visible = true
+            this.placementGhost.position.copy(hit.point)
+            // No vertical lift needed if we want it flush/embedded (geometry is centered)
+            // Actually ghost geometry is:
+            // BoxGeometry(3, 0.2, 3) -> Center 0.
+            // mesh.position.y -= 0.1 -> Bottom at -0.2, Top at 0 relative to ghost group.
+            // Ghost Group at hit.point.
+            // So Top is at hit.point.
+            // Perfect.
+
+
+            // Update Visuals based on slot
+            const isJump = this.currentInventorySlot === 1
+            const color = isJump ? 0x00FFFF : 0x00FF00
+
+            this.ghostBaseMat.color.setHex(color)
+
+            // Texture loading (Cache this ideally, but loader caches usually)
+            // But we can't constantly load texture in loop.
+            // Let's load textures once in constructor or setupInventory if possible.
+            // For now, let's just use color. 
+            // Better: Pre-load textures.
+        }
+
+        // Handle Rotation
+        if (this.placementGhost.visible) {
+            if (this.currentInventorySlot === 0) {
+                // Lateral: Rotate arrow
+                // 0: North (-Z) -> 0 rot around Y? 
+                // We need to match logic in placeItem
+                // 0: Forward (-Z). Texture points Up (Y+). Plane X -90 => Up is -Z. 
+                // So 0 rot is correct for North.
+
+                // 0 -> 0 (North)
+                // 1 -> -PI/2 (East) (Right) ?
+                // placeItem logic:
+                // 1: East (+X). 
+                // To point East (-Z rotated to +X), we rotate -90 deg (Clockwise from top) around Y.
+                // Wait, standard rotation Y is Counter-Clockwise.
+                // -Z to +X is +90 deg not -90?
+                // -1 (0,0,-1) -> +1 (1,0,0)? No.
+                // let's retry visual check logic.
+
+                // If default is -Z.
+                // Rot Y +90 => Points -X.
+                // Rot Y -90 => Points +X.
+
+                // My placeItem logic:
+                // 1: East (+X). 
+                // So we need Rot Y -90 (or 270).
+
+                let rotY = 0
+                if (this.placementRotationIndex === 1) rotY = -Math.PI / 2
+                if (this.placementRotationIndex === 2) rotY = -Math.PI
+                if (this.placementRotationIndex === 3) rotY = Math.PI / 2 // West (-X)
+
+                this.ghostArrow.rotation.z = rotY // Since plane is X -90, Z is World Y.
+            } else {
+                this.ghostArrow.rotation.z = 0
+            }
+        }
     }
 
     setupDebugRender() {
@@ -532,7 +649,8 @@ class Game {
                 // Let's assume height is 0.2 from ImpulsePlatform class
                 const height = 0.2
                 const placePos = position.clone()
-                placePos.y += height / 2
+                // placePos.y += height / 2 // Removed to keep it flush with ground
+
 
                 if (this.currentInventorySlot === 0) {
                     // Lateral Pad
