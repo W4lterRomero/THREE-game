@@ -10,6 +10,7 @@ import { NPCRapier } from "./NPCRapier.js"
 import { LevelBuilder } from "./environment/LevelBuilder.js"
 import { LevelLoader } from "./environment/LevelLoader.js"
 import { ImpulsePlatform } from "./ImpulsePlatform.js"
+import { PlacementManager } from "./PlacementManager.js"
 
 class Game {
     constructor() {
@@ -51,6 +52,9 @@ class Game {
         })
 
         this.chatManager = new ChatManager(this.networkManager)
+
+        // Manager de colocación
+        this.placementManager = new PlacementManager(this.sceneManager.scene, this.sceneManager.camera)
 
         // NPC
         this.npc = new NPCRapier(
@@ -201,130 +205,24 @@ class Game {
             this.platforms.forEach(p => p.update(this.character))
         }
 
-        // Ghost Preview Update
-        this.updatePlacementIndicator()
+        // Ghost Preview Update (via Manager)
+        if (this.placementManager) {
+            this.placementManager.update(this.currentInventorySlot, this.placementRotationIndex)
+        }
 
         // Render
         this.updateDebugRender()
         this.sceneManager.update()
     }
 
-    updatePlacementIndicator() {
-        // Initialize ghost if not exists
-        if (!this.placementGhost) {
-            this.placementGhost = new THREE.Group()
-            this.sceneManager.scene.add(this.placementGhost)
-
-            // Base Box
-            const geometry = new THREE.BoxGeometry(3, 0.2, 3)
-            const material = new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.3,
-                wireframe: true
-            })
-            const mesh = new THREE.Mesh(geometry, material)
-            mesh.position.y -= 0.1 // Flush
-            this.placementGhost.add(mesh)
-
-            // Arrow/Icon
-            const arrowGeo = new THREE.PlaneGeometry(2.4, 2.4)
-            const arrowMat = new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.5,
-                side: THREE.DoubleSide
-            })
-            this.ghostArrow = new THREE.Mesh(arrowGeo, arrowMat)
-            this.ghostArrow.rotation.x = -Math.PI / 2
-            this.ghostArrow.position.y = 0.05
-            this.placementGhost.add(this.ghostArrow)
-
-            // Store material refs for color changing
-            this.ghostBaseMat = material
-            this.ghostArrowMat = arrowMat
-        }
-
-        // Hide by default
-        this.placementGhost.visible = false
-
-        // Only show for slots 0 and 1
-        if (this.currentInventorySlot !== 0 && this.currentInventorySlot !== 1) return
-
-        // Raycast
-        const raycaster = new THREE.Raycaster()
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.sceneManager.camera)
-        const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
-
-        // Find valid hit
-        const hit = intersects.find(h => h.distance < 15 && h.object.type === "Mesh" && h.object !== this.placementGhost && !this.placementGhost.children.includes(h.object))
-
-        if (hit) {
-            this.placementGhost.visible = true
-            this.placementGhost.position.copy(hit.point)
-            // No vertical lift needed if we want it flush/embedded (geometry is centered)
-            // Actually ghost geometry is:
-            // BoxGeometry(3, 0.2, 3) -> Center 0.
-            // mesh.position.y -= 0.1 -> Bottom at -0.2, Top at 0 relative to ghost group.
-            // Ghost Group at hit.point.
-            // So Top is at hit.point.
-            // Perfect.
 
 
-            // Update Visuals based on slot
-            const isJump = this.currentInventorySlot === 1
-            const color = isJump ? 0x00FFFF : 0x00FF00
 
-            this.ghostBaseMat.color.setHex(color)
 
-            // Texture loading
-            if (isJump && this.texSalto) {
-                this.ghostArrowMat.map = this.texSalto
-                this.ghostArrowMat.needsUpdate = true
-            } else if (!isJump && this.texImpulso) {
-                this.ghostArrowMat.map = this.texImpulso
-                this.ghostArrowMat.needsUpdate = true
-            }
-        }
 
-        // Handle Rotation
-        if (this.placementGhost.visible) {
-            if (this.currentInventorySlot === 0) {
-                // Lateral: Rotate arrow
-                // 0: North (-Z) -> 0 rot around Y? 
-                // We need to match logic in placeItem
-                // 0: Forward (-Z). Texture points Up (Y+). Plane X -90 => Up is -Z. 
-                // So 0 rot is correct for North.
 
-                // 0 -> 0 (North)
-                // 1 -> -PI/2 (East) (Right) ?
-                // placeItem logic:
-                // 1: East (+X). 
-                // To point East (-Z rotated to +X), we rotate -90 deg (Clockwise from top) around Y.
-                // Wait, standard rotation Y is Counter-Clockwise.
-                // -Z to +X is +90 deg not -90?
-                // -1 (0,0,-1) -> +1 (1,0,0)? No.
-                // let's retry visual check logic.
 
-                // If default is -Z.
-                // Rot Y +90 => Points -X.
-                // Rot Y -90 => Points +X.
 
-                // My placeItem logic:
-                // 1: East (+X). 
-                // So we need Rot Y -90 (or 270).
-
-                let rotY = 0
-                if (this.placementRotationIndex === 1) rotY = -Math.PI / 2
-                if (this.placementRotationIndex === 2) rotY = -Math.PI
-                if (this.placementRotationIndex === 3) rotY = Math.PI / 2 // West (-X)
-
-                this.ghostArrow.rotation.z = rotY // Since plane is X -90, Z is World Y.
-            } else {
-                this.ghostArrow.rotation.z = 0
-            }
-        }
-    }
 
     setupDebugRender() {
         this.debugMesh = new THREE.LineSegments(
@@ -551,11 +449,6 @@ class Game {
         this.currentInventorySlot = 0 // 0-indexed (0 to 5)
         this.placementRotationIndex = 0 // 0=Forward, 1=Right, 2=Back, 3=Left
 
-        const loader = new THREE.TextureLoader()
-        this.texImpulso = loader.load('./assets/textures/impulso.png')
-        this.texSalto = loader.load('./assets/textures/salto.png')
-
-
         const slots = document.querySelectorAll(".inventory-slot")
 
         const selectSlot = (index) => {
@@ -620,89 +513,56 @@ class Game {
         // Only allow placement for slots 1 and 2 (index 0 and 1)
         if (this.currentInventorySlot !== 0 && this.currentInventorySlot !== 1) return
 
-        // Raycast from camera center
-        const raycaster = new THREE.Raycaster()
-        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.sceneManager.camera)
+        // Usar el manager para obtener el punto de impacto exacto
+        const hitPoint = this.placementManager.update(this.currentInventorySlot, this.placementRotationIndex)
 
-        // Intersect with world meshes (exclude dynamic characters if possible, but environment is key)
-        // We can just intersect everything and filter? 
-        // For simplicity, let's intersect visual scene. 
-        // Ideally we should have a list of "placeable" meshes. 
-        // Let's assume everything visible is placeable for now except triggers.
-
-        const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
-
-        if (intersects.length > 0) {
-            // Find first valid hit (distance < some max range)
-            const hit = intersects.find(h => h.distance < 10 && h.object.type === "Mesh")
-
-            if (hit) {
-                const position = hit.point
-                // Lift slightly so it sits on top? ImpulsePlatform handles y alignment relative to its center?
-                // ImpulsePlatform constructor takes center position.
-                // It builds mesh from center - height/2 to center + height/2 ?
-                // Code says: this.mesh.position.y -= this.height / 2 
-                // So if we pass P, mesh bottom is at P - height. 
-                // Wait. 
-                // ImpulsePlatform:
-                // constructor(..., position, ...)
-                // mesh.position.copy(position)
-                // mesh.position.y -= height/2
-                // So if we pass P, the mesh CENTER is at P, and VISUAL is shifted down.
-                // If P is on floor (Y=0), Visual is at -0.1 (flush with floor if height=0.2).
-                // Usually we want the bottom of the pad to be at hit.point.y.
-                // If mesh bottom is at `pos.y - height/2`, and we want that to be `hit.y`.
-                // Then `pos.y - height/2 = hit.y` => `pos.y = hit.y + height/2`.
-
-                // Let's assume height is 0.2 from ImpulsePlatform class
-                const height = 0.2
-                const placePos = position.clone()
-                // placePos.y += height / 2 // Removed to keep it flush with ground
+        if (hitPoint) {
+            const placePos = hitPoint.clone()
+            // placePos.y += 0 // Flush con el suelo
 
 
-                if (this.currentInventorySlot === 0) {
-                    // Lateral Pad
-                    // Calculate direction based on rotation index relative to Camera or Fixed?
-                    // User asked for "Forward, Back, Right, Left".
-                    // Let's align with World Axes for simplicity + Rotation.
-                    // 0: Forward (Z+), 1: Right (X-), 2: Backward (Z-), 3: Left (X+)
-                    // Wait, standard ThreeJS coords:
-                    // Z+ is usually "Forward" out of screen? No, Z- is forward for camera.
-                    // Let's use World Coordinate directions.
-                    // 0: North (-Z)
-                    // 1: East (+X)
-                    // 2: South (+Z)
-                    // 3: West (-X)
+            if (this.currentInventorySlot === 0) {
+                // Lateral Pad
+                // Calculate direction based on rotation index relative to Camera or Fixed?
+                // User asked for "Forward, Back, Right, Left".
+                // Let's align with World Axes for simplicity + Rotation.
+                // 0: Forward (Z+), 1: Right (X-), 2: Backward (Z-), 3: Left (X+)
+                // Wait, standard ThreeJS coords:
+                // Z+ is usually "Forward" out of screen? No, Z- is forward for camera.
+                // Let's use World Coordinate directions.
+                // 0: North (-Z)
+                // 1: East (+X)
+                // 2: South (+Z)
+                // 3: West (-X)
 
-                    let dir = new THREE.Vector3(0, 0, -1) // Default Forward (-Z)
-                    if (this.placementRotationIndex === 1) dir.set(1, 0, 0) // East
-                    if (this.placementRotationIndex === 2) dir.set(0, 0, 1) // South
-                    if (this.placementRotationIndex === 3) dir.set(-1, 0, 0) // West
+                let dir = new THREE.Vector3(0, 0, -1) // Default Forward (-Z)
+                if (this.placementRotationIndex === 1) dir.set(1, 0, 0) // East
+                if (this.placementRotationIndex === 2) dir.set(0, 0, 1) // South
+                if (this.placementRotationIndex === 3) dir.set(-1, 0, 0) // West
 
-                    const pad = new ImpulsePlatform(
-                        this.sceneManager.scene,
-                        this.world,
-                        placePos,
-                        dir,
-                        25.0,
-                        "pad"
-                    )
-                    this.platforms.push(pad)
-                    console.log("Placed Lateral Pad", dir)
+                const pad = new ImpulsePlatform(
+                    this.sceneManager.scene,
+                    this.world,
+                    placePos,
+                    dir,
+                    25.0,
+                    "pad"
+                )
+                this.platforms.push(pad)
+                console.log("Placed Lateral Pad", dir)
 
-                } else if (this.currentInventorySlot === 1) {
-                    // Jump Pad
-                    const pad = new ImpulsePlatform(
-                        this.sceneManager.scene,
-                        this.world,
-                        placePos,
-                        new THREE.Vector3(0, 1, 0), // Up
-                        35.0, // Higher strength for jump
-                        "pad"
-                    )
-                    this.platforms.push(pad)
-                    console.log("Placed Jump Pad")
-                }
+            } else if (this.currentInventorySlot === 1) {
+                // Jump Pad
+                const pad = new ImpulsePlatform(
+                    this.sceneManager.scene,
+                    this.world,
+                    placePos,
+                    new THREE.Vector3(0, 1, 0), // Up
+                    35.0, // Higher strength for jump
+                    "pad"
+                )
+                this.platforms.push(pad)
+                console.log("Placed Jump Pad")
             }
         }
     }
