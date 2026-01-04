@@ -59,6 +59,7 @@ export class ImpulsePlatform {
         })
 
         this.mesh = new THREE.Mesh(geometry, material)
+        this.mesh.userData.isImpulsePad = true // Tag for raycasting/overlap check
         this.mesh.position.copy(this.position)
         this.mesh.position.y -= this.height / 2 // Align with flush floor
         this.mesh.receiveShadow = true

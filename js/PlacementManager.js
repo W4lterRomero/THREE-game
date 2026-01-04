@@ -103,42 +103,71 @@ export class PlacementManager {
             !this.placementGhost.children.includes(h.object)
         )
 
+        // Validación: Verificar colisión con otros pads
+        let isValid = false
+        if (hit) {
+            // 1. Verificar si apuntamos directamente a un pad existente
+            const isTargetPad = hit.object.userData && hit.object.userData.isImpulsePad
+
+            // 2. Verificar superposición de volumen (Overlap)
+            let isOverlapping = false
+            if (!isTargetPad) {
+                // Revisar todos los hijos de la escena buscando pads
+                const PAD_SIZE = 3 // Tamaño aproximado del pad (3x3)
+                for (const obj of this.scene.children) {
+                    if (obj.userData && obj.userData.isImpulsePad) {
+                        const dx = Math.abs(obj.position.x - hit.point.x)
+                        const dz = Math.abs(obj.position.z - hit.point.z)
+
+                        // Si la distancia en ambos ejes es menor al tamaño, hay colisión
+                        if (dx < PAD_SIZE && dz < PAD_SIZE) {
+                            isOverlapping = true
+                            break
+                        }
+                    }
+                }
+            }
+
+            isValid = !isTargetPad && !isOverlapping
+        }
+
         if (hit) {
             this.placementGhost.visible = true
             this.placementGhost.position.copy(hit.point)
-            this.placementGhost.position.y += 0.1 // Ajuste de altura: 0.10 por encima del suelo
-            // (La geometría base ya está ajustada internamente para que su cara superior esté en 0 local)
+            this.placementGhost.position.y += 0.1
 
-            // Actualizar visuales según el slot
             const isJump = (inventorySlot === 1)
-            const color = isJump ? 0x00FFFF : 0x00FF00 // Celeste o Verde
 
-            this.ghostBaseMat.color.setHex(color)
-
-            // Aplicar Textura
+            // Actualizar Textura y Rotación siempre para feedback visual
             if (isJump && this.texSalto) {
                 this.ghostArrowMat.map = this.texSalto
-                this.ghostArrowMat.needsUpdate = true
             } else if (!isJump && this.texImpulso) {
                 this.ghostArrowMat.map = this.texImpulso
-                this.ghostArrowMat.needsUpdate = true
             }
+            this.ghostArrowMat.needsUpdate = true
 
-            // Manejar Rotación
             if (!isJump) {
-                // Lateral: Rotar flecha según índice
-                // 0: Norte, 1: Este, etc.
                 let rotY = 0
                 if (rotationIndex === 1) rotY = -Math.PI / 2
                 if (rotationIndex === 2) rotY = -Math.PI
                 if (rotationIndex === 3) rotY = Math.PI / 2
-
-                this.ghostArrow.rotation.z = rotY // Z porque el plano está rotado en X (-90)
+                this.ghostArrow.rotation.z = rotY
             } else {
                 this.ghostArrow.rotation.z = 0
             }
 
-            return hit.point
+            if (isValid) {
+                // Válido: Color normal (Verde/Celeste)
+                const color = isJump ? 0x00FFFF : 0x00FF00
+                this.ghostBaseMat.color.setHex(color)
+                this.ghostArrowMat.color.setHex(0xFFFFFF) // Resetear tinte
+                return hit.point
+            } else {
+                // Inválido: Color Rojo
+                this.ghostBaseMat.color.setHex(0xFF0000)
+                this.ghostArrowMat.color.setHex(0xFF0000) // Tinte rojo
+                return null
+            }
         } else {
             this.placementGhost.visible = false
             return null
