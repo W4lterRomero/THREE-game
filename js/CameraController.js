@@ -11,7 +11,7 @@ export class CameraController {
         // Third person settings
         this.thirdPersonDistance = 8
         this.thirdPersonHeight = 2
-        this.alwaysRotateThirdPerson = false // Added for TP tracking
+        this.alwaysRotateThirdPerson = true // Added for TP tracking
         this.minDistance = 2
         this.maxDistance = 20
         this.minCameraHeight = 0.5
