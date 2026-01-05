@@ -102,6 +102,41 @@ export class ItemDropManager {
         return nearest;
     }
 
+    /**
+     * Revisa y recoge automaticamente items de cierto tipo sin interaccion
+     * @param {THREE.Vector3} position - Posicion del recolector (jugador)
+     * @param {number} range - Radio de recoleccion
+     * @param {string} itemType - Tipo de item a recolectar (o null para cualquiera) (propiedad ID o filtro custom)
+     * @returns {Array} - Lista de items recogidos
+     */
+    checkAutoPickup(position, range = 1.0, itemIdFilter = null) {
+        const collected = [];
+        const rangeSq = range * range;
+
+        // Iterate backwards to safely remove
+        for (let i = this.droppedItems.length - 1; i >= 0; i--) {
+            const dropped = this.droppedItems[i];
+
+            // Check Filter
+            if (itemIdFilter && dropped.item.id !== itemIdFilter) continue;
+
+            const itemPos = dropped.rigidBody.translation();
+            const dx = itemPos.x - position.x;
+            const dy = itemPos.y - position.y;
+            const dz = itemPos.z - position.z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq < rangeSq) {
+                // Collect!
+                collected.push(dropped.item);
+                dropped.dispose();
+                this.droppedItems.splice(i, 1);
+            }
+        }
+
+        return collected;
+    }
+
     update(dt, time) {
         this.droppedItems.forEach(item => item.update(dt, time));
     }

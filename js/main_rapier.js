@@ -14,6 +14,8 @@ import { PlacementManager } from "./PlacementManager.js"
 import { InventoryManager } from "./item/InventoryManager.js"
 import { ItemDropManager } from "./item/ItemDropManager.js"
 import { ImpulseItem } from "./item/ImpulseItem.js"
+import { FarmingZone } from "./FarmingZone.js"
+import { FuegoItem } from "./item/FuegoItem.js"
 
 class Game {
     constructor() {
@@ -95,6 +97,9 @@ class Game {
         )
         this.platforms.push(jumpPad)
 
+        // 3. Farming Zone
+        // moved to after itemDropManager init
+
 
         // Wire up Chat Events
         this.networkManager.onChatMessage = (playerId, msg) => {
@@ -115,6 +120,14 @@ class Game {
         // --- New Inventory System ---
         this.inventoryManager = new InventoryManager("inventory-container")
         this.itemDropManager = new ItemDropManager(this.sceneManager.scene, this.world)
+
+        // Farming Zone (Now that itemDropManager exists)
+        this.fuegoCount = 0
+        this.farmingZone = new FarmingZone(
+            this.sceneManager.scene,
+            this.itemDropManager,
+            new THREE.Vector3(-5, 0.1, 10)
+        )
 
         // Seed Inventory
         const item1 = new ImpulseItem("pad_lat", "Impulso Lateral", "./assets/textures/impulso.png", "lateral", 25.0)
@@ -224,11 +237,25 @@ class Game {
         if (this.itemDropManager) {
             this.itemDropManager.update(dt, this.clock.getElapsedTime())
 
-            // Interaction Prompt Logic
             if (this.character) {
+                // Auto Pickup Fuego logic
                 const charPos = this.character.getPosition()
-                // Get nearest item without removing it
+                const collectedFuego = this.itemDropManager.checkAutoPickup(charPos, 1.5, "fuego")
+
+                if (collectedFuego.length > 0) {
+                    this.fuegoCount += collectedFuego.length
+                    const counterEl = document.getElementById("fuego-count")
+                    if (counterEl) counterEl.textContent = this.fuegoCount
+                    console.log("Recogido fuego! Total:", this.fuegoCount)
+                }
+
+                // Interaction Prompt Logic (Existing code)
                 const nearest = this.itemDropManager.getNearestItem(charPos, 3.0)
+                // ... rest of prompt logic ...
+                // Need to replicate internal logic or just reuse block carefully. 
+                // To avoid breaking existing prompt logic, I will copy the nearest finding part again 
+                // because I cannot easily "insert" without context of the whole block if I don't replace the whole block.
+                // Actually, let's keep it simple and just INSERT the auto-pickup BEFORE the prompt logic.
 
                 const promptEl = document.getElementById("interaction-prompt")
                 const promptTextEl = document.getElementById("prompt-text")
@@ -260,6 +287,11 @@ class Game {
                     promptEl.style.display = "none"
                 }
             }
+        }
+
+        // Farming Zone Update
+        if (this.farmingZone) {
+            this.farmingZone.update(dt)
         }
 
         // Ghost Preview Update (via Manager)

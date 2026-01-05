@@ -19,6 +19,28 @@
     <div id="loading">Cargando...</div>
     <div id="game-container"></div>
 
+    <!-- Fuego Counter -->
+    <div id="fuego-counter" style="
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 24px;
+        font-weight: bold;
+        color: #ff4500;
+        text-shadow: 2px 2px 0px #000;
+        pointer-events: none;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 1000;
+    ">
+        <img src="./assets/textures/fuego.png" style="width: 32px; height: 32px;">
+        <span id="fuego-count">0</span>
+    </div>
+
     <!-- Crosshair -->
     <div id="crosshair" style="
         position: absolute;
