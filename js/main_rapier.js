@@ -17,6 +17,9 @@ import { ImpulseItem } from "./item/ImpulseItem.js"
 import { FarmingZone } from "./FarmingZone.js"
 import { FuegoItem } from "./item/FuegoItem.js"
 import { FarmingSettings } from "./FarmingSettings.js"
+import { TurretItem } from "./item/TurretItem.js"
+import { TurretPad } from "./TurretPad.js"
+import { PelotaItem } from "./item/PelotaItem.js"
 
 class Game {
     constructor() {
@@ -73,6 +76,7 @@ class Game {
 
         // Impulse Platforms
         this.platforms = []
+        this.projectiles = [] // Array for active projectiles
 
         // 1. Forward Boost (Rotatable)
         // Positioned in front of spawn
@@ -147,9 +151,13 @@ class Game {
         // Seed Inventory
         const item1 = new ImpulseItem("pad_lat", "Impulso Lateral", "./assets/textures/impulso.png", "lateral", 25.0)
         const item2 = new ImpulseItem("pad_jump", "Salto Vertical", "./assets/textures/salto.png", "jump", 35.0)
+        const item3 = new TurretItem("pad_turret", "Torreta", "./assets/textures/impulso.png")
+        const item4 = new PelotaItem("pelota", "Lanzador de Pelotas", "./assets/textures/pelota.png", 10, 10, 30, 1.0) // 10 dmg, 10 rps, 20 speed, 1.0 drop (more arc)
 
         this.inventoryManager.addItem(item1)
         this.inventoryManager.addItem(item2)
+        this.inventoryManager.addItem(item3)
+        this.inventoryManager.addItem(item4)
 
         this.setupGameInput() // Replaces setupInventory logic for interactions
 
@@ -244,8 +252,28 @@ class Game {
         if (this.npc) this.npc.update(dt)
 
         // Platforms Update
+        // Platforms Update
         if (this.platforms) {
             this.platforms.forEach(p => p.update(this.character))
+        }
+
+        // Projectiles Update
+        if (this.projectiles) {
+            for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                const proj = this.projectiles[i]
+                proj.update(dt)
+                if (proj.isDead) {
+                    this.projectiles.splice(i, 1)
+                }
+            }
+        }
+
+        // Weapon Auto-Fire Logic
+        if (this.isMouseDown && this.inventoryManager) {
+            const currentItem = this.inventoryManager.getCurrentItem()
+            if (currentItem instanceof PelotaItem) {
+                this.useCurrentItem(currentItem) // Pass item directly optimization
+            }
         }
 
         // Dropped Items Update
@@ -373,6 +401,8 @@ class Game {
             let simSlot = -1
             if (currentItem instanceof ImpulseItem) {
                 simSlot = currentItem.type === 'lateral' ? 0 : 1
+            } else if (currentItem instanceof TurretItem) {
+                simSlot = 0; // Use lateral pad ghost for now
             }
             // Use current rotation index
             this.placementManager.update(simSlot, this.placementRotationIndex || 0)
@@ -709,21 +739,36 @@ class Game {
         const item = this.inventoryManager.getCurrentItem()
         if (!item) return
 
+        let origin = new THREE.Vector3()
+        let direction = new THREE.Vector3()
+
+        if (this.character) {
+            origin = this.character.getPosition()
+            // A bit higher for "eye" or "gun" level
+            origin.y += 1.5
+
+            // Get Camera Direction
+            this.sceneManager.camera.getWorldDirection(direction)
+        }
+
         // Context needed for item usage
         const context = {
             scene: this.sceneManager.scene,
             world: this.world,
             placementManager: this.placementManager,
             platforms: this.platforms,
-            rotationIndex: this.placementRotationIndex
+            rotationIndex: this.placementRotationIndex,
+            origin: origin,
+            direction: direction,
+            registerProjectile: (proj) => {
+                this.projectiles.push(proj)
+            }
         }
 
         const consumed = item.use(context)
         // If we implemented consumption (removing item), we would do it here
         // if (consumed) this.inventoryManager.removeCurrentItem()
     }
-
-
 }
 
 new Game()
