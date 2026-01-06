@@ -1,0 +1,16 @@
+Animation Inspector
+Loading...
+Loading Momia Model from ./assets/momia/momia.glb...
+Momia Model loaded.
+No animations found in Momia Model.
+---
+Loading Momia Animation from ./assets/momia/momia_Animation.glb...
+Momia Animation loaded.
+Momia Animation Animations found:
+1. Name: "Alert", Duration: 0.63s
+2. Name: "Mummy_Stagger", Duration: 1.03s
+3. Name: "Run_03", Duration: 4.00s
+4. Name: "Running", Duration: 4.83s
+5. Name: "Walking", Duration: 0.80s
+---
+Done.

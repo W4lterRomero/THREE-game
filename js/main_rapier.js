@@ -16,6 +16,7 @@ import { ItemDropManager } from "./item/ItemDropManager.js"
 import { ImpulseItem } from "./item/ImpulseItem.js"
 import { FarmingZone } from "./FarmingZone.js"
 import { FuegoItem } from "./item/FuegoItem.js"
+import { FarmingSettings } from "./FarmingSettings.js"
 
 class Game {
     constructor() {
@@ -128,6 +129,8 @@ class Game {
             this.itemDropManager,
             new THREE.Vector3(-5, 0.1, 10)
         )
+        // Farming Settings
+        this.farmingSettings = new FarmingSettings(this.farmingZone)
         // Move Logic State
         this.fKeyHeldTime = 0
         this.isMovingFarmingZone = false
@@ -255,7 +258,12 @@ class Game {
                 const collectedFuego = this.itemDropManager.checkAutoPickup(charPos, 1.5, "fuego")
 
                 if (collectedFuego.length > 0) {
-                    this.fuegoCount += collectedFuego.length
+                    // Sum up values
+                    let valueAdded = 0;
+                    collectedFuego.forEach(item => {
+                        valueAdded += (item.value || 1);
+                    });
+                    this.fuegoCount += valueAdded;
                     const counterEl = document.getElementById("fuego-count")
                     if (counterEl) counterEl.textContent = this.fuegoCount
                     console.log("Recogido fuego! Total:", this.fuegoCount)
@@ -640,7 +648,7 @@ class Game {
                 const picked = this.itemDropManager.tryPickupNearest(charPos)
                 if (picked) {
                     if (picked.id === "fuego") {
-                        this.fuegoCount++
+                        this.fuegoCount += (picked.value || 1)
                         const counterEl = document.getElementById("fuego-count")
                         if (counterEl) counterEl.textContent = this.fuegoCount
                         console.log("Manual pickup fuego! Total:", this.fuegoCount)

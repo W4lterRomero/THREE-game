@@ -106,6 +106,7 @@
             <div class="tab-btn active" data-tab="fp-settings">Primera Persona</div>
             <div class="tab-btn" data-tab="tp-settings">Tercera Persona</div>
             <div class="tab-btn" data-tab="ch-settings">Puntero</div>
+            <div class="tab-btn" data-tab="farming-settings">Zona Farmeo</div>
         </div>
 
         <div class="settings-content active" id="fp-settings">
@@ -183,6 +184,40 @@
                 <div class="slider-container">
                     <input type="range" id="ch-size" min="10" max="100" value="40">
                     <span id="ch-size-val">40px</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-content" id="farming-settings">
+            <h3>Configuracion Zona Farmeo</h3>
+            <div class="setting-row">
+                <div class="setting-item">
+                    <label>Tiempo de aparición (seg)</label>
+                    <div class="slider-container">
+                        <input type="number" id="farming-interval" min="1" max="60" step="1" value="1"
+                            style="width: 60px; padding: 5px; color: black;">
+                        <span id="farming-interval-val" style="display:none;">1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-item">
+                    <label>Cantidad por aparición</label>
+                    <div class="slider-container">
+                        <input type="number" id="farming-count" min="1" max="100" step="1" value="1"
+                            style="width: 60px; padding: 5px; color: black;">
+                        <span id="farming-count-val" style="display:none;">1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-item">
+                    <label>Valor por Item</label>
+                    <div class="slider-container">
+                        <input type="number" id="farming-value" min="1" max="1000" step="1" value="1"
+                            style="width: 60px; padding: 5px; color: black;">
+                        <span id="farming-value-val" style="display:none;">1</span>
+                    </div>
                 </div>
             </div>
         </div>

@@ -13,8 +13,23 @@ export class FarmingZone {
 
         this.accumulatedTime = 0;
         this.spawnInterval = 1.0; // 1 second
+        this.itemsPerSpawn = 1;
+        this.itemValue = 1;
 
         this.initVisuals();
+    }
+
+    setSpawnInterval(seconds) {
+        if (seconds <= 0) return;
+        this.spawnInterval = seconds;
+    }
+
+    setItemsPerSpawn(count) {
+        this.itemsPerSpawn = Math.max(1, Math.floor(count));
+    }
+
+    setItemValue(val) {
+        this.itemValue = Math.floor(val);
     }
 
     initVisuals() {
@@ -36,12 +51,15 @@ export class FarmingZone {
 
         if (this.accumulatedTime >= this.spawnInterval) {
             this.accumulatedTime -= this.spawnInterval;
-            this.spawnItem();
+            for (let i = 0; i < this.itemsPerSpawn; i++) {
+                this.spawnItem();
+            }
         }
     }
 
     spawnItem() {
         const item = new FuegoItem();
+        item.value = this.itemValue;
 
         // Random position within the pad
         const halfW = this.width / 2 * 0.8; // Margin
