@@ -78,99 +78,133 @@ export class PlacementManager {
      * @param {number} rotationIndex - Índice de rotación (0-3) para pads laterales
      * @returns {THREE.Vector3|null} - Punto de impacto válido o null
      */
-    update(inventorySlot, rotationIndex) {
-        this.currentSlot = inventorySlot
+    update(item, rotationIndex) {
+        this.currentItem = item
         this.rotationIndex = rotationIndex
 
-        // Solo mostrar para slots 0 y 1
-        if (inventorySlot !== 0 && inventorySlot !== 1) {
+        // Si no hay item o no es de construcción, ocultar
+        if (!item || (!item.isImpulsePad && !item.type)) {
             this.placementGhost.visible = false
-            return null
+            this.currentHit = null
+            return
         }
 
-        // Raycast desde el centro de la cámara
+        // Raycast
         const raycaster = new THREE.Raycaster()
         raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera)
+        const intersects = raycaster.intersectObjects(this.scene.children, true) // Should filter specific layers?
 
-        // Intersectar con objetos de la escena (excluyendo el ghost mismo)
-        const intersects = raycaster.intersectObjects(this.scene.children, true)
-
-        // Encontrar impacto válido en Mesh (suelo/paredes)
+        // Filter out ghost and characters
         const hit = intersects.find(h =>
-            h.distance < 15 &&
+            h.distance < 40 && // Increased range for building
             h.object.type === "Mesh" &&
             h.object !== this.placementGhost &&
-            !this.placementGhost.children.includes(h.object)
+            !this.placementGhost.children.includes(h.object) &&
+            !h.object.userData.isPlayer // Avoid clicking self
         )
 
-        // Validación: Verificar colisión con otros pads
-        let isValid = false
-        if (hit) {
-            // 1. Verificar si apuntamos directamente a un pad existente
-            const isTargetPad = hit.object.userData && hit.object.userData.isImpulsePad
-
-            // 2. Verificar superposición de volumen (Overlap)
-            let isOverlapping = false
-            if (!isTargetPad) {
-                // Revisar todos los hijos de la escena buscando pads
-                const PAD_SIZE = 3 // Tamaño aproximado del pad (3x3)
-                for (const obj of this.scene.children) {
-                    if (obj.userData && obj.userData.isImpulsePad) {
-                        const dx = Math.abs(obj.position.x - hit.point.x)
-                        const dz = Math.abs(obj.position.z - hit.point.z)
-
-                        // Si la distancia en ambos ejes es menor al tamaño, hay colisión
-                        if (dx < PAD_SIZE && dz < PAD_SIZE) {
-                            isOverlapping = true
-                            break
-                        }
-                    }
-                }
-            }
-
-            isValid = !isTargetPad && !isOverlapping
-        }
+        this.currentHit = hit ? hit.point : null
 
         if (hit) {
             this.placementGhost.visible = true
             this.placementGhost.position.copy(hit.point)
-            this.placementGhost.position.y += 0.1
 
-            const isJump = (inventorySlot === 1)
+            // Adjust visual based on item type
+            if (item.constructor.name === "MapObjectItem") {
+                // Resize base to match item scale
+                this.ghostArrow.visible = false
+                this.ghostBaseMat.visible = true
 
-            // Actualizar Textura y Rotación siempre para feedback visual
-            if (isJump && this.texSalto) {
-                this.ghostArrowMat.map = this.texSalto
-            } else if (!isJump && this.texImpulso) {
-                this.ghostArrowMat.map = this.texImpulso
-            }
-            this.ghostArrowMat.needsUpdate = true
+                // We should ideally resize the box geometry to match the item
+                // But geometry is shared? Scale the mesh!
+                // Assuming first child is the Box Mesh
+                const mesh = this.placementGhost.children[0]
+                if (mesh) {
+                    mesh.scale.set(item.scale.x / 3, item.scale.y / 0.2, item.scale.z / 3) // Base is 3x0.2x3
+                    mesh.position.y = item.scale.y / 2 // Center visually
+                }
 
-            if (!isJump) {
+                // Color Code?
+                this.ghostBaseMat.color.setHex(0x00FF00)
+
+            } else {
+                // IMPULSE PADS (Legacy)
+                // Reset scale
+                const mesh = this.placementGhost.children[0]
+                if (mesh) {
+                    mesh.scale.set(1, 1, 1)
+                    mesh.position.y = 0 // Flush
+                }
+
+                this.ghostArrow.visible = true
+                this.placementGhost.position.y += 0.1
+
+                // Texture Logic
+                const isJump = (item.id === "pad_jump")
+                if (isJump && this.texSalto) {
+                    this.ghostArrowMat.map = this.texSalto
+                } else if (!isJump && this.texImpulso) {
+                    this.ghostArrowMat.map = this.texImpulso
+                }
+
+                // Rotation
                 let rotY = 0
                 if (rotationIndex === 1) rotY = -Math.PI / 2
                 if (rotationIndex === 2) rotY = -Math.PI
                 if (rotationIndex === 3) rotY = Math.PI / 2
                 this.ghostArrow.rotation.z = rotY
-            } else {
-                this.ghostArrow.rotation.z = 0
             }
 
+
+            // Validation Logic (Restored)
+            let isValid = true
+            // Only validate strict overlap for Impulse Pads for now, or all?
+            // Let's do generic overlap check for pads
+            if (item.id.includes("pad")) {
+                const PAD_SIZE = 3
+                const isTargetPad = hit.object.userData && hit.object.userData.isImpulsePad
+                let isOverlapping = false
+
+                if (!isTargetPad) {
+                    for (const obj of this.scene.children) {
+                        if (obj.userData && obj.userData.isImpulsePad) {
+                            const dx = Math.abs(obj.position.x - hit.point.x)
+                            const dz = Math.abs(obj.position.z - hit.point.z)
+                            if (dx < PAD_SIZE && dz < PAD_SIZE) {
+                                isOverlapping = true
+                                break
+                            }
+                        }
+                    }
+                }
+                isValid = !isTargetPad && !isOverlapping
+            }
+
+            // Visual Feedback for Validity
             if (isValid) {
-                // Válido: Color normal (Verde/Celeste)
-                const color = isJump ? 0x00FFFF : 0x00FF00
-                this.ghostBaseMat.color.setHex(color)
-                this.ghostArrowMat.color.setHex(0xFFFFFF) // Resetear tinte
+                if (item.constructor.name === "MapObjectItem") {
+                    this.ghostBaseMat.color.setHex(0x00FF00)
+                } else {
+                    const isJump = (item.id === "pad_jump")
+                    const color = isJump ? 0x00FFFF : 0x00FF00
+                    this.ghostBaseMat.color.setHex(color)
+                    this.ghostArrowMat.color.setHex(0xFFFFFF)
+                }
                 return hit.point
             } else {
-                // Inválido: Color Rojo
                 this.ghostBaseMat.color.setHex(0xFF0000)
-                this.ghostArrowMat.color.setHex(0xFF0000) // Tinte rojo
+                this.ghostArrowMat.color.setHex(0xFF0000) // Tint Red
+                // Return null to prevent placement if invalid
                 return null
             }
+
         } else {
             this.placementGhost.visible = false
             return null
         }
+    }
+
+    getCurrentTarget() {
+        return this.currentHit
     }
 }

@@ -29,6 +29,12 @@ export class CharacterRapier {
 
         this.rotationSmoothness = 0.15
 
+        // Flight / Editor Mode
+        this.canFly = false
+        this.isFlying = false
+        this.lastJumpTime = 0
+
+
         this.rotationSmoothness = 0.15
         this.currentRotation = 0
 
@@ -116,6 +122,33 @@ export class CharacterRapier {
 
     update(dt, input) {
         if (!this.rigidBody) return
+
+        // Flight Mode Check
+        if (this.isFlying) {
+            // Handle Jump Toggle separately or just movement?
+            // Checks for toggle are in Input/Jump section below? 
+            // Better to handle flight movement entirely here and return.
+            // BUT we need to check for "Double Jump" to exit flight too.
+            this.checkFlightToggle(input)
+            if (this.isFlying) {
+                // Determine moveDir for flight
+                let moveDir = new THREE.Vector3()
+                if (input.keys.forward) moveDir.z += 1
+                if (input.keys.backward) moveDir.z -= 1
+                if (input.keys.left) moveDir.x -= 1
+                if (input.keys.right) moveDir.x += 1
+
+                this.handleFlightMovement(dt, input, moveDir)
+                return
+            }
+        }
+
+        // Double Jump Check (To Enter Flight)
+        // Must be enabled by game mode (checked externally or flag set)
+        if (this.canFly) { // Only if enabled
+            this.checkFlightToggle(input)
+        }
+
 
         // 1. Calculate Desired Movement (Velocity)
         let moveDir = new THREE.Vector3()
@@ -298,6 +331,75 @@ export class CharacterRapier {
         this.updateModelVisuals()
 
         if (this.mixer) this.mixer.update(dt)
+    }
+
+    // --- Flight Mode Logic ---
+    toggleFlight() {
+        this.isFlying = !this.isFlying
+        this.verticalVelocity = 0
+        this.momentum.set(0, 0, 0)
+        console.log("Flight Mode:", this.isFlying)
+    }
+
+    handleFlightMovement(dt, input, moveDir) {
+        // No gravity
+        this.verticalVelocity = 0
+
+        let desiredTranslation = new THREE.Vector3()
+        let speed = this.speed * 2 // Faster fly
+
+        if (this.cameraController) {
+            const forward = this.cameraController.getForwardDirection()
+            const right = this.cameraController.getRightDirection()
+
+            // Fly uses camera forward for Z (Pitch included) equivalent?
+            // Usually creative flight: W moves in Camera Direction (including Y)
+            let camDir = new THREE.Vector3()
+            this.camera.getWorldDirection(camDir)
+
+            // Re-calculate move based on camera Look vector for "Free Cam" feel
+            if (input.keys.forward) desiredTranslation.add(camDir)
+            if (input.keys.backward) desiredTranslation.sub(camDir)
+            if (input.keys.right) desiredTranslation.add(right)
+            if (input.keys.left) desiredTranslation.sub(right)
+
+            // Space / Shift for straight Up/Down
+            if (input.keys.jump) desiredTranslation.y += 1
+            // Basic crouch/down key? Let's use Shift (running) or C? 
+            // Usually Shift is down in some editors, or Control. 
+            // Rapier Controller doesn't have "C". Let's use a convention if possible.
+            // For now, rely on Camera Look + W/S to change altitude effortlessly.
+            // And Jump to go straight up.
+        }
+
+        if (desiredTranslation.lengthSq() > 0) {
+            desiredTranslation.normalize().multiplyScalar(speed * dt)
+        }
+
+        // Apply
+        this.characterController.computeColliderMovement(
+            this.collider,
+            desiredTranslation
+        )
+        let corrected = this.characterController.computedMovement()
+        let newPos = this.rigidBody.translation()
+        newPos.x += corrected.x
+        newPos.y += corrected.y
+        newPos.z += corrected.z
+        this.rigidBody.setNextKinematicTranslation(newPos)
+
+        this.updateModelVisuals()
+    }
+
+    checkFlightToggle(input) {
+        if (input.keys.jump && !this.wasJumpDown) {
+            const now = Date.now()
+            if (now - this.lastJumpTime < 300) { // 300ms double click
+                this.toggleFlight()
+            }
+            this.lastJumpTime = now
+        }
+        this.wasJumpDown = input.keys.jump
     }
 
     checkClimbing() {

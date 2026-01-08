@@ -21,12 +21,7 @@ export class ImpulseItem extends Item {
         // o mejor aun, el PlacementManager deberia tener un metodo 'getPlacementPosition()' 
         // pero por ahora usaremos update() ya que es ligero (raycast)
 
-        // Hacemos un hack: inventorySlot simulado.
-        // Si es lateral es slot 0, salto es slot 1 (segun logica antigua)
-        // Esto es deuda tecnica que podriamos limpiar, pero sirve
-        const slotSimulado = this.type === 'lateral' ? 0 : 1;
-
-        const hitPoint = placementManager.update(slotSimulado, rotationIndex);
+        const hitPoint = placementManager.update(this, rotationIndex);
 
         if (hitPoint) {
             const placePos = hitPoint.clone();

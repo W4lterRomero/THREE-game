@@ -20,6 +20,7 @@ import { FarmingSettings } from "./FarmingSettings.js"
 import { TurretItem } from "./item/TurretItem.js"
 import { TurretPad } from "./TurretPad.js"
 import { PelotaItem } from "./item/PelotaItem.js"
+import { MapObjectItem } from "./item/MapObjectItem.js"
 
 class Game {
     constructor() {
@@ -39,6 +40,10 @@ class Game {
         let gravity = { x: 0.0, y: -20.0, z: 0.0 }
         this.world = new RAPIER.World(gravity)
 
+        // Game Mode Check
+        const urlParams = new URLSearchParams(window.location.search);
+        this.gameMode = urlParams.get('mode') || 'play'; // 'play' or 'editor'
+
         // Local Character
         this.character = new CharacterRapier(
             this.sceneManager.scene,
@@ -46,6 +51,10 @@ class Game {
             this.sceneManager.camera,
             null // Set later
         )
+        if (this.gameMode === 'editor') {
+            this.character.canFly = true;
+            console.log("Editor Mode Enabled: Flight Active");
+        }
 
         // Camera Controller
         this.cameraController = new CameraController(
@@ -148,16 +157,29 @@ class Game {
         this.moveGhost.visible = false
         this.sceneManager.scene.add(this.moveGhost)
 
-        // Seed Inventory
-        const item1 = new ImpulseItem("pad_lat", "Impulso Lateral", "./assets/textures/impulso.png", "lateral", 25.0)
-        const item2 = new ImpulseItem("pad_jump", "Salto Vertical", "./assets/textures/salto.png", "jump", 35.0)
-        const item3 = new TurretItem("pad_turret", "Torreta", "./assets/textures/impulso.png")
-        const item4 = new PelotaItem("pelota", "Lanzador de Pelotas", "./assets/textures/pelota.png", 10, 10, 30, 1.0) // 10 dmg, 10 rps, 20 speed, 1.0 drop (more arc)
+        if (this.gameMode === 'editor') {
+            // Editor Items
+            const wall = new MapObjectItem("wall_1", "Pared", "wall", "./assets/textures/impulso.png", 0x888888, { x: 4, y: 3, z: 0.5 })
+            const pillar = new MapObjectItem("pillar_1", "Pilar", "pillar", "./assets/textures/salto.png", 0xFFFFFF, { x: 1, y: 4, z: 1 })
+            const floor = new MapObjectItem("floor_1", "Suelo", "wall", "./assets/textures/impulso.png", 0x333333, { x: 5, y: 0.5, z: 5 })
+            const ramp = new MapObjectItem("ramp_1", "Rampa", "ramp", "./assets/textures/impulso.png", 0xFFA500, { x: 4, y: 2, z: 4 })
 
-        this.inventoryManager.addItem(item1)
-        this.inventoryManager.addItem(item2)
-        this.inventoryManager.addItem(item3)
-        this.inventoryManager.addItem(item4)
+            this.inventoryManager.addItem(wall)
+            this.inventoryManager.addItem(pillar)
+            this.inventoryManager.addItem(floor)
+            this.inventoryManager.addItem(ramp)
+        } else {
+            // Seed Inventory (Normal)
+            const item1 = new ImpulseItem("pad_lat", "Impulso Lateral", "./assets/textures/impulso.png", "lateral", 25.0)
+            const item2 = new ImpulseItem("pad_jump", "Salto Vertical", "./assets/textures/salto.png", "jump", 35.0)
+            const item3 = new TurretItem("pad_turret", "Torreta", "./assets/textures/impulso.png")
+            const item4 = new PelotaItem("pelota", "Lanzador de Pelotas", "./assets/textures/pelota.png", 10, 10, 30, 1.0)
+
+            this.inventoryManager.addItem(item1)
+            this.inventoryManager.addItem(item2)
+            this.inventoryManager.addItem(item3)
+            this.inventoryManager.addItem(item4)
+        }
 
         this.setupGameInput() // Replaces setupInventory logic for interactions
 
@@ -397,15 +419,8 @@ class Game {
         // Ghost Preview Update (via Manager)
         if (this.placementManager && this.inventoryManager) {
             const currentItem = this.inventoryManager.getCurrentItem()
-            // Map item to legacy slot index for visual only, or -1 if not a pad
-            let simSlot = -1
-            if (currentItem instanceof ImpulseItem) {
-                simSlot = currentItem.type === 'lateral' ? 0 : 1
-            } else if (currentItem instanceof TurretItem) {
-                simSlot = 0; // Use lateral pad ghost for now
-            }
-            // Use current rotation index
-            this.placementManager.update(simSlot, this.placementRotationIndex || 0)
+            // Pass the item object directly!
+            this.placementManager.update(currentItem, this.placementRotationIndex || 0)
         }
 
         // Render
