@@ -155,6 +155,16 @@ export class PlacementManager {
                 this.ghostArrow.rotation.z = rotY
             }
 
+            // Apply rotation to ghost group
+            if (item.constructor.name === "MapObjectItem") {
+                this.placementGhost.rotation.y = 0
+                if (rotationIndex === 1) this.placementGhost.rotation.y = -Math.PI / 2
+                if (rotationIndex === 2) this.placementGhost.rotation.y = -Math.PI
+                if (rotationIndex === 3) this.placementGhost.rotation.y = Math.PI / 2
+            } else {
+                this.placementGhost.rotation.y = 0
+            }
+
 
             // Validation Logic (Restored)
             let isValid = true

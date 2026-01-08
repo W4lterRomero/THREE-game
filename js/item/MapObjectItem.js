@@ -71,6 +71,13 @@ export class MapObjectItem extends Item {
 
         mesh.castShadow = true
         mesh.receiveShadow = true
+
+        // TAGGING FOR SAVE SYSTEM
+        mesh.userData.isEditableMapObject = true
+        mesh.userData.mapObjectType = this.type
+        mesh.userData.color = this.color
+        mesh.userData.originalScale = this.scale // Save config scale
+
         scene.add(mesh)
 
         // 2. Physics (Fixed RigidBody)
@@ -109,5 +116,61 @@ export class MapObjectItem extends Item {
         }
 
         console.log(`Spawned ${this.type} at`, position)
+    }
+
+    spawnObjectFromData(scene, world, pos, rot) {
+        // Reuse Spawn logic but override transforms
+        // Copied geometry creation part:
+        let geometry
+        if (this.type === 'wall' || this.type === 'pillar') {
+            geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
+        } else if (this.type === 'ramp') {
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0);
+            shape.lineTo(this.scale.z, 0);
+            shape.lineTo(0, this.scale.y);
+            shape.lineTo(0, 0);
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: this.scale.x,
+                bevelEnabled: false,
+            };
+            geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geometry.center();
+        }
+
+        const material = new THREE.MeshStandardMaterial({ color: this.color })
+        const mesh = new THREE.Mesh(geometry, material)
+
+        mesh.position.set(pos.x, pos.y, pos.z)
+        mesh.rotation.set(rot.x, rot.y, rot.z)
+
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+
+        mesh.userData.isEditableMapObject = true
+        mesh.userData.mapObjectType = this.type
+        mesh.userData.color = this.color
+        mesh.userData.originalScale = this.scale
+
+        scene.add(mesh)
+
+        // Physics
+        if (world && RAPIER) {
+            const bodyDesc = RAPIER.RigidBodyDesc.fixed()
+                .setTranslation(mesh.position.x, mesh.position.y, mesh.position.z)
+                .setRotation(mesh.quaternion)
+
+            const rigidBody = world.createRigidBody(bodyDesc)
+
+            let colliderDesc;
+            if (this.type === 'ramp') {
+                colliderDesc = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            } else {
+                colliderDesc = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            }
+            world.createCollider(colliderDesc, rigidBody)
+        }
     }
 }
