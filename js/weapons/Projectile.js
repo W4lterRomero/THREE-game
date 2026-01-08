@@ -7,7 +7,7 @@ export class Projectile {
         this.world = world;
         this.damage = damage;
         this.isDead = false;
-        this.lifetime = 5.0; // Seconds before auto-delete
+        this.lifetime = 5.0; // Segundos antes de auto eliminar
 
         // 1. Visuals
         const geo = new THREE.SphereGeometry(0.1, 8, 8);
