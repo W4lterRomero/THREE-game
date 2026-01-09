@@ -187,7 +187,11 @@ export class ConstructionMenu {
 
             // Re-request pointer lock after a small delay to ensure browser handles it
             setTimeout(() => {
-                document.body.requestPointerLock()
+                if (this.game.cameraController) {
+                    this.game.cameraController.lock()
+                } else {
+                    document.body.requestPointerLock()
+                }
             }, 100)
         }
     }

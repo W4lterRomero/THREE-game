@@ -134,11 +134,25 @@ export class CameraController {
         // Click to lock pointer
         this.domElement.addEventListener("click", () => {
             if (!this.isPaused) {
-                if (this.isFirstPerson || this.alwaysRotateThirdPerson) {
-                    this.domElement.requestPointerLock()
-                }
+                this.lock()
             }
         })
+
+        // Listen for Pointer Lock changes to update state
+        document.addEventListener("pointerlockchange", () => {
+            const isLocked = document.pointerLockElement === this.domElement
+            // console.log("Pointer Lock Changed:", isLocked)
+        })
+    }
+
+    lock() {
+        if (this.isFirstPerson || this.alwaysRotateThirdPerson) {
+            this.domElement.requestPointerLock()
+        }
+    }
+
+    unlock() {
+        document.exitPointerLock()
     }
 
     togglePause() {
