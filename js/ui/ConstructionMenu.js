@@ -194,6 +194,34 @@ export class ConstructionMenu {
         row.appendChild(checkbox)
         row.appendChild(label)
         container.appendChild(row)
+
+        // Snapping Toggle
+        const rowSnap = document.createElement('div')
+        rowSnap.style.cssText = `display: flex; align-items: center; gap: 10px;`
+
+        const checkSnap = document.createElement('input')
+        checkSnap.type = 'checkbox'
+        checkSnap.id = 'chk-snap-grid'
+        checkSnap.style.transform = 'scale(1.5)'
+        checkSnap.addEventListener('change', (e) => {
+            // Access placement manager via game instance
+            // Assuming game instance has placementManager accessible or sceneManager has it. 
+            // Ideally game.js should expose it, or we find it bound somewhere.
+            // Checking main_rapier.js: this.placementManager is on the Game instance as 'this.placementManager'
+            if (this.game.placementManager) {
+                this.game.placementManager.snapToGrid = e.target.checked
+            }
+        })
+
+        const labelSnap = document.createElement('label')
+        labelSnap.textContent = "Activar Construcción en Cuadrícula"
+        labelSnap.htmlFor = 'chk-snap-grid'
+        labelSnap.style.fontSize = "18px"
+        labelSnap.style.cursor = "pointer"
+
+        rowSnap.appendChild(checkSnap)
+        rowSnap.appendChild(labelSnap)
+        container.appendChild(rowSnap)
     }
 
     renderLibrary(container) {

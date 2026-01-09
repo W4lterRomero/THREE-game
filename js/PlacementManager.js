@@ -23,6 +23,10 @@ export class PlacementManager {
         this.currentSlot = -1
         this.rotationIndex = 0
 
+        // Configuración Snapping
+        this.snapToGrid = false
+        this.gridSize = 1
+
         this.init()
     }
 
@@ -130,6 +134,18 @@ export class PlacementManager {
 
         if (hit) {
             this.placementGhost.visible = true
+
+            // Grid Snapping Logic
+            if (this.snapToGrid) {
+                const gridSize = this.gridSize || 1
+                // We snap to center or edge? 
+                // Usually snap to center (grid nodes)
+                hit.point.x = Math.round(hit.point.x / gridSize) * gridSize
+                hit.point.z = Math.round(hit.point.z / gridSize) * gridSize
+                // Y usually stays on floor/surface, assuming flat terrain 0
+                // If we want vertical snap, valid too, but mainly horizontal needed.
+            }
+
             this.placementGhost.position.copy(hit.point)
 
             // Adjust visual based on item type
