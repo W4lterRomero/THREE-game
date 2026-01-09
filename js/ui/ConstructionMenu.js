@@ -15,41 +15,33 @@ export class ConstructionMenu {
     }
 
     generateLibrary() {
-        // Preset Colors
-        const colors = [
-            { name: "White", hex: 0xFFFFFF },
-            { name: "Gray", hex: 0x888888 },
-            { name: "Red", hex: 0xFF0000 },
-            { name: "Green", hex: 0x00FF00 },
-            { name: "Blue", hex: 0x0000FF },
-            { name: "Orange", hex: 0xFFA500 },
-            { name: "Purple", hex: 0x800080 },
-            { name: "Black", hex: 0x111111 }
-        ]
-
         // Shapes
         const shapes = [
             { id_prefix: "wall", name: "Pared", type: "wall", scale: { x: 4, y: 3, z: 0.5 } },
-            { id_prefix: "floor", name: "Suelo", type: "wall", scale: { x: 5, y: 0.5, z: 5 } }, // Floor is a flat wall
+            { id_prefix: "wall_low", name: "Muro Bajo", type: "wall", scale: { x: 4, y: 1, z: 0.5 } },
+            { id_prefix: "floor", name: "Suelo", type: "wall", scale: { x: 5, y: 0.5, z: 5 } },
+            { id_prefix: "platform", name: "Plataforma", type: "wall", scale: { x: 10, y: 0.5, z: 10 } },
             { id_prefix: "pillar", name: "Pilar", type: "pillar", scale: { x: 1, y: 4, z: 1 } },
+            { id_prefix: "cube_s", name: "Cubo Pequeño", type: "wall", scale: { x: 1, y: 1, z: 1 } },
+            { id_prefix: "cube_l", name: "Cubo Grande", type: "wall", scale: { x: 3, y: 3, z: 3 } }, // 3x3x3 fits grid better than 4x4 if grid=1? Let's use 3.
             { id_prefix: "ramp", name: "Rampa", type: "ramp", scale: { x: 4, y: 2, z: 4 } },
+            { id_prefix: "stairs", name: "Gradas", type: "stairs", scale: { x: 4, y: 3, z: 4 } }, // Matches ramp/wall size roughly
             { id_prefix: "tall", name: "Torre", type: "pillar", scale: { x: 2, y: 10, z: 2 } }
         ]
 
-        let count = 0
+        // Single Color (White)
+        const whiteHex = 0xFFFFFF
+
         shapes.forEach(shape => {
-            colors.forEach(col => {
-                count++
-                const item = new MapObjectItem(
-                    `${shape.id_prefix}_${col.name.toLowerCase()}`,
-                    `${shape.name} ${col.name}`,
-                    shape.type,
-                    "", // Icon gen handled in constructor
-                    col.hex,
-                    shape.scale
-                )
-                this.libraryItems.push(item)
-            })
+            const item = new MapObjectItem(
+                `${shape.id_prefix}`, // ID without color suffix
+                `${shape.name}`,      // Name without color suffix
+                shape.type,
+                "",
+                whiteHex,
+                shape.scale
+            )
+            this.libraryItems.push(item)
         })
     }
 
