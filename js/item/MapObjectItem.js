@@ -8,6 +8,47 @@ export class MapObjectItem extends Item {
         this.type = type // 'wall', 'pillar', 'ramp'
         this.color = color
         this.scale = scale
+
+        // Generate Dynamic Icon
+        this.iconPath = this.generateIcon()
+    }
+
+    generateIcon() {
+        const canvas = document.createElement('canvas')
+        canvas.width = 64
+        canvas.height = 64
+        const ctx = canvas.getContext('2d')
+
+        // Clear
+        ctx.clearRect(0, 0, 64, 64)
+
+        // Color
+        ctx.fillStyle = '#' + new THREE.Color(this.color).getHexString()
+        ctx.strokeStyle = 'white'
+        ctx.lineWidth = 2
+
+        // Draw Shape
+        // Padding 8px
+        if (this.type === 'ramp') {
+            // Triangle
+            ctx.beginPath()
+            ctx.moveTo(8, 56) // Bottom Left
+            ctx.lineTo(56, 56) // Bottom Right
+            ctx.lineTo(56, 8)  // Top Right (Slope up)
+            ctx.closePath()
+            ctx.fill()
+            ctx.stroke()
+        } else if (this.type === 'pillar') {
+            // Tall Rect
+            ctx.fillRect(20, 8, 24, 48)
+            ctx.strokeRect(20, 8, 24, 48)
+        } else {
+            // Wall / Default (Landscape Rect)
+            ctx.fillRect(8, 20, 48, 24)
+            ctx.strokeRect(8, 20, 48, 24)
+        }
+
+        return canvas.toDataURL()
     }
 
     use(context) {
