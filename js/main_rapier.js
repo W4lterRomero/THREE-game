@@ -166,7 +166,7 @@ class Game {
             const wall = new MapObjectItem("wall", "Pared", "wall", "./assets/textures/impulso.png", 0xFFFFFF, { x: 4, y: 3, z: 0.5 })
             const pillar = new MapObjectItem("pillar", "Pilar", "pillar", "./assets/textures/salto.png", 0xFFFFFF, { x: 1, y: 4, z: 1 })
             const floor = new MapObjectItem("floor", "Suelo", "wall", "./assets/textures/impulso.png", 0xFFFFFF, { x: 5, y: 0.5, z: 5 })
-            const ramp = new MapObjectItem("ramp", "Rampa", "ramp", "./assets/textures/impulso.png", 0xFFFFFF, { x: 4, y: 2, z: 4 })
+            const ramp = new MapObjectItem("stairs", "Gradas", "stairs", "./assets/textures/impulso.png", 0xFFFFFF, { x: 4, y: 2, z: 4 })
             const tall = new MapObjectItem("tall", "Torre", "pillar", "./assets/textures/salto.png", 0xFFFFFF, { x: 2, y: 10, z: 2 })
 
             this.inventoryManager.addItem(wall)
