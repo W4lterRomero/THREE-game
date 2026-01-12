@@ -205,6 +205,7 @@ export class MapObjectItem extends Item {
 
         // Metadata
         object3D.userData.isEditableMapObject = true
+        object3D.userData.isMapObject = true
         object3D.userData.mapObjectType = this.type
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
