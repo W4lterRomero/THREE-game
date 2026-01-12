@@ -349,6 +349,28 @@ export class PlacementManager {
                         targetPos.y = Math.round(hit.point.y)
                     }
                 }
+            } else {
+                // --- FREE PLACEMENT (No Grid) ---
+                // We still want the object to sit ON the surface, not sink into it.
+                // Move center away from hit point by half extent along normal.
+                if (hit.face) {
+                    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+
+                    // Project size onto normal to find extent in that direction
+                    // e.g. if normal is (0,1,0), we care about size.y
+                    const offset = new THREE.Vector3(
+                        normal.x * realSize.x,
+                        normal.y * realSize.y,
+                        normal.z * realSize.z
+                    ).multiplyScalar(0.5)
+
+                    targetPos.add(offset)
+                } else {
+                    // Fallback if no face (e.g. strict point hit?), just assume Up
+                    // targetPos is hit.point. 
+                    // Assume floor placement
+                    targetPos.y += realSize.y / 2
+                }
             }
 
             this.placementGhost.position.copy(targetPos)
