@@ -229,6 +229,46 @@ export class PlacementManager {
         return size
     }
 
+    rebuildStairsGhost(item) {
+        // Prevent rebuilding if same item scale
+        const key = `${item.scale.x}_${item.scale.y}_${item.scale.z}`
+        if (this.ghostStairsLastKey === key && this.ghostStairsGroup.children.length > 0) return
+
+        this.ghostStairsLastKey = key
+
+        // Clear existing
+        while (this.ghostStairsGroup.children.length > 0) {
+            this.ghostStairsGroup.remove(this.ghostStairsGroup.children[0]);
+        }
+
+        // Generate Steps (Logic from MapObjectItem)
+        const targetStepHeight = 0.25
+        const numSteps = Math.max(1, Math.round(item.scale.y / targetStepHeight))
+
+        const stepHeight = item.scale.y / numSteps
+        const stepDepth = item.scale.z / numSteps
+        const stepWidth = item.scale.x
+
+        const stepGeo = new THREE.BoxGeometry(stepWidth, stepHeight, stepDepth)
+
+        const startY = -item.scale.y / 2 + stepHeight / 2 // Bottom relative to center
+        const startZ = -item.scale.z / 2 + stepDepth / 2 // Back relative to center
+
+        for (let i = 0; i < numSteps; i++) {
+            const mesh = new THREE.Mesh(stepGeo, this.ghostBaseMat)
+
+            // Position
+            mesh.position.y = startY + (i * stepHeight)
+            mesh.position.z = startZ + (i * stepDepth)
+            mesh.position.x = 0 // Centered width
+
+            // OPTIMIZATION: Disable raycasting for ghost meshes
+            mesh.raycast = () => { }
+
+            this.ghostStairsGroup.add(mesh)
+        }
+    }
+
     /**
      * Actualiza la posición y visualización del fantasma
      * @param {number} inventorySlot - Índice del slot seleccionado (0 o 1)
@@ -268,14 +308,25 @@ export class PlacementManager {
         const intersects = raycaster.intersectObjects(this.scene.children, true)
 
         // Filter out ghost and characters
-        const hit = intersects.find(h =>
-            h.distance < 60 &&
-            h.object.type === "Mesh" &&
-            h.object !== this.placementGhost &&
-            !this.placementGhost.children.includes(h.object) &&
-            !h.object.userData.isPlayer &&
-            (this.aerialGridActive || h.object !== this.aerialCollider)
-        )
+        const hit = intersects.find(h => {
+            if (h.distance >= 60) return false
+            if (h.object.type !== "Mesh") return false
+
+            // Ignore Player
+            if (h.object.userData.isPlayer) return false
+
+            // Ignore Aerial Collider if not active
+            if (!this.aerialGridActive && h.object === this.aerialCollider) return false
+
+            // Ignore the entire Ghost Hierarchy
+            let parent = h.object
+            while (parent) {
+                if (parent === this.placementGhost) return false
+                parent = parent.parent
+            }
+
+            return true
+        })
 
         this.currentHit = hit ? hit.point : null
 
@@ -380,15 +431,24 @@ export class PlacementManager {
                 this.ghostArrow.visible = false
                 this.ghostBaseMat.visible = true
                 this.ghostRampMesh.visible = false
-                this.ghostBoxMesh.visible = true
+                this.ghostBoxMesh.visible = false
+                if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false
 
                 if (item.type === 'ramp') {
-                    this.ghostBoxMesh.visible = false
                     this.ghostRampMesh.visible = true
                     this.ghostRampMesh.scale.set(item.scale.z, item.scale.y, item.scale.x)
                     // Reset Y because targetPos is Center now
                     this.ghostRampMesh.position.y = 0
+                } else if (item.type === 'stairs') {
+                    // STAIRS PREVIEW
+                    if (!this.ghostStairsGroup) {
+                        this.ghostStairsGroup = new THREE.Group()
+                        this.placementGhost.add(this.ghostStairsGroup)
+                    }
+                    this.ghostStairsGroup.visible = true
+                    this.rebuildStairsGhost(item)
                 } else {
+                    this.ghostBoxMesh.visible = true
                     this.ghostBoxMesh.scale.set(item.scale.x, item.scale.y, item.scale.z)
                     // Reset Y because targetPos is Center now
                     this.ghostBoxMesh.position.y = 0
@@ -396,6 +456,10 @@ export class PlacementManager {
             } else {
                 // Pads
                 this.ghostBoxMesh.position.y = 0
+                // Ensure other meshes are hidden for pads if reused
+                if (this.ghostRampMesh) this.ghostRampMesh.visible = false
+                if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false
+                this.ghostBoxMesh.visible = true
             }
 
             // Apply rotation to ghost group
