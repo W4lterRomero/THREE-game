@@ -385,12 +385,30 @@ export class PlacementManager {
                     // --- GROUND / GLOBAL LOGIC ---
                     const globalY = isAerialHit ? this.aerialCollider.position.y : hit.point.y;
 
-                    // X/Z Snap
+                    // X/Z Snap with Dual-Snap for Thin Walls
                     ['x', 'z'].forEach(ax => {
                         let val = hit.point[ax]
                         const s = realSize[ax]
-                        const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
-                        targetPos[ax] = Math.round((val - offset) / gridSize) * gridSize + offset
+
+                        // Check for "Thin" object (e.g. Wall thickness ~0.5)
+                        // Precision check: 0.5 is typical. Let's say < 0.9 and > 0.1
+                        if (Math.abs(s - 0.5) < 0.1) {
+                            // DUAL SNAP LOGIC
+                            // We want to snap to Grid +/- 0.25
+                            // 1. Find nearest Grid Line
+                            const baseGrid = Math.round(val / gridSize) * gridSize
+
+                            // 2. Determine side (Inner/Outer) based on cursor relative to line
+                            if (val >= baseGrid) {
+                                targetPos[ax] = baseGrid + 0.25
+                            } else {
+                                targetPos[ax] = baseGrid - 0.25
+                            }
+                        } else {
+                            // Standard Center Snapping
+                            const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
+                            targetPos[ax] = Math.round((val - offset) / gridSize) * gridSize + offset
+                        }
                     })
 
                     // Y Snap
