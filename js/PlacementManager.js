@@ -368,15 +368,33 @@ export class PlacementManager {
                     // Initial Target = HitCenter + Offset
                     let finalPos = hitCenter.clone().add(offsetDist)
 
-                    // Surface Axis Snapping (Global Grid)
+                    // Surface Axis Snapping
                     const axes = ['x', 'y', 'z']
                     axes.forEach(ax => {
                         if (Math.abs(axis[ax]) < 0.1) {
-                            let val = hit.point[ax]
-                            const s = realSize[ax]
-                            const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
-                            val = Math.round((val - offset) / gridSize) * gridSize + offset
-                            finalPos[ax] = val
+                            // If dimensions match, align perfectly with the target object (Stacking/Rowing)
+                            if (Math.abs(realSize[ax] - hitSize[ax]) < 0.1) {
+                                finalPos[ax] = hitCenter[ax]
+                            } else {
+                                // Default Grid Snapping
+                                let val = hit.point[ax]
+                                const s = realSize[ax]
+
+                                // Dual Snap for Thin Objects (Consistency with Ground Logic)
+                                if (Math.abs(s - 0.5) < 0.1) {
+                                    const baseGrid = Math.round(val / gridSize) * gridSize
+                                    if (val >= baseGrid) {
+                                        finalPos[ax] = baseGrid + 0.25
+                                    } else {
+                                        finalPos[ax] = baseGrid - 0.25
+                                    }
+                                } else {
+                                    // Standard 
+                                    const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
+                                    val = Math.round((val - offset) / gridSize) * gridSize + offset
+                                    finalPos[ax] = val
+                                }
+                            }
                         }
                     })
                     targetPos.copy(finalPos)
