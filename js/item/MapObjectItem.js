@@ -294,6 +294,9 @@ export class MapObjectItem extends Item {
 
             const rigidBody = world.createRigidBody(bodyDesc)
 
+            // Store reference for editor updates
+            object3D.userData.rigidBody = rigidBody
+
             // Attach all colliders
             collidersDesc.forEach(col => {
                 world.createCollider(col, rigidBody)

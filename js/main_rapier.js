@@ -21,6 +21,7 @@ import { TurretItem } from "./item/TurretItem.js"
 import { TurretPad } from "./TurretPad.js"
 import { PelotaItem } from "./item/PelotaItem.js"
 import { MapObjectItem } from "./item/MapObjectItem.js"
+import { ObjectInspector } from "./ui/ObjectInspector.js"
 
 class Game {
     constructor() {
@@ -197,6 +198,9 @@ class Game {
                 this.constructionMenu = new module.ConstructionMenu(this.inventoryManager, this)
             })
 
+            // Object Inspector
+            this.objectInspector = new ObjectInspector(this)
+
         } else {
             // Seed Inventory (Normal)
             const item1 = new ImpulseItem("pad_lat", "Impulso Lateral", "./assets/textures/impulso.png", "lateral", 25.0)
@@ -259,6 +263,76 @@ class Game {
         // Loop
         this.animate = this.animate.bind(this)
         requestAnimationFrame(this.animate)
+
+        // Right Click Handler for Inspector
+        document.addEventListener('contextmenu', (e) => {
+            if (this.gameMode === 'editor' && this.objectInspector) {
+                e.preventDefault()
+
+                // Raycast
+                const mouse = new THREE.Vector2()
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+
+                const raycaster = new THREE.Raycaster()
+                raycaster.setFromCamera(mouse, this.sceneManager.camera)
+
+                const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
+
+                // Find first editable object
+                const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+                if (hit) {
+                    this.objectInspector.show(hit.object)
+                }
+            }
+        }, false)
+    }
+
+    regenerateObjectPhysics(objectMesh) {
+        if (!objectMesh || !this.world) return
+
+        // 1. Remove existing RigidBody
+        if (objectMesh.userData.rigidBody) {
+            this.world.removeRigidBody(objectMesh.userData.rigidBody)
+            objectMesh.userData.rigidBody = null
+        }
+
+        const dims = objectMesh.userData.originalScale || { x: 1, y: 1, z: 1 }
+
+        // Create Body
+        const bodyDesc = RAPIER.RigidBodyDesc.fixed()
+            .setTranslation(objectMesh.position.x, objectMesh.position.y, objectMesh.position.z)
+            .setRotation(objectMesh.quaternion)
+
+        const rigidBody = this.world.createRigidBody(bodyDesc)
+        objectMesh.userData.rigidBody = rigidBody
+
+        // Create Collider
+        // Naive Box. If it was Ramp/Stairs, this is wrong. 
+        // But `dims` are what we have.
+        // If Type is 'stairs', we need complex collider logic...
+        // Reuse MapObjectItem logic? 
+        // Copying simplified logic here:
+
+        let colDesc
+        if (objectMesh.userData.mapObjectType === 'ramp') {
+            // Approximation (Box or Convex)
+            // Ramp physics is tricky without vertices.
+            // Let's use Box for now as fallback or Convex if we can get vertices.
+            colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+        } else if (objectMesh.userData.mapObjectType === 'stairs') {
+            // Stairs are complex. Iterate children?
+            // Simpler: Box bounding.
+            colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+        } else {
+            // Box
+            colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+        }
+
+        this.world.createCollider(colDesc, rigidBody)
+
+
     }
 
     buildEnvironment() {
@@ -738,6 +812,11 @@ class Game {
                 }
 
                 if (key === 'e' || (key === 'escape' && this.constructionMenu.isVisible)) return
+            }
+
+            // Close Inspector on Esc
+            if (key === 'escape' && this.objectInspector && this.objectInspector.isVisible) {
+                this.objectInspector.hide()
             }
 
             if (this.inputManager && !this.inputManager.enabled) return
