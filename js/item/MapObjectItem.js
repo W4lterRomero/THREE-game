@@ -3,11 +3,12 @@ import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
 
 export class MapObjectItem extends Item {
-    constructor(id, name, type, iconPath, color, scale = { x: 1, y: 1, z: 1 }) {
+    constructor(id, name, type, iconPath, color, scale = { x: 1, y: 1, z: 1 }, texturePath = null) {
         super(id, name, iconPath)
         this.type = type // 'wall', 'pillar', 'ramp', 'stairs'
         this.color = color
         this.scale = scale
+        this.texturePath = texturePath
 
         // Generate Dynamic Icon
         this.iconPath = this.generateIcon()
@@ -203,12 +204,85 @@ export class MapObjectItem extends Item {
         object3D.rotation.copy(rotation)
         object3D.scale.set(1, 1, 1) // Scale already built-in
 
+        // Apply Texture if exists
+        if (this.texturePath) {
+            const textureLoader = new THREE.TextureLoader()
+            textureLoader.load(this.texturePath, (texture) => {
+                texture.wrapS = THREE.RepeatWrapping
+                texture.wrapT = THREE.RepeatWrapping
+
+                // Smart Tiling
+                // Based on object scale. 1 texture unit per 2 world units? Or 1 per 1?
+                // Standard: 1 tile per 1 unit.
+                // Box Mapping is complex without UV hacks, but for now we map repeat to X/Y
+                // For Box(x,y,z), standard UVs map specific faces.
+                // Simple approach: Set repeat.
+
+                // Note: Standard BoxGeometry UVs are 1x1 per face by default.
+                // We might need to adjust map per face or just set general repeat.
+                // Let's try general repeat based on largest dim or just 1:1.
+
+                // Better approach for construction: 1 tile = 1 meter.
+                // But BoxGeometry reuses UVs.
+                // Let's just apply 1:1 scaling if possible.
+                // Since we can't easily change UVs per face instance without cloning geometry,
+                // we'll apply a material property. 
+                // Wait, if we share geometry, we can't change UVs.
+                // But we create NEW geometry for each object in this code: "new THREE.BoxGeometry".
+                // So we CAN modify UVs or simply use texture.repeat on the material.
+                // BUT the material is created per object too?
+                // Yes: "const material = new THREE.MeshStandardMaterial".
+
+                // So we can set texture.repeat.
+
+                // Determine face dimensions.
+                // Box UV mapping: 
+                // Front/Back: X * Y
+                // Top/Bottom: X * Z
+                // Left/Right: Z * Y
+
+                // Since we can only set ONE repeat for the whole material, it will look wrong on non-cubic objects
+                // unless we use "Triplanar Mapping" (complex) or distinct materials per face.
+
+                // SIMPLIFIED APPROACH:
+                // Just set repeat to 1x1 (stretch) OR 
+                // Use a default repeat based on the largest dimension to avoid extreme stretching.
+                // OR simpler: Just apply it and let Three.js handle default UVs (usually 0..1).
+
+                // Let's try setting repeat based on X/Y average for now.
+                // texture.repeat.set(this.scale.x, this.scale.y) 
+
+                // Actually, for walls (5x3), if we repeat 5x3, it looks perfect on Front/Back.
+                // On Top (5x0.5), it will repeat 3 times on 0.5 depth -> Squashed.
+                // This is the tradeoff without multi-material.
+
+                // Compromise: Use BoxGeometry with array of materials?
+                // Or just accept stretching on thin sides.
+
+                texture.repeat.set(this.scale.x / 2, this.scale.y / 2) // 1 tile = 2 units approx
+
+                // Update Material
+                if (object3D.isGroup) {
+                    object3D.children.forEach(child => {
+                        if (child.material) {
+                            child.material.map = texture
+                            child.material.needsUpdate = true
+                        }
+                    })
+                } else if (object3D.material) {
+                    object3D.material.map = texture
+                    object3D.material.needsUpdate = true
+                }
+            })
+        }
+
         // Metadata
         object3D.userData.isEditableMapObject = true
         object3D.userData.isMapObject = true
         object3D.userData.mapObjectType = this.type
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
+        object3D.userData.texturePath = this.texturePath // Store for serialization
 
         scene.add(object3D)
 

@@ -227,7 +227,8 @@ class Game {
                         source.type,
                         "",
                         source.color,
-                        source.scale
+                        source.scale,
+                        source.texturePath
                     )
                     this.inventoryManager.setItem(slotIndex, newItem)
                     console.log("Equipped", newItem.name, "to slot", slotIndex + 1)

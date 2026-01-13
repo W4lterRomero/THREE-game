@@ -496,6 +496,111 @@ export class ConstructionMenu {
         this.panelEditor.appendChild(this.editorPreview)
         this.panelEditor.appendChild(controlsContainer)
 
+        // 4. Texture Controls
+        const textureContainer = document.createElement('div')
+        textureContainer.style.cssText = `
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+        `
+
+        const textureLabel = document.createElement('span')
+        textureLabel.textContent = "Textura:"
+        textureContainer.appendChild(textureLabel)
+
+        const textureGrid = document.createElement('div')
+        textureGrid.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        `
+
+        // Texture Options
+        const textures = [
+            { name: "Ninguna", path: null, color: "#333" },
+            { name: "Ladrillo", path: "assets/textures/obj/brick.png", img: "assets/textures/obj/brick.png" },
+            { name: "Concreto", path: "assets/textures/obj/concrete.png", img: "assets/textures/obj/concrete.png" },
+            { name: "Madera", path: "assets/textures/obj/wood.png", img: "assets/textures/obj/wood.png" }
+        ]
+
+        textures.forEach(tex => {
+            const btn = document.createElement('div')
+            btn.className = 'texture-btn' // Identifier
+            btn.title = tex.name
+            btn.style.cssText = `
+                width: 100%;
+                aspect-ratio: 1;
+                border: 1px solid #555;
+                border-radius: 4px;
+                cursor: pointer;
+                background-color: ${tex.color || 'transparent'};
+                background-image: ${tex.img ? `url(${tex.img})` : 'none'};
+                background-size: cover;
+                background-position: center;
+            `
+            btn.onclick = () => {
+                this.updateDraftTexture(tex.path)
+                // Highlight selection
+                const allBtns = this.panelEditor.querySelectorAll('.texture-btn')
+                allBtns.forEach(c => c.style.borderColor = "#555")
+                btn.style.borderColor = "#00FF00"
+            }
+            textureGrid.appendChild(btn)
+        })
+        textureContainer.appendChild(textureGrid)
+
+        // Upload Button
+        const uploadRow = document.createElement('div')
+        uploadRow.style.cssText = `display: flex; gap: 5px;`
+
+        const fileInput = document.createElement('input')
+        fileInput.type = 'file'
+        fileInput.accept = 'image/*'
+        fileInput.style.display = 'none'
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0]
+            if (file) {
+                const reader = new FileReader()
+                reader.onload = (evt) => {
+                    const dataUrl = evt.target.result
+                    this.updateDraftTexture(dataUrl)
+                    // Visual feedback
+                    uploadBtn.textContent = "Textura Cargada"
+                    uploadBtn.style.color = "#00FF00"
+
+                    // Reset grid selection
+                    const allBtns = this.panelEditor.querySelectorAll('.texture-btn')
+                    allBtns.forEach(c => c.style.borderColor = "#555")
+                }
+                reader.readAsDataURL(file)
+            }
+        })
+
+        const uploadBtn = document.createElement('button')
+        uploadBtn.id = 'texture-upload-btn'
+        uploadBtn.textContent = "Subir Textura Personal"
+        uploadBtn.style.cssText = `
+            flex: 1;
+            background: #444;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        `
+        uploadBtn.onclick = () => fileInput.click()
+
+        uploadRow.appendChild(fileInput)
+        uploadRow.appendChild(uploadBtn)
+        textureContainer.appendChild(uploadRow)
+
+        this.panelEditor.appendChild(textureContainer)
+
         const dragHint = document.createElement('div')
         dragHint.textContent = "Arrastra la imagen superior a tu inventario"
         dragHint.style.fontSize = "12px"
@@ -518,18 +623,30 @@ export class ConstructionMenu {
         this.editorTitle.textContent = baseItem.name
 
         // Init Draft
-        this.createDraft(baseItem.id, baseItem.name, baseItem.type, baseItem.color, baseItem.scale)
+        this.createDraft(baseItem.id, baseItem.name, baseItem.type, baseItem.color, baseItem.scale, baseItem.texturePath)
 
         // Reset color picker
         const hex = '#' + new THREE.Color(baseItem.color).getHexString()
         this.colorPicker.value = hex
         this.updateDraftColor(hex)
+
+        // Reset Texture UI
+        const allBtns = this.panelEditor.querySelectorAll('.texture-btn')
+        allBtns.forEach(c => c.style.borderColor = "#555")
+        // Select None (first one) by default if baseItem has no texture
+        if (allBtns.length > 0) allBtns[0].style.borderColor = "#00FF00"
+
+        const uploadBtn = this.panelEditor.querySelector('#texture-upload-btn')
+        if (uploadBtn) {
+            uploadBtn.textContent = "Subir Textura Personal"
+            uploadBtn.style.color = "white"
+        }
     }
 
-    createDraft(id, name, type, color, scale) {
+    createDraft(id, name, type, color, scale, texturePath = null) {
         // Create a new MapObjectItem that acts as our "Modified" version
         // We pass the color directly
-        this.currentDraftItem = new MapObjectItem(id, name, type, "", color, scale)
+        this.currentDraftItem = new MapObjectItem(id, name, type, "", color, scale, texturePath)
     }
 
     updateDraftColor(colorHex) {
@@ -543,6 +660,11 @@ export class ConstructionMenu {
 
         // Update Preview
         this.editorImg.src = this.currentDraftItem.iconPath
+    }
+
+    updateDraftTexture(texturePath) {
+        if (!this.currentDraftItem) return
+        this.currentDraftItem.texturePath = texturePath
     }
 
     toggle() {
