@@ -17,8 +17,8 @@ export class ConstructionMenu {
     generateLibrary() {
         // Shapes
         const shapes = [
-            { id_prefix: "wall", name: "Pared", type: "wall", scale: { x: 4, y: 3, z: 0.5 } },
-            { id_prefix: "wall_low", name: "Muro Bajo", type: "wall", scale: { x: 4, y: 1, z: 0.5 } },
+            { id_prefix: "wall", name: "Pared", type: "wall", scale: { x: 5, y: 3, z: 0.5 } },
+            { id_prefix: "wall_low", name: "Muro Bajo", type: "wall", scale: { x: 5, y: 1, z: 0.5 } },
             { id_prefix: "floor", name: "Suelo", type: "wall", scale: { x: 5, y: 0.5, z: 5 } },
             { id_prefix: "platform", name: "Plataforma", type: "wall", scale: { x: 10, y: 0.5, z: 10 } },
             { id_prefix: "pillar", name: "Pilar", type: "pillar", scale: { x: 1, y: 4, z: 1 } },
