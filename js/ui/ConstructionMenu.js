@@ -625,6 +625,65 @@ export class ConstructionMenu {
 
         this.panelEditor.appendChild(textureContainer)
 
+        // 5. Dimension Controls
+        const dimContainer = document.createElement('div')
+        dimContainer.style.cssText = `
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+        `
+        const dimLabel = document.createElement('span')
+        dimLabel.textContent = "Dimensiones (X, Y, Z):"
+        dimContainer.appendChild(dimLabel)
+
+        const dimRow = document.createElement('div')
+        dimRow.style.cssText = `display: flex; gap: 5px;`
+
+        const createDimInput = (axis, label) => {
+            const container = document.createElement('div')
+            container.style.cssText = `flex: 1; display: flex; flex-direction: column; gap: 2px;`
+
+            const lbl = document.createElement('span')
+            lbl.textContent = label
+            lbl.style.fontSize = "10px"
+            lbl.style.color = "#aaa"
+
+            const input = document.createElement('input')
+            input.type = "number"
+            input.step = "0.5"
+            input.min = "0.1"
+            input.style.width = "100%"
+            input.style.backgroundColor = "#333"
+            input.style.color = "white"
+            input.style.border = "1px solid #555"
+            input.style.borderRadius = "4px"
+            input.style.padding = "4px"
+            input.onchange = (e) => {
+                const val = parseFloat(e.target.value)
+                if (!isNaN(val) && val > 0) {
+                    this.updateDraftScale(axis, val)
+                }
+            }
+            // Store ref to update later
+            this[`inputDim${axis}`] = input
+
+            container.appendChild(lbl)
+            container.appendChild(input)
+            return container
+        }
+
+        dimRow.appendChild(createDimInput('x', 'Ancho'))
+        dimRow.appendChild(createDimInput('y', 'Alto'))
+        dimRow.appendChild(createDimInput('z', 'Prof.'))
+
+        dimContainer.appendChild(dimRow)
+        this.panelEditor.appendChild(dimContainer)
+
+
         const dragHint = document.createElement('div')
         dragHint.textContent = "Arrastra la imagen superior a tu inventario"
         dragHint.style.fontSize = "12px"
@@ -646,8 +705,9 @@ export class ConstructionMenu {
 
         this.editorTitle.textContent = baseItem.name
 
-        // Init Draft
-        this.createDraft(baseItem.id, baseItem.name, baseItem.type, baseItem.color, baseItem.scale, baseItem.texturePath)
+        // Init Draft - CRITICAL: Copy scale object to avoid mutation
+        const scaleCopy = { ...baseItem.scale }
+        this.createDraft(baseItem.id, baseItem.name, baseItem.type, baseItem.color, scaleCopy, baseItem.texturePath)
 
         // Reset color picker
         const hex = '#' + new THREE.Color(baseItem.color).getHexString()
@@ -665,6 +725,11 @@ export class ConstructionMenu {
             uploadBtn.textContent = "Subir Textura Personal"
             uploadBtn.style.color = "white"
         }
+
+        // Reset Inputs
+        if (this.inputDimx) this.inputDimx.value = scaleCopy.x
+        if (this.inputDimy) this.inputDimy.value = scaleCopy.y
+        if (this.inputDimz) this.inputDimz.value = scaleCopy.z
     }
 
     createDraft(id, name, type, color, scale, texturePath = null) {
@@ -689,6 +754,11 @@ export class ConstructionMenu {
     updateDraftTexture(texturePath) {
         if (!this.currentDraftItem) return
         this.currentDraftItem.texturePath = texturePath
+    }
+
+    updateDraftScale(axis, value) {
+        if (!this.currentDraftItem) return
+        this.currentDraftItem.scale[axis] = value
     }
 
     toggle() {
