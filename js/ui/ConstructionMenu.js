@@ -103,13 +103,41 @@ export class ConstructionMenu {
         this.contentLibrary = document.createElement('div')
         this.contentLibrary.style.cssText = `
             flex: 1;
+            display: flex; /* Flex Row */
+            gap: 20px;
+            overflow: hidden; /* Manage overflow internally */
+        `
+
+        // Left: Grid
+        this.libraryGrid = document.createElement('div')
+        this.libraryGrid.style.cssText = `
+            flex: 2;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            grid-auto-rows: 120px;
+            gap: 10px;
             overflow-y: auto;
             padding-right: 10px;
+            align-content: start;
         `
-        this.renderLibrary(this.contentLibrary)
+        this.renderLibraryGrid(this.libraryGrid)
+
+        // Right: Customizer Panel
+        this.libraryPanel = document.createElement('div')
+        this.libraryPanel.style.cssText = `
+            flex: 1;
+            background: #222;
+            border-left: 1px solid #444;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-radius: 8px;
+        `
+        this.renderLibraryPanel(this.libraryPanel)
+
+        this.contentLibrary.appendChild(this.libraryGrid)
+        this.contentLibrary.appendChild(this.libraryPanel)
 
         this.contentSettings = document.createElement('div')
         this.contentSettings.style.cssText = `
@@ -137,7 +165,7 @@ export class ConstructionMenu {
 
     switchTab(tabName) {
         if (tabName === 'library') {
-            this.contentLibrary.style.display = 'grid'
+            this.contentLibrary.style.display = 'flex'
             this.contentSettings.style.display = 'none'
 
             this.tabLibrary.style.fontWeight = "bold"
@@ -274,7 +302,7 @@ export class ConstructionMenu {
         container.appendChild(rowAerial)
     }
 
-    renderLibrary(container) {
+    renderLibraryGrid(container) {
         // Populate Grid
         this.libraryItems.forEach(item => {
             const card = document.createElement('div')
@@ -286,20 +314,33 @@ export class ConstructionMenu {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: center;
                 gap: 5px;
-                cursor: grab;
+                cursor: pointer;
                 transition: transform 0.1s;
                 user-select: none;
             `
-            card.onmouseover = () => card.style.background = "#444"
-            card.onmouseout = () => card.style.background = "#333"
+            card.onmouseover = () => {
+                if (this.selectedItem !== item) card.style.background = "#444"
+                else card.style.background = "#555"
+            }
+            card.onmouseout = () => {
+                if (this.selectedItem !== item) card.style.background = "#333"
+                else card.style.background = "#555"
+            }
+            card.onclick = () => {
+                // Update selection UI
+                Array.from(container.children).forEach(c => c.style.border = "none")
+                card.style.border = "2px solid #00FF00"
+                this.selectItem(item)
+            }
 
             const img = document.createElement('img')
             img.src = item.iconPath
             img.style.width = "64px"
             img.style.height = "64px"
             img.style.objectFit = "contain"
-            img.draggable = false // Drag container
+            img.draggable = false
 
             const lbl = document.createElement('span')
             lbl.textContent = item.name
@@ -309,17 +350,199 @@ export class ConstructionMenu {
             card.appendChild(img)
             card.appendChild(lbl)
 
-            // Drag Events
+            // Drag Events (Default White)
             card.addEventListener('dragstart', (e) => {
-                // IMPORTANT: We must NOT stringify circular structs. 
-                // We use module-level or instance-level tracker.
                 this.draggedItem = item
                 e.dataTransfer.effectAllowed = "copy"
-                e.dataTransfer.setData("text/plain", "item") // Required for drag to work in some browsers
+                e.dataTransfer.setData("text/plain", "item")
             })
 
             container.appendChild(card)
         })
+    }
+
+    renderLibraryPanel(container) {
+        // Placeholder State
+        this.panelPlaceholder = document.createElement('div')
+        this.panelPlaceholder.textContent = "Selecciona un elemento para editar"
+        this.panelPlaceholder.style.cssText = `
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            text-align: center;
+        `
+
+        // Editor State
+        this.panelEditor = document.createElement('div')
+        this.panelEditor.style.cssText = `
+            display: none; /* Hidden init */
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            width: 100%;
+        `
+
+        // 1. Title
+        this.editorTitle = document.createElement('h3')
+        this.editorTitle.style.margin = "0"
+        this.editorTitle.style.borderBottom = "1px solid #444"
+        this.editorTitle.style.width = "100%"
+        this.editorTitle.style.textAlign = "center"
+        this.editorTitle.style.paddingBottom = "10px"
+
+        // 2. Large Preview (Draggable)
+        this.editorPreview = document.createElement('div')
+        this.editorPreview.draggable = true
+        this.editorPreview.style.cssText = `
+            width: 128px;
+            height: 128px;
+            background: #111;
+            border: 2px dashed #444;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            transition: 0.2s;
+        `
+        this.editorPreview.onmouseover = () => this.editorPreview.style.borderColor = "#fff"
+        this.editorPreview.onmouseout = () => this.editorPreview.style.borderColor = "#444"
+
+        this.editorImg = document.createElement('img')
+        this.editorImg.style.width = "100%"
+        this.editorImg.style.height = "100%"
+        this.editorImg.style.objectFit = "contain"
+        this.editorImg.draggable = false
+
+        this.editorPreview.appendChild(this.editorImg)
+
+        // Drag Logic for Custom Item
+        this.editorPreview.addEventListener('dragstart', (e) => {
+            if (this.currentDraftItem) {
+                this.draggedItem = this.currentDraftItem
+                e.dataTransfer.effectAllowed = "copy"
+                e.dataTransfer.setData("text/plain", "item")
+            }
+        })
+
+        // 3. Color Controls Setup
+        const controlsContainer = document.createElement('div')
+        controlsContainer.style.width = "100%"
+        controlsContainer.style.display = "flex"
+        controlsContainer.style.flexDirection = "column"
+        controlsContainer.style.gap = "10px"
+
+        // Color Picker Row
+        const pickerRow = document.createElement('div')
+        pickerRow.style.display = "flex"
+        pickerRow.style.alignItems = "center"
+        pickerRow.style.justifyContent = "space-between"
+
+        const pickerLabel = document.createElement('span')
+        pickerLabel.textContent = "Color:"
+
+        this.colorPicker = document.createElement('input')
+        this.colorPicker.type = "color"
+        this.colorPicker.style.border = "none"
+        this.colorPicker.style.width = "40px"
+        this.colorPicker.style.height = "40px"
+        this.colorPicker.style.cursor = "pointer"
+        this.colorPicker.style.backgroundColor = "transparent"
+        this.colorPicker.addEventListener('input', (e) => {
+            this.updateDraftColor(e.target.value)
+        })
+
+        pickerRow.appendChild(pickerLabel)
+        pickerRow.appendChild(this.colorPicker)
+        controlsContainer.appendChild(pickerRow)
+
+        // Palette
+        this.paletteContainer = document.createElement('div')
+        this.paletteContainer.style.cssText = `
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 5px; 
+            justify-content: center;
+            margin-top: 10px;
+        `
+        const colors = [
+            "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF",
+            "#FFFF00", "#00FFFF", "#FF00FF", "#FFA500", "#800080",
+            "#40E0D0", "#FFC0CB", "#8B4513", "#808080"
+        ]
+
+        colors.forEach(c => {
+            const swatch = document.createElement('div')
+            swatch.style.cssText = `
+                width: 24px; 
+                height: 24px; 
+                background-color: ${c}; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                border: 1px solid #555;
+            `
+            swatch.onclick = () => {
+                this.colorPicker.value = c // Sync picker
+                this.updateDraftColor(c)
+            }
+            this.paletteContainer.appendChild(swatch)
+        })
+        controlsContainer.appendChild(this.paletteContainer)
+
+        // Add to panel
+        this.panelEditor.appendChild(this.editorTitle)
+        this.panelEditor.appendChild(this.editorPreview)
+        this.panelEditor.appendChild(controlsContainer)
+
+        const dragHint = document.createElement('div')
+        dragHint.textContent = "Arrastra la imagen superior a tu inventario"
+        dragHint.style.fontSize = "12px"
+        dragHint.style.color = "#888"
+        dragHint.style.marginTop = "auto"
+        dragHint.style.textAlign = "center"
+        this.panelEditor.appendChild(dragHint)
+
+        container.appendChild(this.panelPlaceholder)
+        container.appendChild(this.panelEditor)
+    }
+
+    selectItem(baseItem) {
+        this.selectedItem = baseItem
+
+        // Show Editor
+        this.panelPlaceholder.style.display = 'none'
+        this.panelEditor.style.display = 'flex'
+
+        this.editorTitle.textContent = baseItem.name
+
+        // Init Draft
+        this.createDraft(baseItem.id, baseItem.name, baseItem.type, baseItem.color, baseItem.scale)
+
+        // Reset color picker
+        const hex = '#' + new THREE.Color(baseItem.color).getHexString()
+        this.colorPicker.value = hex
+        this.updateDraftColor(hex)
+    }
+
+    createDraft(id, name, type, color, scale) {
+        // Create a new MapObjectItem that acts as our "Modified" version
+        // We pass the color directly
+        this.currentDraftItem = new MapObjectItem(id, name, type, "", color, scale)
+    }
+
+    updateDraftColor(colorHex) {
+        if (!this.currentDraftItem) return
+
+        // Update Color
+        this.currentDraftItem.color = parseInt(colorHex.replace('#', '0x'))
+
+        // Regenerate Icon
+        this.currentDraftItem.iconPath = this.currentDraftItem.generateIcon()
+
+        // Update Preview
+        this.editorImg.src = this.currentDraftItem.iconPath
     }
 
     toggle() {
