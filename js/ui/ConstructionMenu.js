@@ -133,7 +133,30 @@ export class ConstructionMenu {
             flex-direction: column;
             gap: 15px;
             border-radius: 8px;
+            overflow-y: auto; /* Global Scroll */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #444 #222; /* Firefox */
         `
+
+        // Inject Custom Scrollbar Style for Webkit
+        const style = document.createElement('style')
+        style.innerHTML = `
+            #construction-menu ::-webkit-scrollbar {
+                width: 6px;
+            }
+            #construction-menu ::-webkit-scrollbar-track {
+                background: #222; 
+            }
+            #construction-menu ::-webkit-scrollbar-thumb {
+                background: #444; 
+                border-radius: 3px;
+            }
+            #construction-menu ::-webkit-scrollbar-thumb:hover {
+                background: #555; 
+            }
+        `
+        this.container.appendChild(style)
+
         this.renderLibraryPanel(this.libraryPanel)
 
         this.contentLibrary.appendChild(this.libraryGrid)
@@ -524,12 +547,13 @@ export class ConstructionMenu {
             { name: "Ninguna", path: null, color: "#333" },
             { name: "Ladrillo", path: "assets/textures/obj/brick.png", img: "assets/textures/obj/brick.png" },
             { name: "Concreto", path: "assets/textures/obj/concrete.png", img: "assets/textures/obj/concrete.png" },
-            { name: "Madera", path: "assets/textures/obj/wood.png", img: "assets/textures/obj/wood.png" }
+            { name: "Madera", path: "assets/textures/obj/wood.png", img: "assets/textures/obj/wood.png" },
+            { name: "Hierro", path: "assets/textures/obj/hierro.png", img: "assets/textures/obj/hierro.png" }
         ]
 
         textures.forEach(tex => {
             const btn = document.createElement('div')
-            btn.className = 'texture-btn' // Identifier
+            btn.className = 'texture-btn'
             btn.title = tex.name
             btn.style.cssText = `
                 width: 100%;
