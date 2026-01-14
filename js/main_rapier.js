@@ -259,20 +259,26 @@ class Game {
         // Debug
         this.debugEnabled = false
         this.setupDebugRender()
-
         // Loop
         this.animate = this.animate.bind(this)
         requestAnimationFrame(this.animate)
 
-        // Right Click Handler for Inspector
-        document.addEventListener('contextmenu', (e) => {
-            if (this.gameMode === 'editor' && this.objectInspector) {
-                e.preventDefault()
+        // Right Click Handler for Inspector (Using mousedown to support Pointer Lock)
+        document.addEventListener('mousedown', (e) => {
+            if (this.gameMode === 'editor' && this.objectInspector && e.button === 2) { // Button 2 is Right Click
 
                 // Raycast
                 const mouse = new THREE.Vector2()
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+
+                // If Pointer Locked (Crosshair mode), raycast from center
+                if (document.pointerLockElement) {
+                    mouse.x = 0
+                    mouse.y = 0
+                } else {
+                    // Else, use mouse pointer position
+                    mouse.x = (e.clientX / window.innerWidth) * 2 - 1
+                    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+                }
 
                 const raycaster = new THREE.Raycaster()
                 raycaster.setFromCamera(mouse, this.sceneManager.camera)
@@ -287,6 +293,9 @@ class Game {
                 }
             }
         }, false)
+
+        // Prevent Default Context Menu
+        document.addEventListener('contextmenu', (e) => e.preventDefault(), false)
     }
 
     regenerateObjectPhysics(objectMesh) {
