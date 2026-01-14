@@ -660,12 +660,10 @@ class Game {
         // If we rotate the camera, it orbits the origin.
 
         // Correct approach:
-        // 1. Reset Gizmo Camera Position to a fixed offset (0, 0, 10)
-        // 2. Set Gizmo Camera Up to main camera Up?
-        // 3. LookAt?
-
-        // Easiest: Copy Quaternion.
+        // Position camera "behind" the origin relative to the view direction,
+        // so that when it looks forward (matching main camera), it sees the origin.
         this.gizmoCamera.position.set(0, 0, 10)
+        this.gizmoCamera.position.applyQuaternion(this.sceneManager.camera.quaternion)
         this.gizmoCamera.quaternion.copy(this.sceneManager.camera.quaternion)
 
         // Scissor Test for bottom-left (or right)
