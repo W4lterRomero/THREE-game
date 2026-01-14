@@ -205,6 +205,13 @@ export class ObjectInspector {
             section.appendChild(uploadBtn)
         })
 
+            // Stop propagation of events to prevent game interaction when over the UI
+            ;['mousedown', 'mouseup', 'click', 'wheel', 'keydown', 'keyup'].forEach(eventType => {
+                this.container.addEventListener(eventType, (e) => {
+                    e.stopPropagation()
+                })
+            })
+
         document.body.appendChild(this.container)
     }
 
@@ -306,7 +313,7 @@ export class ObjectInspector {
 
         // Disable Game Input - REMOVED to allow movement
         // if (this.game.inputManager) this.game.inputManager.enabled = false
-        // document.exitPointerLock()
+        document.exitPointerLock()
 
         // Add Axes Helper
         if (!this.axesHelper) {
