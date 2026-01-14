@@ -72,9 +72,9 @@ export class ObjectInspector {
             const row = document.createElement('div')
             row.style.cssText = `display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;`
 
-            this.inputPosX = this.createNumberInput("X", (v) => this.updatePosition('x', v))
-            this.inputPosY = this.createNumberInput("Y", (v) => this.updatePosition('y', v))
-            this.inputPosZ = this.createNumberInput("Z", (v) => this.updatePosition('z', v))
+            this.inputPosX = this.createNumberInput("X", (v) => this.updatePosition('x', v), -Infinity, 0.5, "#FF4444")
+            this.inputPosY = this.createNumberInput("Y", (v) => this.updatePosition('y', v), -Infinity, 0.5, "#44FF44")
+            this.inputPosZ = this.createNumberInput("Z", (v) => this.updatePosition('z', v), -Infinity, 0.5, "#4444FF")
 
             row.appendChild(this.inputPosX.container)
             row.appendChild(this.inputPosY.container)
@@ -83,19 +83,23 @@ export class ObjectInspector {
 
             // Nudge Buttons (Careful Move)
             const nudgeContainer = document.createElement('div')
+            // ... (rest of nudge logic)
             nudgeContainer.style.marginTop = "10px"
             nudgeContainer.style.display = "grid"
             nudgeContainer.style.gridTemplateColumns = "repeat(3, 1fr)" // X, Y, Z columns
             nudgeContainer.style.gap = "5px"
 
             // Helpers for buttons
-            const createNudgeGroup = (axis) => {
+            const createNudgeGroup = (axis, color) => {
                 const group = document.createElement('div')
                 group.style.display = "flex"
                 group.style.flexDirection = "column"
                 group.style.gap = "2px"
+                group.style.borderTop = `2px solid ${color}`
+                group.style.paddingTop = "2px"
 
                 const btnPlus = document.createElement('button')
+                // ...
                 btnPlus.textContent = `+${axis}`
                 btnPlus.style.cssText = `background: #444; color: white; border: none; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 10px;`
                 btnPlus.onclick = () => this.nudge(axis, 0.1)
@@ -110,9 +114,9 @@ export class ObjectInspector {
                 return group
             }
 
-            nudgeContainer.appendChild(createNudgeGroup('X'))
-            nudgeContainer.appendChild(createNudgeGroup('Y'))
-            nudgeContainer.appendChild(createNudgeGroup('Z'))
+            nudgeContainer.appendChild(createNudgeGroup('X', '#FF4444'))
+            nudgeContainer.appendChild(createNudgeGroup('Y', '#44FF44'))
+            nudgeContainer.appendChild(createNudgeGroup('Z', '#4444FF'))
             section.appendChild(nudgeContainer)
         })
 
@@ -121,15 +125,21 @@ export class ObjectInspector {
             const row = document.createElement('div')
             row.style.cssText = `display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;`
 
-            this.inputScaleX = this.createNumberInput("Ancho", (v) => this.updateDimensions('x', v), 0.1, 0.5)
-            this.inputScaleY = this.createNumberInput("Alto", (v) => this.updateDimensions('y', v), 0.1, 0.5)
-            this.inputScaleZ = this.createNumberInput("Prof.", (v) => this.updateDimensions('z', v), 0.1, 0.5)
+            this.inputScaleX = this.createNumberInput("Ancho", (v) => this.updateDimensions('x', v), 0.1, 0.5, "#FF4444")
+            this.inputScaleY = this.createNumberInput("Alto", (v) => this.updateDimensions('y', v), 0.1, 0.5, "#44FF44")
+            this.inputScaleZ = this.createNumberInput("Prof.", (v) => this.updateDimensions('z', v), 0.1, 0.5, "#4444FF")
 
             row.appendChild(this.inputScaleX.container)
             row.appendChild(this.inputScaleY.container)
             row.appendChild(this.inputScaleZ.container)
             section.appendChild(row)
         })
+
+        // ...
+
+
+        // ...
+
 
         // 3. Color Controls
         this.createSection("Color", (section) => {
@@ -211,14 +221,18 @@ export class ObjectInspector {
         this.content.appendChild(section)
     }
 
-    createNumberInput(label, onChange, min = -Infinity, step = 0.5) {
+    createNumberInput(label, onChange, min = -Infinity, step = 0.5, color = null) {
         const container = document.createElement('div')
         container.style.cssText = `display: flex; flex-direction: column; gap: 2px;`
+        if (color) {
+            container.style.borderLeft = `3px solid ${color}`
+            container.style.paddingLeft = "4px"
+        }
 
         const lbl = document.createElement('span')
         lbl.textContent = label
         lbl.style.fontSize = "10px"
-        lbl.style.color = "#888"
+        lbl.style.color = color ? color : "#888"
 
         const input = document.createElement('input')
         input.type = "number"

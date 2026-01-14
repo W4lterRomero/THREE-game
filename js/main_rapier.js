@@ -63,6 +63,9 @@ class Game {
             this.sceneManager.camera,
             this.sceneManager.renderer.domElement
         )
+        this.sceneManager.renderer.autoClear = false // Manual clear for overlays
+        this.setupOrientationGizmo()
+
         this.character.cameraController = this.cameraController
 
         // Network & UI
@@ -571,8 +574,11 @@ class Game {
         }
 
         // Render
+        // Render
         this.updateDebugRender()
+        this.sceneManager.renderer.clear() // Manual clear
         this.sceneManager.update()
+        this.renderOrientationGizmo()
     }
 
 
@@ -603,6 +609,77 @@ class Game {
 
         this.debugMesh.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
         this.debugMesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4))
+    }
+
+    setupOrientationGizmo() {
+        this.gizmoScene = new THREE.Scene()
+        // Axes Helper for orientation
+        this.gizmoAxes = new THREE.AxesHelper(1)
+        // Adjust colors/width if needed, but default RGB is fine
+        this.gizmoScene.add(this.gizmoAxes)
+
+        // Gizmo Camera
+        // Orthographic is better for UI gizmos usually
+        const size = 2
+        this.gizmoCamera = new THREE.OrthographicCamera(-size, size, size, -size, 0.1, 100)
+        this.gizmoCamera.position.set(0, 0, 10)
+        this.gizmoCamera.lookAt(0, 0, 0)
+    }
+
+    renderOrientationGizmo() {
+        if (!this.gizmoScene || !this.gizmoCamera || !this.sceneManager) return
+
+        const renderer = this.sceneManager.renderer
+        const width = window.innerWidth
+        const height = window.innerHeight
+
+        // Viewport size for gizmo (e.g. 150px)
+        const size = 150
+        const padding = 10
+
+        // Sync rotation
+        // The gizmo camera should match the main camera's rotation
+        // IMPORTANT: We want the axes to rotate as the world rotates.
+        // So we copy the main camera's quaternion.
+        this.gizmoCamera.position.copy(this.sceneManager.camera.position)
+        this.gizmoCamera.position.sub(this.sceneManager.camera.position).setLength(10) // Normalize distance
+        this.gizmoCamera.lookAt(0, 0, 0) // Look at distinct origin? 
+        // Better: Copy quaternion inverse? No.
+        // Standard way: Just copy quaternion and position camera at distance Z
+
+        // Simpler approach for axes:
+        // Position camera at 0,0,10.
+        // Rotate the AXES object to match world? No.
+        // Rotate the GIZMO CAMERA to match MAIN CAMERA?
+        this.gizmoCamera.position.copy(this.sceneManager.camera.position)
+        this.gizmoCamera.quaternion.copy(this.sceneManager.camera.quaternion)
+        // Move to origin relative to camera?
+        // Actually, Orthographic camera at 0,0,10 looking at 0,0,0.
+        // We shouldn't move the camera position if it's ortho looking at origin, 
+        // we should just rotate it?
+        // If we rotate the camera, it orbits the origin.
+
+        // Correct approach:
+        // 1. Reset Gizmo Camera Position to a fixed offset (0, 0, 10)
+        // 2. Set Gizmo Camera Up to main camera Up?
+        // 3. LookAt?
+
+        // Easiest: Copy Quaternion.
+        this.gizmoCamera.position.set(0, 0, 10)
+        this.gizmoCamera.quaternion.copy(this.sceneManager.camera.quaternion)
+
+        // Scissor Test for bottom-left (or right)
+        renderer.setScissorTest(true)
+        // Bottom Left
+        renderer.setScissor(padding, padding, size, size)
+        renderer.setViewport(padding, padding, size, size)
+
+        renderer.clearDepth() // Clear depth so gizmo renders on top
+        renderer.render(this.gizmoScene, this.gizmoCamera)
+
+        // Reset
+        renderer.setScissorTest(false)
+        renderer.setViewport(0, 0, width, height)
     }
 
     setupMultiplayerUI() {
