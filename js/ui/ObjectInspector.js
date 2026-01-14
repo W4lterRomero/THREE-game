@@ -325,8 +325,9 @@ export class ObjectInspector {
             // "Show Red/Green/Blue arrows on the selected object" implies local axes usually.
             // Let's add to scene and copy transforms or add to object?
             // Adding to object is easiest.
-            object.add(this.axesHelper)
         }
+        // Always add (re-parent) to current object
+        object.add(this.axesHelper)
     }
 
     hide() {
