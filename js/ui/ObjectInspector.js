@@ -314,6 +314,7 @@ export class ObjectInspector {
         // Disable Game Input - REMOVED to allow movement
         // if (this.game.inputManager) this.game.inputManager.enabled = false
         document.exitPointerLock()
+        if (this.game.cameraController) this.game.cameraController.setUIOpen(true)
 
         // Add Axes Helper
         if (!this.axesHelper) {
@@ -332,6 +333,7 @@ export class ObjectInspector {
         this.isVisible = false
         this.container.style.display = 'none'
         this.selectedObject = null
+        if (this.game.cameraController) this.game.cameraController.setUIOpen(false)
 
         // Enable Game Input - REMOVED (never disabled)
         // if (this.game.inputManager) this.game.inputManager.enabled = true

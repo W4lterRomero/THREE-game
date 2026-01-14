@@ -50,6 +50,7 @@ export class CameraController {
         this.tpInvertAxisY = true
 
         this.isPaused = false
+        this.isUIOpen = false // UI blocks pointer lock
 
         this.setupEventListeners()
     }
@@ -57,7 +58,7 @@ export class CameraController {
     setupEventListeners() {
         // Tab to switch camera mode
         document.addEventListener("keydown", (e) => {
-            if (e.code === "Tab" && !this.isPaused) {
+            if (e.code === "Tab" && !this.isPaused && !this.isUIOpen) {
                 e.preventDefault()
                 this.toggleCameraMode()
             }
@@ -70,8 +71,9 @@ export class CameraController {
         // Right mouse button for camera rotation
         this.domElement.addEventListener("mousedown", (e) => {
             if (e.button === 2 && !this.isPaused) {
+                // Allow interactions even if UI open (for rotation)
                 this.isRightMouseDown = true
-                if (!this.alwaysRotateThirdPerson) {
+                if (!this.alwaysRotateThirdPerson && !this.isUIOpen) {
                     this.domElement.requestPointerLock()
                 }
             }
@@ -80,7 +82,7 @@ export class CameraController {
         this.domElement.addEventListener("mouseup", (e) => {
             if (e.button === 2) {
                 this.isRightMouseDown = false
-                if (!this.isFirstPerson && !this.alwaysRotateThirdPerson) {
+                if (!this.isFirstPerson && !this.alwaysRotateThirdPerson && !this.isUIOpen) {
                     document.exitPointerLock()
                 }
             }
@@ -91,6 +93,8 @@ export class CameraController {
             if (this.isPaused) return
 
             const isLocked = document.pointerLockElement === this.domElement
+            // Allow rotation if Right Mouse is Down (even if UI open) OR if Locked/AlwaysRotate
+            // We need to ensure we don't rotate if clicking ON UI elements (handled by stopPropagation in UI)
             const canRotate = this.isFirstPerson || this.isRightMouseDown || (this.alwaysRotateThirdPerson && isLocked)
 
             if (canRotate) {
@@ -133,7 +137,7 @@ export class CameraController {
 
         // Click to lock pointer
         this.domElement.addEventListener("click", () => {
-            if (!this.isPaused) {
+            if (!this.isPaused && !this.isUIOpen) {
                 this.lock()
             }
         })
@@ -146,6 +150,7 @@ export class CameraController {
     }
 
     lock() {
+        if (this.isUIOpen) return
         if (this.isFirstPerson || this.alwaysRotateThirdPerson) {
             this.domElement.requestPointerLock()
         }
@@ -206,6 +211,30 @@ export class CameraController {
 
     setHorizontalOffset(value) {
         this.horizontalOffset = value
+    }
+
+    setUIOpen(isOpen) {
+        if (this.isUIOpen === isOpen) return
+        this.isUIOpen = isOpen
+
+        if (isOpen) {
+            // Store previous state
+            this.wasAlwaysRotate = this.alwaysRotateThirdPerson
+            // Disable auto tracking
+            if (this.wasAlwaysRotate) {
+                this.setAlwaysRotateThirdPerson(false)
+                // Note: setAlwaysRotate... exits pointer lock if false, which is what we want
+            }
+        } else {
+            // Restore state
+            if (this.wasAlwaysRotate) {
+                this.setAlwaysRotateThirdPerson(true)
+                // Re-engage lock if it was active
+                if (!this.isPaused) {
+                    this.domElement.requestPointerLock()
+                }
+            }
+        }
     }
 
     setSmoothing(value) {
