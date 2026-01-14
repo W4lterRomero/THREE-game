@@ -333,11 +333,6 @@ export class ObjectInspector {
     hide() {
         this.isVisible = false
         this.container.style.display = 'none'
-        this.selectedObject = null
-        if (this.game.cameraController) this.game.cameraController.setUIOpen(false)
-
-        // Enable Game Input - REMOVED (never disabled)
-        // if (this.game.inputManager) this.game.inputManager.enabled = true
 
         // Remove Axes Helper
         if (this.selectedObject && this.axesHelper) {
@@ -345,7 +340,12 @@ export class ObjectInspector {
             this.axesHelper.dispose()
             this.axesHelper = null
         }
-        // Optional: restore pointer lock if clicked inside game
+
+        this.selectedObject = null
+        if (this.game.cameraController) this.game.cameraController.setUIOpen(false)
+
+        // Enable Game Input - REMOVED (never disabled)
+        // if (this.game.inputManager) this.game.inputManager.enabled = true
     }
 
     updatePosition(axis, value) {
