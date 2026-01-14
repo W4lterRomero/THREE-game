@@ -1004,28 +1004,6 @@ class Game {
     }
 
     setupEditorUI() {
-        const editorPanel = document.createElement("div")
-        editorPanel.style.position = "absolute"
-        editorPanel.style.top = "10px"
-        editorPanel.style.right = "10px"
-        editorPanel.style.background = "rgba(0, 0, 0, 0.7)"
-        editorPanel.style.padding = "10px"
-        editorPanel.style.color = "white"
-        editorPanel.style.borderRadius = "8px"
-        editorPanel.style.display = "flex"
-        editorPanel.style.flexDirection = "column"
-        editorPanel.style.gap = "5px"
-
-        editorPanel.innerHTML = `
-            <h3>Editor de Mapas</h3>
-            <button id="save-map-btn">Guardar Mapa (JSON)</button>
-            <textarea id="map-json-out" style="width: 200px; height: 100px; display:none;"></textarea>
-            <hr>
-            <input type="file" id="load-map-file" accept=".json">
-            <button id="load-map-btn">Cargar Mapa</button>
-        `
-        document.body.appendChild(editorPanel)
-
         // Aerial Grid Status UI
         const aerialStatus = document.createElement("div")
         aerialStatus.id = "aerial-grid-status"
@@ -1044,43 +1022,7 @@ class Game {
         aerialStatus.textContent = "G: Suelo No Fijado"
         document.body.appendChild(aerialStatus)
 
-        document.getElementById("save-map-btn").addEventListener("click", () => {
-            const mapData = this.saveMap()
-            const json = JSON.stringify(mapData, null, 2)
-
-            // Console log fallback
-            console.log("MAP JSON:", json)
-
-            // Download as file
-            const blob = new Blob([json], { type: "application/json" })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = "mi_mapa.json"
-            a.click()
-            URL.revokeObjectURL(url)
-
-            const txt = document.getElementById("map-json-out")
-            txt.style.display = "block"
-            txt.value = json
-        })
-
-        const fileInput = document.getElementById("load-map-file")
-        document.getElementById("load-map-btn").addEventListener("click", () => {
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0]
-                const reader = new FileReader()
-                reader.onload = (e) => {
-                    try {
-                        const json = JSON.parse(e.target.result)
-                        this.loadMap(json)
-                    } catch (err) {
-                        alert("Error al cargar mapa: " + err)
-                    }
-                }
-                reader.readAsText(file)
-            }
-        })
+        // Note: Save/Load UI has been moved to ConstructionMenu (Press 'E')
     }
 
     saveMap() {

@@ -95,8 +95,16 @@ export class ConstructionMenu {
         this.tabSettings.style.borderBottom = "none"
         this.tabSettings.onclick = () => this.switchTab('settings')
 
+        this.tabSaveLoad = document.createElement('div')
+        this.tabSaveLoad.textContent = "Guardar / Cargar"
+        this.tabSaveLoad.style.cursor = "pointer"
+        this.tabSaveLoad.style.color = "#888" // Inactive look
+        this.tabSaveLoad.style.borderBottom = "none"
+        this.tabSaveLoad.onclick = () => this.switchTab('saveload')
+
         header.appendChild(this.tabLibrary)
         header.appendChild(this.tabSettings)
+        header.appendChild(this.tabSaveLoad)
         this.container.appendChild(header)
 
         // Content Area Containers
@@ -173,8 +181,22 @@ export class ConstructionMenu {
         `
         this.renderSettings(this.contentSettings)
 
+        this.contentSaveLoad = document.createElement('div')
+        this.contentSaveLoad.style.cssText = `
+            flex: 1;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            padding: 10px;
+            align-items: center; /* Center content */
+        `
+        this.renderSaveLoad(this.contentSaveLoad)
+
         this.container.appendChild(this.contentLibrary)
         this.container.appendChild(this.contentSettings)
+        this.container.appendChild(this.contentSaveLoad)
+
 
         // Instructions
         const footer = document.createElement('div')
@@ -190,6 +212,7 @@ export class ConstructionMenu {
         if (tabName === 'library') {
             this.contentLibrary.style.display = 'flex'
             this.contentSettings.style.display = 'none'
+            this.contentSaveLoad.style.display = 'none'
 
             this.tabLibrary.style.fontWeight = "bold"
             this.tabLibrary.style.color = "white"
@@ -202,6 +225,7 @@ export class ConstructionMenu {
         } else if (tabName === 'settings') {
             this.contentLibrary.style.display = 'none'
             this.contentSettings.style.display = 'flex'
+            this.contentSaveLoad.style.display = 'none'
 
             this.tabLibrary.style.fontWeight = "normal"
             this.tabLibrary.style.color = "#888"
@@ -210,6 +234,27 @@ export class ConstructionMenu {
             this.tabSettings.style.fontWeight = "bold"
             this.tabSettings.style.color = "white"
             this.tabSettings.style.borderBottom = "2px solid white"
+
+            this.tabSaveLoad.style.fontWeight = "normal"
+            this.tabSaveLoad.style.color = "#888"
+            this.tabSaveLoad.style.borderBottom = "none"
+
+        } else if (tabName === 'saveload') {
+            this.contentLibrary.style.display = 'none'
+            this.contentSettings.style.display = 'none'
+            this.contentSaveLoad.style.display = 'flex'
+
+            this.tabLibrary.style.fontWeight = "normal"
+            this.tabLibrary.style.color = "#888"
+            this.tabLibrary.style.borderBottom = "none"
+
+            this.tabSettings.style.fontWeight = "normal"
+            this.tabSettings.style.color = "#888"
+            this.tabSettings.style.borderBottom = "none"
+
+            this.tabSaveLoad.style.fontWeight = "bold"
+            this.tabSaveLoad.style.color = "white"
+            this.tabSaveLoad.style.borderBottom = "2px solid white"
         }
     }
 
@@ -323,6 +368,153 @@ export class ConstructionMenu {
         rowAerial.appendChild(checkAerial)
         rowAerial.appendChild(labelAerial)
         container.appendChild(rowAerial)
+    }
+
+    renderSaveLoad(container) {
+        // Save Map Section
+        const saveSection = document.createElement('div')
+        saveSection.style.cssText = `
+            width: 100%;
+            max-width: 400px;
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid #444;
+        `
+
+        const saveTitle = document.createElement('h3')
+        saveTitle.textContent = "Guardar Mapa"
+        saveTitle.style.margin = "0"
+        saveTitle.style.borderBottom = "1px solid #555"
+        saveTitle.style.paddingBottom = "10px"
+
+        const saveInfo = document.createElement('p')
+        saveInfo.textContent = "Descarga el archivo JSON de tu mapa actual para guardarlo en tu computadora."
+        saveInfo.style.color = "#aaa"
+        saveInfo.style.fontSize = "14px"
+        saveInfo.style.margin = "0"
+
+        const saveBtn = document.createElement('button')
+        saveBtn.textContent = "Guardar Mapa (JSON)"
+        saveBtn.style.cssText = `
+            background: #545454ff;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        `
+        saveBtn.onmouseover = () => saveBtn.style.background = "#656565ff"
+        saveBtn.onmouseout = () => saveBtn.style.background = "#545454ff"
+        saveBtn.onclick = () => {
+            if (this.game.saveMap) {
+                const mapData = this.game.saveMap()
+                const json = JSON.stringify(mapData, null, 2)
+
+                // Download
+                const blob = new Blob([json], { type: "application/json" })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement("a")
+                a.href = url
+                a.download = "mi_mapa.json"
+                a.click()
+                URL.revokeObjectURL(url)
+
+                alert("Mapa guardado! Archivo descargado.")
+            } else {
+                alert("Error: Función saveMap no encontrada en el juego.")
+            }
+        }
+
+        saveSection.appendChild(saveTitle)
+        saveSection.appendChild(saveInfo)
+        saveSection.appendChild(saveBtn)
+
+        // Load Map Section
+        const loadSection = document.createElement('div')
+        loadSection.style.cssText = `
+            width: 100%;
+            max-width: 400px;
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid #444;
+            margin-top: 20px;
+        `
+
+        const loadTitle = document.createElement('h3')
+        loadTitle.textContent = "Cargar Mapa"
+        loadTitle.style.margin = "0"
+        loadTitle.style.borderBottom = "1px solid #555"
+        loadTitle.style.paddingBottom = "10px"
+
+        const loadInfo = document.createElement('p')
+        loadInfo.textContent = "Selecciona un archivo JSON previamente guardado para cargarlo."
+        loadInfo.style.color = "#aaa"
+        loadInfo.style.fontSize = "14px"
+        loadInfo.style.margin = "0"
+
+        const fileInput = document.createElement('input')
+        fileInput.type = 'file'
+        fileInput.accept = '.json'
+        fileInput.style.color = "white"
+
+        const loadBtn = document.createElement('button')
+        loadBtn.textContent = "Cargar Mapa"
+        loadBtn.style.cssText = `
+            background: #545454ff;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        `
+        loadBtn.onmouseover = () => loadBtn.style.background = "#656565ff"
+        loadBtn.onmouseout = () => loadBtn.style.background = "#545454ff"
+        loadBtn.onclick = () => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0]
+                const reader = new FileReader()
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result)
+                        if (this.game.loadMap) {
+                            this.game.loadMap(json)
+                            // Close menu after successful load? Maybe optional.
+                            this.toggle()
+                            alert("Mapa cargado correctamente!")
+                        } else {
+                            alert("Error: Función loadMap no encontrada en el juego.")
+                        }
+                    } catch (err) {
+                        alert("Error al parsear el archivo JSON: " + err)
+                    }
+                }
+                reader.readAsText(file)
+            } else {
+                alert("Por favor selecciona un archivo primero.")
+            }
+        }
+
+        loadSection.appendChild(loadTitle)
+        loadSection.appendChild(loadInfo)
+        loadSection.appendChild(fileInput)
+        loadSection.appendChild(loadBtn)
+
+        container.appendChild(saveSection)
+        container.appendChild(loadSection)
     }
 
     renderLibraryGrid(container) {
