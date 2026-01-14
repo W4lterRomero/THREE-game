@@ -22,6 +22,7 @@ import { TurretPad } from "./TurretPad.js"
 import { PelotaItem } from "./item/PelotaItem.js"
 import { MapObjectItem } from "./item/MapObjectItem.js"
 import { ObjectInspector } from "./ui/ObjectInspector.js"
+import { StairsUtils } from "./utils/StairsUtils.js"
 
 class Game {
     constructor() {
@@ -330,16 +331,19 @@ class Game {
             // Ramp physics is tricky without vertices.
             // Let's use Box for now as fallback or Convex if we can get vertices.
             colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+            this.world.createCollider(colDesc, rigidBody)
         } else if (objectMesh.userData.mapObjectType === 'stairs') {
-            // Stairs are complex. Iterate children?
-            // Simpler: Box bounding.
-            colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+            const steps = StairsUtils.calculateSteps(dims)
+            steps.forEach(step => {
+                const col = RAPIER.ColliderDesc.cuboid(step.size.x / 2, step.size.y / 2, step.size.z / 2)
+                    .setTranslation(step.position.x, step.position.y, step.position.z)
+                this.world.createCollider(col, rigidBody)
+            })
         } else {
             // Box
             colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
+            this.world.createCollider(colDesc, rigidBody)
         }
-
-        this.world.createCollider(colDesc, rigidBody)
 
 
     }

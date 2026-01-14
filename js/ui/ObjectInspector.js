@@ -1,4 +1,5 @@
 import * as THREE from "three"
+import { StairsUtils } from "../utils/StairsUtils.js"
 
 export class ObjectInspector {
     constructor(gameInstance) {
@@ -289,9 +290,21 @@ export class ObjectInspector {
             this.colorPicker.value = '#' + object.material.color.getHexString()
         }
 
-        // Disable Game Input
-        if (this.game.inputManager) this.game.inputManager.enabled = false
-        document.exitPointerLock()
+        // Disable Game Input - REMOVED to allow movement
+        // if (this.game.inputManager) this.game.inputManager.enabled = false
+        // document.exitPointerLock()
+
+        // Add Axes Helper
+        if (!this.axesHelper) {
+            this.axesHelper = new THREE.AxesHelper(3) // Size 3
+            // Make it visible on top? No, just add to object.
+            // If we add to object, it rotates with object.
+            // If users want Global axes, we'd add to scene. 
+            // "Show Red/Green/Blue arrows on the selected object" implies local axes usually.
+            // Let's add to scene and copy transforms or add to object?
+            // Adding to object is easiest.
+            object.add(this.axesHelper)
+        }
     }
 
     hide() {
@@ -299,8 +312,15 @@ export class ObjectInspector {
         this.container.style.display = 'none'
         this.selectedObject = null
 
-        // Enable Game Input
-        if (this.game.inputManager) this.game.inputManager.enabled = true
+        // Enable Game Input - REMOVED (never disabled)
+        // if (this.game.inputManager) this.game.inputManager.enabled = true
+
+        // Remove Axes Helper
+        if (this.selectedObject && this.axesHelper) {
+            this.selectedObject.remove(this.axesHelper)
+            this.axesHelper.dispose()
+            this.axesHelper = null
+        }
         // Optional: restore pointer lock if clicked inside game
     }
 
@@ -352,10 +372,37 @@ export class ObjectInspector {
             // Rebuild shape... (Complex) - Skip/Warn?
             console.warn("Resizing ramps dynamically not fully supported yet in simple mode")
         } else if (this.selectedObject.userData.mapObjectType === 'stairs') {
-            // Stairs are a Group usually, not a single Mesh.
-            // If selectedObject is a Group, we need special handling.
-            // See main_rapier.js or MapObjectItem.js logic.
-            // If it's a Group, we probably can't easily resize it here without full respawn logic.
+            // Rebuild Stairs
+            const steps = StairsUtils.calculateSteps(dims)
+
+            // Get existing material from first child
+            let material
+            if (this.selectedObject.children.length > 0) {
+                material = this.selectedObject.children[0].material
+            } else {
+                material = new THREE.MeshStandardMaterial({ color: this.selectedObject.userData.color })
+            }
+
+            // Remove old children (steps)
+            // Iterate backwards or use clear(), but we must NOT remove the AxesHelper if attached!
+            // Children include AxesHelper? Yes if we just added it.
+            // Filter out AxesHelper
+            const toRemove = this.selectedObject.children.filter(c => c !== this.axesHelper)
+            toRemove.forEach(c => {
+                if (c.geometry) c.geometry.dispose()
+                this.selectedObject.remove(c)
+            })
+
+            const stepGeo = new THREE.BoxGeometry(steps[0].size.x, steps[0].size.y, steps[0].size.z)
+
+            steps.forEach(step => {
+                const mesh = new THREE.Mesh(stepGeo, material)
+                mesh.position.set(step.position.x, step.position.y, step.position.z)
+                mesh.castShadow = true
+                mesh.receiveShadow = true
+                this.selectedObject.add(mesh)
+            })
+
         } else {
             // Default Box
             newGeo = new THREE.BoxGeometry(dims.x, dims.y, dims.z)

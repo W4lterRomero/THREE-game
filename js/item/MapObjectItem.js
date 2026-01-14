@@ -1,6 +1,7 @@
 import { Item } from "./Item.js"
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
+import { StairsUtils } from "../utils/StairsUtils.js"
 
 export class MapObjectItem extends Item {
     constructor(id, name, type, iconPath, color, scale = { x: 1, y: 1, z: 1 }, texturePath = null) {
@@ -101,61 +102,25 @@ export class MapObjectItem extends Item {
 
         if (this.type === 'stairs') {
             // STAIRS GENERATION
-            // Based on scale (x=Width, y=Height, z=Depth)
-            // Default step height ~0.25 (match reference stairs usually)
-            const targetStepHeight = 0.25
-            const numSteps = Math.max(1, Math.round(this.scale.y / targetStepHeight))
-
-            const stepHeight = this.scale.y / numSteps
-            const stepDepth = this.scale.z / numSteps
-            const stepWidth = this.scale.x
+            const steps = StairsUtils.calculateSteps(this.scale)
 
             const group = new THREE.Group()
             const material = new THREE.MeshStandardMaterial({ color: this.color })
-            const stepGeo = new THREE.BoxGeometry(stepWidth, stepHeight, stepDepth)
+            const stepGeo = new THREE.BoxGeometry(steps[0].size.x, steps[0].size.y, steps[0].size.z)
 
-            // We build the stairs such that their bounding box center is (0,0,0) locally
-            // Total Bounds: W, H, D. 
-            // Local Y range: [-H/2, H/2]
-            // Local Z range: [-D/2, D/2] (Direction?)
-
-            // Start Bottom-Back? Or Bottom-Front?
-            // Stairs go UP as they go Z+? Or Z-?
-            // Usually "Forward" implies walking into them to go up.
-            // Let's assume Z- is "Forward" (Camera looks -Z).
-            // But let's check Ramp. Ramp shape was (0,0) -> (scale.z, 0) -> (0, scale.y).
-            // This is X/Y plane? No, Extrude depth is X. Shape is on XY? Wait.
-            // Ramp code: Shape(0,0)->(Z,0)->(0,Y). Extrude(depth=X).
-            // Shape in XY plane. Extruded along Z? No, Extruding usually along Z default.
-            // If Extrude depth is X, geometry is likely rotated later?
-            // "geometry.center()" is used.
-            // Let's stick to standard Box Coordinates.
-            // Width = X, Height = Y, Depth = Z.
-            // Stairs going Up-Forward usually means +Y and -Z (ahead) or +Z.
-            // Let's do +Y and +Z for simplicity. Rotation handles direction.
-
-            const startY = -this.scale.y / 2 + stepHeight / 2 // Bottom
-            const startZ = -this.scale.z / 2 + stepDepth / 2 // Back
-
-            for (let i = 0; i < numSteps; i++) {
+            steps.forEach(step => {
                 const mesh = new THREE.Mesh(stepGeo, material)
-
-                // Position
-                mesh.position.y = startY + (i * stepHeight)
-                mesh.position.z = startZ + (i * stepDepth)
-                mesh.position.x = 0 // Centered width
-
+                mesh.position.set(step.position.x, step.position.y, step.position.z)
                 mesh.castShadow = true
                 mesh.receiveShadow = true
                 group.add(mesh)
 
                 // Physics Collider (Relative to body center)
-                // Cuboid is half-extents
-                const col = RAPIER.ColliderDesc.cuboid(stepWidth / 2, stepHeight / 2, stepDepth / 2)
-                    .setTranslation(mesh.position.x, mesh.position.y, mesh.position.z)
-
+                const col = RAPIER.ColliderDesc.cuboid(step.size.x / 2, step.size.y / 2, step.size.z / 2)
+                    .setTranslation(step.position.x, step.position.y, step.position.z)
                 collidersDesc.push(col)
-            }
+            })
+
             object3D = group
 
         } else if (this.type === 'ramp') {
