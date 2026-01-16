@@ -274,31 +274,80 @@ class Game {
 
         // Right Click Handler for Inspector (Using mousedown to support Pointer Lock)
         document.addEventListener('mousedown', (e) => {
-            if (this.gameMode === 'editor' && this.objectInspector && e.button === 2) { // Button 2 is Right Click
+            if (this.gameMode === 'editor') {
 
-                // Raycast
-                const mouse = new THREE.Vector2()
+                // --- TARGET PICKING LOGIC (For Movement Controller) ---
+                if (e.button === 2 && this.constructionMenu && this.constructionMenu.isPickingTarget) {
+                    // Raycast
+                    const mouse = new THREE.Vector2()
+                    if (document.pointerLockElement) {
+                        mouse.x = 0; mouse.y = 0;
+                    } else {
+                        mouse.x = (e.clientX / window.innerWidth) * 2 - 1
+                        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+                    }
+                    const raycaster = new THREE.Raycaster()
+                    raycaster.setFromCamera(mouse, this.sceneManager.camera)
+                    const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
 
-                // If Pointer Locked (Crosshair mode), raycast from center
-                if (document.pointerLockElement) {
-                    mouse.x = 0
-                    mouse.y = 0
-                } else {
-                    // Else, use mouse pointer position
-                    mouse.x = (e.clientX / window.innerWidth) * 2 - 1
-                    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+                    const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+                    if (hit) {
+                        // Apply Target
+                        if (this.constructionMenu.pickingController) {
+                            const controller = this.constructionMenu.pickingController
+                            const target = hit.object
+
+                            // Prevent self-pick
+                            if (target === controller) {
+                                alert("No puedes vincular el controlador a sí mismo.")
+                                return
+                            }
+
+                            // Update Uuid
+                            controller.userData.logicProperties.targetUuid = target.userData.uuid
+
+                            // Visual Confirm
+                            alert(`Objetivo vinculado: ${target.userData.mapObjectType || "Objeto"}`)
+
+                            // Re-render properties panel
+                            this.constructionMenu.renderLogicProperties(controller)
+                            this.constructionMenu.isPickingTarget = false
+
+                            // Switch Physics to Kinematic (Runtime Prep)
+                            this.setObjectBodyType(target, 'kinematic')
+                        }
+                    }
+                    return // Consume event
                 }
 
-                const raycaster = new THREE.Raycaster()
-                raycaster.setFromCamera(mouse, this.sceneManager.camera)
+                // --- INSPECTOR LOGIC ---
+                if (this.objectInspector && e.button === 2) { // Button 2 is Right Click
 
-                const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
+                    // Raycast
+                    const mouse = new THREE.Vector2()
 
-                // Find first editable object
-                const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+                    // If Pointer Locked (Crosshair mode), raycast from center
+                    if (document.pointerLockElement) {
+                        mouse.x = 0
+                        mouse.y = 0
+                    } else {
+                        // Else, use mouse pointer position
+                        mouse.x = (e.clientX / window.innerWidth) * 2 - 1
+                        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+                    }
 
-                if (hit) {
-                    this.objectInspector.show(hit.object)
+                    const raycaster = new THREE.Raycaster()
+                    raycaster.setFromCamera(mouse, this.sceneManager.camera)
+
+                    const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
+
+                    // Find first editable object
+                    const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+                    if (hit) {
+                        this.objectInspector.show(hit.object)
+                    }
                 }
             }
         }, false)
@@ -442,6 +491,9 @@ class Game {
                 }
             }
         }
+
+        // Movement Logic Update
+        this.updateMovementLogic(dt)
 
         // Weapon Auto-Fire Logic
         if (this.isMouseDown && this.inventoryManager) {
@@ -1144,6 +1196,92 @@ class Game {
         const consumed = item.use(context)
         // If we implemented consumption (removing item), we would do it here
         // if (consumed) this.inventoryManager.removeCurrentItem()
+    }
+
+    setObjectBodyType(object, type) {
+        if (!object || !object.userData.rigidBody) return
+
+        // If already correct type, skip? Rapier types are integers.
+        // Fixed = 1, KinematicPos = 2.
+        const currentType = object.userData.rigidBody.bodyType()
+        if (type === 'kinematic' && currentType === RAPIER.RigidBodyType.KinematicPositionBased) return
+        if (type === 'fixed' && currentType === RAPIER.RigidBodyType.Fixed) return
+
+        if (type === 'kinematic') {
+            object.userData.rigidBody.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased)
+            console.log("Output converted to Kinematic:", object.userData.mapObjectType)
+        } else {
+            object.userData.rigidBody.setBodyType(RAPIER.RigidBodyType.Fixed)
+            console.log("Output converted to Fixed:", object.userData.mapObjectType)
+        }
+    }
+
+    updateMovementLogic(dt) {
+        // Iterate ALL scene objects to find animatable ones
+        if (!this.sceneManager || !this.sceneManager.scene) return
+
+        this.sceneManager.scene.children.forEach(obj => {
+            // Check if object has movement logic
+            if (obj.userData.logicProperties && obj.userData.logicProperties.waypoints && obj.userData.logicProperties.waypoints.length > 0) {
+                const props = obj.userData.logicProperties
+
+                if (!props.active) return
+
+                // Ensure Kinematic Body
+                this.setObjectBodyType(obj, 'kinematic')
+
+                if (!obj.userData.rigidBody) return
+
+                // State Init
+                if (obj.userData.currentWpIndex === undefined) {
+                    obj.userData.currentWpIndex = 0
+                    obj.userData.moveAlpha = 0
+                }
+
+                const waypoints = props.waypoints
+                const idx = obj.userData.currentWpIndex
+                const nextIdx = (idx + 1) % waypoints.length // Loop wrap
+
+                // If loop is disabled and we reached end
+                if (!props.loop && nextIdx === 0 && idx === waypoints.length - 1) return
+
+                const p1 = waypoints[idx]
+                const p2 = waypoints[nextIdx]
+
+                const dist = new THREE.Vector3(p1.x, p1.y, p1.z).distanceTo(new THREE.Vector3(p2.x, p2.y, p2.z))
+                if (dist < 0.05) {
+                    // Instant jump or skip
+                    obj.userData.currentWpIndex = nextIdx
+                    obj.userData.moveAlpha = 0
+                    return
+                }
+
+                const speed = props.speed || 2.0
+                const duration = dist / speed // seconds
+
+                // Update Alpha
+                obj.userData.moveAlpha += dt / duration
+
+                if (obj.userData.moveAlpha >= 1.0) {
+                    // Arrived
+                    obj.userData.moveAlpha = 0
+                    obj.userData.currentWpIndex = nextIdx
+
+                    // Snap Physics & Visual
+                    obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
+                    obj.position.set(p2.x, p2.y, p2.z)
+                } else {
+                    // Interpolate
+                    const a = obj.userData.moveAlpha
+                    const x = THREE.MathUtils.lerp(p1.x, p2.x, a)
+                    const y = THREE.MathUtils.lerp(p1.y, p2.y, a)
+                    const z = THREE.MathUtils.lerp(p1.z, p2.z, a)
+
+                    obj.userData.rigidBody.setNextKinematicTranslation({ x, y, z })
+                    obj.position.set(x, y, z)
+                }
+            }
+        })
     }
 }
 

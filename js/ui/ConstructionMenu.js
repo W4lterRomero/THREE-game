@@ -1,4 +1,5 @@
 import { MapObjectItem } from "../item/MapObjectItem.js"
+import { LogicSystem } from "../managers/LogicSystem.js"
 import * as THREE from "three"
 
 export class ConstructionMenu {
@@ -6,6 +7,9 @@ export class ConstructionMenu {
         this.inventoryManager = inventoryManager
         this.game = gameInstance // Access to toggle pause, input etc.
         this.isVisible = false
+
+        // Systems
+        this.logicSystem = new LogicSystem(this.game)
 
         // Data
         this.libraryItems = []
@@ -65,8 +69,25 @@ export class ConstructionMenu {
             capacity: 1,
             order: 1
         }
-
         this.logicItems.push(spawn)
+
+        // Movement Controller
+        const mover = new MapObjectItem(
+            "movement_controller",
+            "Controlador de Movimiento",
+            "movement_controller",
+            "",
+            0x00FFFF, // Cyan
+            { x: 0.5, y: 0.5, z: 0.5 } // Small box
+        )
+        mover.logicProperties = {
+            targetUuid: null,
+            speed: 2.0,
+            loop: true,
+            active: true,
+            waypoints: []
+        }
+        this.logicItems.push(mover)
     }
 
     setupUI() {
@@ -1119,35 +1140,33 @@ export class ConstructionMenu {
 
         this.logicTreePanel.innerHTML = ""
 
-        // Get Logic Objects from Scene
-        // We look for objects with userData.isEditableMapObject AND specific logic types
-        // Or just all editable objects? The user request said "logic interactiva... dividir por grupos los objetos con logica"
-        const logicObjects = []
-        if (this.game.sceneManager && this.game.sceneManager.scene) {
-            this.game.sceneManager.scene.children.forEach(child => {
-                // Filter: Must be editable and have some logic property bucket or be a specific type?
-                // For now, let's include anything that has logicProperties OR is a 'spawn_point'
-                if (child.userData && child.userData.isEditableMapObject) {
-                    // Check if it's a "Logic" type
-                    const isLogic = (child.userData.mapObjectType === 'spawn_point')
-                    // Add more types here as needed in future
-
-                    if (isLogic) {
-                        logicObjects.push(child)
-                    }
-                }
-            })
-        }
+        // Use LogicSystem to scan
+        const logicObjects = this.logicSystem.scanScene(this.game.sceneManager.scene)
 
         if (logicObjects.length === 0) {
             this.logicTreePanel.innerHTML = `<div style="color:#666; text-align:center; padding:10px;">No hay objetos lógicos en la escena.</div>`
+            const info = document.createElement('div')
+            info.style.cssText = "color:#888; font-size:12px; text-align:center; margin-top:10px; padding:10px;"
+            info.innerHTML = "Aplica lógica con herramientas<br>(ej. Control de Movimiento)"
+            this.logicTreePanel.appendChild(info)
             return
         }
 
-        // Group by Type
+        // Group by Logic Type
         const groups = {}
         logicObjects.forEach(obj => {
-            const type = obj.userData.mapObjectType || "Desconocido"
+            let type = "other"
+
+            // Determine primary logic category
+            if (obj.userData.mapObjectType === 'spawn_point') {
+                type = 'spawn_point'
+            } else if (obj.userData.logicProperties && obj.userData.logicProperties.waypoints) {
+                type = 'movement_object'
+            } else {
+                // Fallback to base type if it has some other unknown logic
+                type = obj.userData.mapObjectType || "Desconocido"
+            }
+
             if (!groups[type]) groups[type] = []
             groups[type].push(obj)
         })
@@ -1156,56 +1175,35 @@ export class ConstructionMenu {
         for (const [type, objs] of Object.entries(groups)) {
             // Group Header
             const groupDetails = document.createElement('details')
-            groupDetails.open = true // Default open
-            groupDetails.style.cssText = `
-                background: #333;
-                border-radius: 4px;
-                margin-bottom: 5px;
-            `
+            groupDetails.open = true
+            groupDetails.style.cssText = `background: #333; border-radius: 4px; margin-bottom: 5px;`
 
             const summary = document.createElement('summary')
-            summary.textContent = `${this.getHumanReadableName(type)} (${objs.length})`
-            summary.style.cssText = `
-                padding: 8px;
-                cursor: pointer;
-                font-weight: bold;
-                user-select: none;
-                list-style: none; /* Hide default triangle in some browsers if desired, or keep it */
-            `
+            summary.textContent = `${this.logicSystem.getHumanReadableName(type)} (${objs.length})`
+            summary.style.cssText = `padding: 8px; cursor: pointer; font-weight: bold; user-select: none;`
+
             groupDetails.appendChild(summary)
 
             const list = document.createElement('div')
-            list.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                padding: 5px;
-                gap: 2px;
-            `
+            list.style.cssText = `display: flex; flex-direction: column; padding: 5px; gap: 2px;`
 
             objs.forEach((obj, index) => {
                 const itemRow = document.createElement('div')
                 itemRow.textContent = `Objeto #${index + 1}`
-                itemRow.style.cssText = `
-                    padding: 6px;
-                    background: #2a2a2a;
-                    cursor: pointer;
-                    border-radius: 4px;
-                    font-size: 14px;
-                `
+                itemRow.style.cssText = `padding: 6px; background: #2a2a2a; cursor: pointer; border-radius: 4px; font-size: 14px;`
+
                 itemRow.onmouseover = () => itemRow.style.background = "#444"
                 itemRow.onmouseout = () => {
                     if (this.selectedLogicObject !== obj) itemRow.style.background = "#2a2a2a"
                     else itemRow.style.background = "#555"
                 }
                 itemRow.onclick = () => {
-                    // Visual Selection in List
-                    // Reset all other highlights in this list (simple brute force or tracking)
-                    const allRows = this.logicTreePanel.querySelectorAll('div div') // messy selector
+                    // Visual Selection
+                    const allRows = this.logicTreePanel.querySelectorAll('div div')
                     allRows.forEach(r => r.style.background = "#2a2a2a")
-
                     itemRow.style.background = "#555"
-                    this.selectedLogicObject = obj
 
+                    this.selectedLogicObject = obj
                     this.renderLogicProperties(obj)
                 }
 
@@ -1218,94 +1216,14 @@ export class ConstructionMenu {
     }
 
     getHumanReadableName(type) {
-        switch (type) {
-            case 'spawn_point': return "Puntos de Spawn";
-            default: return type.charAt(0).toUpperCase() + type.slice(1);
-        }
+        return this.logicSystem ? this.logicSystem.getHumanReadableName(type) : type
     }
 
     renderLogicProperties(object) {
         if (!this.logicPropertiesPanel) return
-        this.logicPropertiesPanel.innerHTML = ""
-
-        const header = document.createElement('div')
-        header.textContent = `Editando: ${this.getHumanReadableName(object.userData.mapObjectType)}`
-        header.style.cssText = `
-            font-weight: bold;
-            border-bottom: 1px solid #555;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        `
-        this.logicPropertiesPanel.appendChild(header)
-
-        const props = object.userData.logicProperties || {}
-
-        // Helper to create inputs
-        const createInput = (key, val, type) => {
-            const row = document.createElement('div')
-            row.style.cssText = `display: flex; gap: 10px; align-items: center; justify-content: space-between;`
-
-            const label = document.createElement('label')
-            label.textContent = key.charAt(0).toUpperCase() + key.slice(1)
-            label.style.color = "#aaa"
-            label.style.fontSize = "14px"
-
-            const input = document.createElement('input')
-            input.style.cssText = `
-                background: #111;
-                border: 1px solid #444;
-                color: white;
-                padding: 4px;
-                border-radius: 4px;
-                width: 60%;
-            `
-
-            if (type === 'number') {
-                input.type = "number"
-                input.value = val
-                input.onchange = (e) => {
-                    const newVal = parseFloat(e.target.value)
-                    this.updateLogicProperty(object, key, newVal)
-                }
-            } else if (type === 'string') {
-                input.type = "text"
-                input.value = val
-                input.onchange = (e) => {
-                    this.updateLogicProperty(object, key, e.target.value)
-                }
-            } else if (type === 'boolean') {
-                input.type = "checkbox"
-                input.checked = val
-                input.style.width = "auto"
-                input.onchange = (e) => {
-                    this.updateLogicProperty(object, key, e.target.checked)
-                }
-            }
-
-            row.appendChild(label)
-            row.appendChild(input)
-            this.logicPropertiesPanel.appendChild(row)
-        }
-
-        // Iterate specific properties for Spawn Point or generic
-        if (object.userData.mapObjectType === 'spawn_point') {
-            createInput('team', props.team || 1, 'number')
-            createInput('capacity', props.capacity || 1, 'number')
-            createInput('order', props.order || 1, 'number')
-        } else {
-            // Generic fallback
-            for (const [k, v] of Object.entries(props)) {
-                createInput(k, v, typeof v)
-            }
-        }
-    }
-
-    updateLogicProperty(object, key, value) {
-        if (!object.userData.logicProperties) object.userData.logicProperties = {}
-        object.userData.logicProperties[key] = value
-
-        console.log(`Updated ${key} to ${value} for object`, object)
-        // Note: No need to rebuild physics or anything unless the property affects it.
-        // Logic properties are usually metadata.
+        // Delegate to Logic System
+        this.logicSystem.renderPanel(this.logicPropertiesPanel, object, () => {
+            this.refreshLogicList()
+        })
     }
 }

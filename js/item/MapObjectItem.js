@@ -14,6 +14,9 @@ export class MapObjectItem extends Item {
 
         // Generate Dynamic Icon
         this.iconPath = this.generateIcon()
+
+        // Identity
+        this.uuid = THREE.MathUtils.generateUUID()
     }
 
     generateIcon() {
@@ -68,6 +71,28 @@ export class MapObjectItem extends Item {
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
             ctx.fillText("S", 32, 32)
+        } else if (this.type === 'movement_controller') {
+            // Arrow / Mover Icon
+            ctx.beginPath()
+            ctx.arc(32, 32, 24, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.stroke()
+
+            // Arrow
+            ctx.fillStyle = "white"
+            ctx.beginPath()
+            ctx.moveTo(16, 32)
+            ctx.lineTo(48, 32)
+            ctx.lineTo(40, 24)
+            ctx.moveTo(48, 32)
+            ctx.lineTo(40, 40)
+            ctx.stroke()
+
+            ctx.fillStyle = "white"
+            ctx.font = "bold 16px Arial"
+            ctx.textAlign = "center"
+            ctx.fillText("MOV", 32, 48)
+
         } else {
             // Wall / Default (Landscape Rect)
             ctx.fillRect(8, 20, 48, 24)
@@ -78,6 +103,45 @@ export class MapObjectItem extends Item {
     }
 
     use(context) {
+        // Context contains placementManager, scene, camera, etc.
+
+        if (this.type === 'movement_controller') {
+            // TOOL BEHAVIOR: Apply logic to existing object
+            // Raycast from Camera (or Origin/Direction provided in context)
+            const raycaster = new THREE.Raycaster()
+            raycaster.set(context.origin, context.direction)
+
+            const intersects = raycaster.intersectObjects(context.scene.children, true)
+            // Find first editable object
+            const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+            if (hit) {
+                const target = hit.object
+
+                // Toggle / Add Logic
+                if (!target.userData.logicProperties) {
+                    target.userData.logicProperties = {}
+                }
+
+                // Initialize Movement if not present
+                if (!target.userData.logicProperties.waypoints) {
+                    target.userData.logicProperties.waypoints = []
+                    target.userData.logicProperties.speed = 2.0
+                    target.userData.logicProperties.loop = true
+                    target.userData.logicProperties.active = true
+
+                    alert(`Transformado en Objeto Móvil: ${target.userData.mapObjectType}`)
+                } else {
+                    alert(`Este objeto ya tiene lógica de movimiento.`)
+                }
+
+                // We consumed the action
+                return true
+            } else {
+                return false // Missed
+            }
+        }
+
         // Context contains placementManager
         if (context.placementManager) {
             const position = context.placementManager.getCurrentTarget()
@@ -188,6 +252,30 @@ export class MapObjectItem extends Item {
             const col = RAPIER.ColliderDesc.cylinder(0.1, 1)
             collidersDesc.push(col)
 
+        } else if (this.type === 'movement_controller') {
+            // VISUAL CONTROLLER (Sphere + Arrows)
+            const geometry = new THREE.SphereGeometry(this.scale.x, 16, 16)
+            const material = new THREE.MeshStandardMaterial({
+                color: this.color,
+                transparent: true,
+                opacity: 0.7,
+                wireframe: true
+            })
+            object3D = new THREE.Mesh(geometry, material)
+
+            // Inner Core
+            const core = new THREE.Mesh(
+                new THREE.BoxGeometry(this.scale.x, this.scale.x, this.scale.x),
+                new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
+            )
+            object3D.add(core)
+
+            // No Physics for the controller itself? 
+            // Better to have a sensor or tiny collider so we can right click efficiently?
+            // Let's use a small sensor/collider.
+            const col = RAPIER.ColliderDesc.ball(this.scale.x)
+            collidersDesc.push(col)
+
         } else {
             // BOX (Wall/Pillar)
             const geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
@@ -285,6 +373,9 @@ export class MapObjectItem extends Item {
         object3D.userData.isEditableMapObject = true
         object3D.userData.isMapObject = true
         object3D.userData.mapObjectType = this.type
+        // Save UUID if provided (from constructor), else one will need to be generated if missing
+        object3D.userData.uuid = this.uuid || THREE.MathUtils.generateUUID()
+        object3D.userData.originalUUID = object3D.userData.uuid // Keep original if needed
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
         object3D.userData.texturePath = this.texturePath // Store for serialization
