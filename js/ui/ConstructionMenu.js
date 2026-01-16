@@ -10,6 +10,7 @@ export class ConstructionMenu {
         // Data
         this.libraryItems = []
         this.generateLibrary()
+        this.generateLogicLibrary() // Logic Items
 
         this.setupUI()
     }
@@ -43,6 +44,29 @@ export class ConstructionMenu {
             )
             this.libraryItems.push(item)
         })
+    }
+
+    generateLogicLibrary() {
+        // Logic Objects
+        this.logicItems = []
+
+        // Player Spawn
+        const spawn = new MapObjectItem(
+            "spawn_point",
+            "Punto de Spawn",
+            "spawn_point",
+            "",
+            0x00FF00, // Green
+            { x: 1, y: 2, z: 1 } // Human size roughly
+        )
+        // Default Logic Properties
+        spawn.logicProperties = {
+            team: 1,
+            capacity: 1,
+            order: 1
+        }
+
+        this.logicItems.push(spawn)
     }
 
     setupUI() {
@@ -88,6 +112,13 @@ export class ConstructionMenu {
         this.tabLibrary.style.borderBottom = "2px solid white"
         this.tabLibrary.onclick = () => this.switchTab('library')
 
+        this.tabLogic = document.createElement('div')
+        this.tabLogic.textContent = "Lógica Interactiva"
+        this.tabLogic.style.cursor = "pointer"
+        this.tabLogic.style.color = "#888" // Inactive look
+        this.tabLogic.style.borderBottom = "none"
+        this.tabLogic.onclick = () => this.switchTab('logic')
+
         this.tabSettings = document.createElement('div')
         this.tabSettings.textContent = "Configuración Entorno"
         this.tabSettings.style.cursor = "pointer"
@@ -103,6 +134,7 @@ export class ConstructionMenu {
         this.tabSaveLoad.onclick = () => this.switchTab('saveload')
 
         header.appendChild(this.tabLibrary)
+        header.appendChild(this.tabLogic)
         header.appendChild(this.tabSettings)
         header.appendChild(this.tabSaveLoad)
         this.container.appendChild(header)
@@ -128,7 +160,7 @@ export class ConstructionMenu {
             padding-right: 10px;
             align-content: start;
         `
-        this.renderLibraryGrid(this.libraryGrid)
+        this.renderLibraryGrid(this.libraryGrid, this.libraryItems)
 
         // Right: Customizer Panel
         this.libraryPanel = document.createElement('div')
@@ -170,6 +202,50 @@ export class ConstructionMenu {
         this.contentLibrary.appendChild(this.libraryGrid)
         this.contentLibrary.appendChild(this.libraryPanel)
 
+        // Logic Content
+        this.contentLogic = document.createElement('div')
+        this.contentLogic.style.cssText = `
+            flex: 1;
+            display: none; 
+            gap: 20px;
+            overflow: hidden;
+        `
+        // Reuse same layout for Logic (Grid + Panel?) 
+        // Logic might need different panel content.
+        // For now, let's reuse grid logic but populate with logicItems.
+        // And maybe the panel shows description instead of visual customizer initially?
+        // Or we just let users drag spawn points.
+
+        this.logicGrid = document.createElement('div')
+        this.logicGrid.style.cssText = `
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            grid-auto-rows: 120px;
+            gap: 10px;
+            overflow-y: auto;
+            align-content: start;
+        `
+        this.renderLibraryGrid(this.logicGrid, this.logicItems)
+
+        // Logic Instruction Panel
+        this.logicPanel = document.createElement('div')
+        this.logicPanel.style.cssText = `
+            flex: 1;
+            background: #222;
+            padding: 20px;
+            color: #ccc;
+        `
+        this.logicPanel.innerHTML = `
+            <h3>Lógica Interactiva</h3>
+            <p>Selecciona y arrastra elementos lógicos al mundo.</p>
+            <p>Usa Click Derecho sobre un objeto lógico colocado para configurar sus propiedades (Equipo, Orden, Eventos...).</p>
+        `
+
+        this.contentLogic.appendChild(this.logicGrid)
+        this.contentLogic.appendChild(this.logicPanel)
+
+
         this.contentSettings = document.createElement('div')
         this.contentSettings.style.cssText = `
             flex: 1;
@@ -194,6 +270,7 @@ export class ConstructionMenu {
         this.renderSaveLoad(this.contentSaveLoad)
 
         this.container.appendChild(this.contentLibrary)
+        this.container.appendChild(this.contentLogic)
         this.container.appendChild(this.contentSettings)
         this.container.appendChild(this.contentSaveLoad)
 
@@ -209,49 +286,49 @@ export class ConstructionMenu {
     }
 
     switchTab(tabName) {
+        // Reset all
+        this.contentLibrary.style.display = 'none'
+        this.contentLogic.style.display = 'none'
+        this.contentSettings.style.display = 'none'
+        this.contentSaveLoad.style.display = 'none'
+
+        this.tabLibrary.style.fontWeight = "normal"
+        this.tabLibrary.style.color = "#888"
+        this.tabLibrary.style.borderBottom = "none"
+
+        this.tabLogic.style.fontWeight = "normal"
+        this.tabLogic.style.color = "#888"
+        this.tabLogic.style.borderBottom = "none"
+
+        this.tabSettings.style.fontWeight = "normal"
+        this.tabSettings.style.color = "#888"
+        this.tabSettings.style.borderBottom = "none"
+
+        this.tabSaveLoad.style.fontWeight = "normal"
+        this.tabSaveLoad.style.color = "#888"
+        this.tabSaveLoad.style.borderBottom = "none"
+
+        // Activate Selected
         if (tabName === 'library') {
             this.contentLibrary.style.display = 'flex'
-            this.contentSettings.style.display = 'none'
-            this.contentSaveLoad.style.display = 'none'
-
             this.tabLibrary.style.fontWeight = "bold"
             this.tabLibrary.style.color = "white"
             this.tabLibrary.style.borderBottom = "2px solid white"
 
-            this.tabSettings.style.fontWeight = "normal"
-            this.tabSettings.style.color = "#888"
-            this.tabSettings.style.borderBottom = "none"
+        } else if (tabName === 'logic') {
+            this.contentLogic.style.display = 'flex'
+            this.tabLogic.style.fontWeight = "bold"
+            this.tabLogic.style.color = "white"
+            this.tabLogic.style.borderBottom = "2px solid white"
 
         } else if (tabName === 'settings') {
-            this.contentLibrary.style.display = 'none'
             this.contentSettings.style.display = 'flex'
-            this.contentSaveLoad.style.display = 'none'
-
-            this.tabLibrary.style.fontWeight = "normal"
-            this.tabLibrary.style.color = "#888"
-            this.tabLibrary.style.borderBottom = "none"
-
             this.tabSettings.style.fontWeight = "bold"
             this.tabSettings.style.color = "white"
             this.tabSettings.style.borderBottom = "2px solid white"
 
-            this.tabSaveLoad.style.fontWeight = "normal"
-            this.tabSaveLoad.style.color = "#888"
-            this.tabSaveLoad.style.borderBottom = "none"
-
         } else if (tabName === 'saveload') {
-            this.contentLibrary.style.display = 'none'
-            this.contentSettings.style.display = 'none'
             this.contentSaveLoad.style.display = 'flex'
-
-            this.tabLibrary.style.fontWeight = "normal"
-            this.tabLibrary.style.color = "#888"
-            this.tabLibrary.style.borderBottom = "none"
-
-            this.tabSettings.style.fontWeight = "normal"
-            this.tabSettings.style.color = "#888"
-            this.tabSettings.style.borderBottom = "none"
-
             this.tabSaveLoad.style.fontWeight = "bold"
             this.tabSaveLoad.style.color = "white"
             this.tabSaveLoad.style.borderBottom = "2px solid white"
@@ -517,9 +594,9 @@ export class ConstructionMenu {
         container.appendChild(loadSection)
     }
 
-    renderLibraryGrid(container) {
+    renderLibraryGrid(container, items) {
         // Populate Grid
-        this.libraryItems.forEach(item => {
+        items.forEach(item => {
             const card = document.createElement('div')
             card.draggable = true
             card.style.cssText = `

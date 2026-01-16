@@ -6,10 +6,11 @@ import { StairsUtils } from "../utils/StairsUtils.js"
 export class MapObjectItem extends Item {
     constructor(id, name, type, iconPath, color, scale = { x: 1, y: 1, z: 1 }, texturePath = null) {
         super(id, name, iconPath)
-        this.type = type // 'wall', 'pillar', 'ramp', 'stairs'
+        this.type = type // 'wall', 'pillar', 'ramp', 'stairs', 'spawn_point'
         this.color = color
         this.scale = scale
         this.texturePath = texturePath
+        this.logicProperties = null // Default null
 
         // Generate Dynamic Icon
         this.iconPath = this.generateIcon()
@@ -55,6 +56,18 @@ export class MapObjectItem extends Item {
             // Tall Rect
             ctx.fillRect(20, 8, 24, 48)
             ctx.strokeRect(20, 8, 24, 48)
+        } else if (this.type === 'spawn_point') {
+            // Spawn Point Icon (Circle with S)
+            ctx.beginPath()
+            ctx.arc(32, 32, 24, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.stroke()
+
+            ctx.fillStyle = "white"
+            ctx.font = "bold 24px Arial"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText("S", 32, 32)
         } else {
             // Wall / Default (Landscape Rect)
             ctx.fillRect(8, 20, 48, 24)
@@ -146,6 +159,33 @@ export class MapObjectItem extends Item {
             const vertices = geometry.attributes.position.array
             let col = RAPIER.ColliderDesc.convexHull(vertices)
             if (!col) col = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            collidersDesc.push(col)
+
+        } else if (this.type === 'spawn_point') {
+            // SPAWN POINT (Cylinder Pad)
+            const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 32)
+            const material = new THREE.MeshStandardMaterial({
+                color: this.color,
+                transparent: true,
+                opacity: 0.8,
+                emissive: this.color,
+                emissiveIntensity: 0.5
+            })
+            object3D = new THREE.Mesh(geometry, material)
+            object3D.receiveShadow = true
+
+            // Add a visual marker for "Forward" direction
+            const markerGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8)
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
+            const marker = new THREE.Mesh(markerGeo, markerMat)
+            marker.position.y = 0.11 // Slightly above
+            marker.position.z = -0.4 // Forward
+            object3D.add(marker)
+
+            // Physics (Sensor?) or just floor?
+            // Usually spawns are non-colliding or just floor. 
+            // Let's make it a thin cylinder collider so we can place it on ground but not trip over it too much.
+            const col = RAPIER.ColliderDesc.cylinder(0.1, 1)
             collidersDesc.push(col)
 
         } else {
@@ -248,6 +288,11 @@ export class MapObjectItem extends Item {
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
         object3D.userData.texturePath = this.texturePath // Store for serialization
+
+        // Initialize Logic Properties if available (from constructor or default)
+        if (this.logicProperties) {
+            object3D.userData.logicProperties = { ...this.logicProperties }
+        }
 
         scene.add(object3D)
 

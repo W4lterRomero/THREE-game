@@ -238,6 +238,11 @@ class Game {
                         source.scale,
                         source.texturePath
                     )
+                    // Copy Logic properties
+                    if (source.logicProperties) {
+                        newItem.logicProperties = { ...source.logicProperties }
+                    }
+
                     this.inventoryManager.setItem(slotIndex, newItem)
                     console.log("Equipped", newItem.name, "to slot", slotIndex + 1)
                 }
@@ -1035,6 +1040,7 @@ class Game {
                     originalScale: obj.userData.originalScale, // {x,y,z}
                     pos: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
                     rot: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                    logicProperties: obj.userData.logicProperties // Create if exists
                 })
             }
         })
@@ -1094,11 +1100,10 @@ class Game {
                 data.originalScale
             )
 
-            // Override spawn position logic?
-            // spawnObject expects context? No, checking MapObjectItem.spawnObject signature
-            // It takes (scene, world, position, rotationIndex). 
-            // PROBLEM: We saved rotation as Euler (rot.y), spawnObject takes Index (0-3).
-            // We should overload spawnObject or manually spawn here.
+            // Restore Logic Properties
+            if (data.logicProperties) {
+                tempItem.logicProperties = data.logicProperties
+            }
 
             // Manual Spawn to support fine rotation if needed
             tempItem.spawnObjectFromData(this.sceneManager.scene, this.world, data.pos, data.rot)

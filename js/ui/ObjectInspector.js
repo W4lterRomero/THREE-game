@@ -205,6 +205,23 @@ export class ObjectInspector {
             section.appendChild(uploadBtn)
         })
 
+        // 5. Logic Properties (Dynamic)
+        // 5. Logic Properties (Dynamic)
+        this.logicSectionWrapper = this.createSection("Lógica de Juego", (section) => {
+            this.logicContainer = document.createElement('div')
+            this.logicContainer.style.display = 'flex'
+            this.logicContainer.style.flexDirection = 'column'
+            this.logicContainer.style.gap = '5px'
+            section.appendChild(this.logicContainer)
+        })
+        this.logicSectionWrapper.style.display = 'none'
+            // Move the logic section into the main content
+            // Note: createSection appends to this.content immediately.
+            // So I need to capture the section element wrapper if I want to hide it whole.
+            // My createSection implementation doesn't return the wrapper easily to `this`.
+            // I will modify createSection slightly or just access the last child.
+            // Actually, I can just modify `createSection` to return the section element.
+
             // Stop propagation of events to prevent game interaction when over the UI
             ;['mousedown', 'mouseup', 'click', 'wheel', 'keydown', 'keyup'].forEach(eventType => {
                 this.container.addEventListener(eventType, (e) => {
@@ -226,6 +243,7 @@ export class ObjectInspector {
 
         contentBuilder(section)
         this.content.appendChild(section)
+        return section
     }
 
     createNumberInput(label, onChange, min = -Infinity, step = 0.5, color = null) {
@@ -309,6 +327,14 @@ export class ObjectInspector {
         // Color
         if (object.material && object.material.color) {
             this.colorPicker.value = '#' + object.material.color.getHexString()
+        }
+
+        // Logic Properties
+        if (object.userData.logicProperties) {
+            this.logicSectionWrapper.style.display = 'block'
+            this.renderLogicProperties(object.userData.logicProperties)
+        } else {
+            this.logicSectionWrapper.style.display = 'none'
         }
 
         // Disable Game Input - REMOVED to allow movement
@@ -507,5 +533,41 @@ export class ObjectInspector {
         if (this.game.regenerateObjectPhysics) {
             this.game.regenerateObjectPhysics(this.selectedObject)
         }
+    }
+
+    renderLogicProperties(props) {
+        this.logicContainer.innerHTML = '' // Clear previous
+
+        // Helper to update props
+        const updateProp = (key, value) => {
+            if (this.selectedObject && this.selectedObject.userData.logicProperties) {
+                this.selectedObject.userData.logicProperties[key] = value
+                console.log(`Updated Logic Prop [${key}]:`, value)
+            }
+        }
+
+        // 1. Team (Equipo)
+        if (props.team !== undefined) {
+            const teamInput = this.createNumberInput("Equipo (1-4)", (v) => updateProp('team', v), 1, 1, "#00FF00")
+            teamInput.input.value = props.team
+            teamInput.input.max = 4
+            this.logicContainer.appendChild(teamInput.container)
+        }
+
+        // 2. Capacity
+        if (props.capacity !== undefined) {
+            const capInput = this.createNumberInput("Capacidad Jugadores", (v) => updateProp('capacity', v), 1, 1, "#00FFFF")
+            capInput.input.value = props.capacity
+            this.logicContainer.appendChild(capInput.container)
+        }
+
+        // 3. Order (Priority)
+        if (props.order !== undefined) {
+            const ordInput = this.createNumberInput("Orden de Spawn", (v) => updateProp('order', v), 0, 1, "#FFFF00")
+            ordInput.input.value = props.order
+            this.logicContainer.appendChild(ordInput.container)
+        }
+
+        // Future: More properties loop
     }
 }
