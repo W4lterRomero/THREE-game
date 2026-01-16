@@ -209,12 +209,24 @@ export class ConstructionMenu {
             display: none; 
             gap: 20px;
             overflow: hidden;
+            flex-direction: row; /* Horizontal Split */
         `
-        // Reuse same layout for Logic (Grid + Panel?) 
-        // Logic might need different panel content.
-        // For now, let's reuse grid logic but populate with logicItems.
-        // And maybe the panel shows description instead of visual customizer initially?
-        // Or we just let users drag spawn points.
+
+        // Left: Logic Library (New Items)
+        const leftContainer = document.createElement('div')
+        leftContainer.style.cssText = `
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-right: 1px solid #444;
+            padding-right: 10px;
+        `
+        const leftTitle = document.createElement('h3')
+        leftTitle.textContent = "Nuevo Objeto"
+        leftTitle.style.margin = "0 0 10px 0"
+        leftTitle.style.color = "#aaa"
+        leftContainer.appendChild(leftTitle)
 
         this.logicGrid = document.createElement('div')
         this.logicGrid.style.cssText = `
@@ -227,23 +239,57 @@ export class ConstructionMenu {
             align-content: start;
         `
         this.renderLibraryGrid(this.logicGrid, this.logicItems)
+        leftContainer.appendChild(this.logicGrid)
 
-        // Logic Instruction Panel
-        this.logicPanel = document.createElement('div')
-        this.logicPanel.style.cssText = `
+        this.contentLogic.appendChild(leftContainer)
+
+
+        // Right: Scene Logic Objects (Tree + Editor)
+        const rightContainer = document.createElement('div')
+        rightContainer.style.cssText = `
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `
+        const rightTitle = document.createElement('h3')
+        rightTitle.textContent = "Objetos en Escena"
+        rightTitle.style.margin = "0 0 10px 0"
+        rightTitle.style.color = "#aaa"
+        rightContainer.appendChild(rightTitle)
+
+        // Tree View Container
+        this.logicTreePanel = document.createElement('div')
+        this.logicTreePanel.style.cssText = `
             flex: 1;
             background: #222;
-            padding: 20px;
-            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         `
-        this.logicPanel.innerHTML = `
-            <h3>Lógica Interactiva</h3>
-            <p>Selecciona y arrastra elementos lógicos al mundo.</p>
-            <p>Usa Click Derecho sobre un objeto lógico colocado para configurar sus propiedades (Equipo, Orden, Eventos...).</p>
-        `
+        rightContainer.appendChild(this.logicTreePanel)
 
-        this.contentLogic.appendChild(this.logicGrid)
-        this.contentLogic.appendChild(this.logicPanel)
+        // Properties Editor Container (Bottom of Right)
+        this.logicPropertiesPanel = document.createElement('div')
+        this.logicPropertiesPanel.style.cssText = `
+            height: 250px; /* Fixed height for editor */
+            background: #2b2b2b;
+            border-top: 2px solid #555;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            border-radius: 0 0 8px 8px; /* Rounded only bottom if attached */
+        `
+        this.logicPropertiesPanel.innerHTML = `<div style="color:#666; text-align:center; padding-top:20px;">Selecciona un objeto de la lista para editar</div>`
+
+        rightContainer.appendChild(this.logicPropertiesPanel)
+        this.contentLogic.appendChild(rightContainer)
 
 
         this.contentSettings = document.createElement('div')
@@ -320,6 +366,7 @@ export class ConstructionMenu {
             this.tabLogic.style.fontWeight = "bold"
             this.tabLogic.style.color = "white"
             this.tabLogic.style.borderBottom = "2px solid white"
+            this.refreshLogicList()
 
         } else if (tabName === 'settings') {
             this.contentSettings.style.display = 'flex'
@@ -1034,6 +1081,13 @@ export class ConstructionMenu {
         this.isVisible = !this.isVisible
         this.container.style.display = this.isVisible ? 'flex' : 'none'
 
+        if (this.isVisible) {
+            // Auto-refresh if Logic Tab is active
+            if (this.contentLogic.style.display === 'flex') {
+                this.refreshLogicList()
+            }
+        }
+
         // Pause Game Input / Pointer Lock
         if (this.isVisible) {
             document.exitPointerLock()
@@ -1058,5 +1112,200 @@ export class ConstructionMenu {
                 }
             }, 100)
         }
+    }
+
+    refreshLogicList() {
+        if (!this.logicTreePanel) return
+
+        this.logicTreePanel.innerHTML = ""
+
+        // Get Logic Objects from Scene
+        // We look for objects with userData.isEditableMapObject AND specific logic types
+        // Or just all editable objects? The user request said "logic interactiva... dividir por grupos los objetos con logica"
+        const logicObjects = []
+        if (this.game.sceneManager && this.game.sceneManager.scene) {
+            this.game.sceneManager.scene.children.forEach(child => {
+                // Filter: Must be editable and have some logic property bucket or be a specific type?
+                // For now, let's include anything that has logicProperties OR is a 'spawn_point'
+                if (child.userData && child.userData.isEditableMapObject) {
+                    // Check if it's a "Logic" type
+                    const isLogic = (child.userData.mapObjectType === 'spawn_point')
+                    // Add more types here as needed in future
+
+                    if (isLogic) {
+                        logicObjects.push(child)
+                    }
+                }
+            })
+        }
+
+        if (logicObjects.length === 0) {
+            this.logicTreePanel.innerHTML = `<div style="color:#666; text-align:center; padding:10px;">No hay objetos lógicos en la escena.</div>`
+            return
+        }
+
+        // Group by Type
+        const groups = {}
+        logicObjects.forEach(obj => {
+            const type = obj.userData.mapObjectType || "Desconocido"
+            if (!groups[type]) groups[type] = []
+            groups[type].push(obj)
+        })
+
+        // Render Groups
+        for (const [type, objs] of Object.entries(groups)) {
+            // Group Header
+            const groupDetails = document.createElement('details')
+            groupDetails.open = true // Default open
+            groupDetails.style.cssText = `
+                background: #333;
+                border-radius: 4px;
+                margin-bottom: 5px;
+            `
+
+            const summary = document.createElement('summary')
+            summary.textContent = `${this.getHumanReadableName(type)} (${objs.length})`
+            summary.style.cssText = `
+                padding: 8px;
+                cursor: pointer;
+                font-weight: bold;
+                user-select: none;
+                list-style: none; /* Hide default triangle in some browsers if desired, or keep it */
+            `
+            groupDetails.appendChild(summary)
+
+            const list = document.createElement('div')
+            list.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                padding: 5px;
+                gap: 2px;
+            `
+
+            objs.forEach((obj, index) => {
+                const itemRow = document.createElement('div')
+                itemRow.textContent = `Objeto #${index + 1}`
+                itemRow.style.cssText = `
+                    padding: 6px;
+                    background: #2a2a2a;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    font-size: 14px;
+                `
+                itemRow.onmouseover = () => itemRow.style.background = "#444"
+                itemRow.onmouseout = () => {
+                    if (this.selectedLogicObject !== obj) itemRow.style.background = "#2a2a2a"
+                    else itemRow.style.background = "#555"
+                }
+                itemRow.onclick = () => {
+                    // Visual Selection in List
+                    // Reset all other highlights in this list (simple brute force or tracking)
+                    const allRows = this.logicTreePanel.querySelectorAll('div div') // messy selector
+                    allRows.forEach(r => r.style.background = "#2a2a2a")
+
+                    itemRow.style.background = "#555"
+                    this.selectedLogicObject = obj
+
+                    this.renderLogicProperties(obj)
+                }
+
+                list.appendChild(itemRow)
+            })
+
+            groupDetails.appendChild(list)
+            this.logicTreePanel.appendChild(groupDetails)
+        }
+    }
+
+    getHumanReadableName(type) {
+        switch (type) {
+            case 'spawn_point': return "Puntos de Spawn";
+            default: return type.charAt(0).toUpperCase() + type.slice(1);
+        }
+    }
+
+    renderLogicProperties(object) {
+        if (!this.logicPropertiesPanel) return
+        this.logicPropertiesPanel.innerHTML = ""
+
+        const header = document.createElement('div')
+        header.textContent = `Editando: ${this.getHumanReadableName(object.userData.mapObjectType)}`
+        header.style.cssText = `
+            font-weight: bold;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        `
+        this.logicPropertiesPanel.appendChild(header)
+
+        const props = object.userData.logicProperties || {}
+
+        // Helper to create inputs
+        const createInput = (key, val, type) => {
+            const row = document.createElement('div')
+            row.style.cssText = `display: flex; gap: 10px; align-items: center; justify-content: space-between;`
+
+            const label = document.createElement('label')
+            label.textContent = key.charAt(0).toUpperCase() + key.slice(1)
+            label.style.color = "#aaa"
+            label.style.fontSize = "14px"
+
+            const input = document.createElement('input')
+            input.style.cssText = `
+                background: #111;
+                border: 1px solid #444;
+                color: white;
+                padding: 4px;
+                border-radius: 4px;
+                width: 60%;
+            `
+
+            if (type === 'number') {
+                input.type = "number"
+                input.value = val
+                input.onchange = (e) => {
+                    const newVal = parseFloat(e.target.value)
+                    this.updateLogicProperty(object, key, newVal)
+                }
+            } else if (type === 'string') {
+                input.type = "text"
+                input.value = val
+                input.onchange = (e) => {
+                    this.updateLogicProperty(object, key, e.target.value)
+                }
+            } else if (type === 'boolean') {
+                input.type = "checkbox"
+                input.checked = val
+                input.style.width = "auto"
+                input.onchange = (e) => {
+                    this.updateLogicProperty(object, key, e.target.checked)
+                }
+            }
+
+            row.appendChild(label)
+            row.appendChild(input)
+            this.logicPropertiesPanel.appendChild(row)
+        }
+
+        // Iterate specific properties for Spawn Point or generic
+        if (object.userData.mapObjectType === 'spawn_point') {
+            createInput('team', props.team || 1, 'number')
+            createInput('capacity', props.capacity || 1, 'number')
+            createInput('order', props.order || 1, 'number')
+        } else {
+            // Generic fallback
+            for (const [k, v] of Object.entries(props)) {
+                createInput(k, v, typeof v)
+            }
+        }
+    }
+
+    updateLogicProperty(object, key, value) {
+        if (!object.userData.logicProperties) object.userData.logicProperties = {}
+        object.userData.logicProperties[key] = value
+
+        console.log(`Updated ${key} to ${value} for object`, object)
+        // Note: No need to rebuild physics or anything unless the property affects it.
+        // Logic properties are usually metadata.
     }
 }
