@@ -1179,6 +1179,76 @@ class Game {
             this.sceneManager.camera.getWorldDirection(direction)
         }
 
+        // --- MOVEMENT CONTROLLER APPLICATION ---
+        if (item.type === "movement_controller" && this.placementManager) {
+            const target = this.placementManager.getCurrentTarget()
+            // placementManager.getCurrentTarget() returns Vector3 (hit point).
+            // But we need the OBJECT.
+            // PlacementManager.update() logic finds the object but only returns the point.
+            // We need to access the object from PlacementManager state or re-cast?
+            // Checking PlacementManager code: it stores `currentHit` (point) and `lastValidPosition` (point).
+            // It uses `hit.object` internally but doesn't expose it clearly via `getCurrentTarget`.
+            // But wait! `update` in PlacementManager sets `this.currentItem`, and inside `update` it finds `hit.object`.
+            // We should modify PlacementManager to store/expose `lastValidObject` or similar.
+            // OR re-raycast here for safety.
+
+            // Let's re-raycast for safety and simplicity as we have camera/scene access here.
+            // Or better: Use PlacementManager's last hit state if possible. 
+            // In PlacementManager modification, I didn't add an exposed field for the object.
+            // Re-raycasting ensures sync with what the user is looking at NOW when clicking.
+
+            const raycaster = new THREE.Raycaster()
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), this.sceneManager.camera) // Center screen
+            const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
+
+            const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+            if (hit) {
+                const targetObj = hit.object
+
+                // Toggle / Apply Logic
+                // We want to COPY the properties from the Item to the Object?
+                // The prompt says "Apply".
+                // Does the Controller Item carry properties?
+                // In ConstructionMenu.js:
+                /*
+                const mover = new MapObjectItem(..., "movement_controller", ...)
+                mover.logicProperties = { targetUuid: null, speed: 2.0, loop: true, active: true, waypoints: [] }
+                */
+                // The item in inventory has default props.
+                // Does the user want to apply these defaults (empty waypoints)?
+                // Or does clicking simply ENABLE the "movement" feature on the object?
+                // "marcar de color azul su colision para indicar el objeto al que se aplicara el controlador"
+                // "que se pueda aplicar correctamente la propiedad"
+
+                // If the object doesn't have logic, we add it. 
+                if (!targetObj.userData.logicProperties) targetObj.userData.logicProperties = {}
+
+                // Merge/Set properties
+                // Look at LogicSystem: waypoints, speed, loop, active.
+                if (!targetObj.userData.logicProperties.waypoints) {
+                    targetObj.userData.logicProperties.waypoints = []
+                    targetObj.userData.logicProperties.speed = 2.0
+                    targetObj.userData.logicProperties.loop = true
+                    targetObj.userData.logicProperties.active = true
+
+                    alert("Controlador de movimiento aplicado a: " + (targetObj.userData.name || "Objeto"))
+                    // Update Preview Text to "Aplicado" immediately?
+                    if (this.placementManager && this.placementManager.ghostLabelSprite) {
+                        this.placementManager.updateLabelSprite(this.placementManager.ghostLabelSprite, "Aplicado!", "#00FF00"); // Green
+                    }
+                } else {
+                    alert("Este objeto ya tiene controlador de movimiento.")
+                    // Make sure it says Applied
+                    if (this.placementManager && this.placementManager.ghostLabelSprite) {
+                        this.placementManager.updateLabelSprite(this.placementManager.ghostLabelSprite, "Aplicado!", "#00FF00");
+                    }
+                }
+
+                return; // Consumed
+            }
+        }
+
         // Context needed for item usage
         const context = {
             scene: this.sceneManager.scene,

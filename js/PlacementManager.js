@@ -331,6 +331,65 @@ export class PlacementManager {
         this.currentHit = hit ? hit.point : null
 
         if (hit) {
+            // --- MOVEMENT CONTROLLER LOGIC ---
+            if (item.type === 'movement_controller') {
+                const isTargetObject = hit.object.userData && hit.object.userData.isEditableMapObject;
+
+                if (!isTargetObject) {
+                    this.placementGhost.visible = false;
+                    this.lastValidPosition = null;
+                    return null;
+                }
+
+                this.placementGhost.visible = true;
+
+                // 1. Match Target Size
+                const targetBox = new THREE.Box3().setFromObject(hit.object);
+                const targetSize = new THREE.Vector3();
+                targetBox.getSize(targetSize);
+                const targetCenter = new THREE.Vector3();
+                targetBox.getCenter(targetCenter);
+
+                this.ghostBaseMat.visible = true;
+                this.ghostArrow.visible = false;
+                if (this.ghostRampMesh) this.ghostRampMesh.visible = false;
+                if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false;
+
+                // Use Box Mesh for highlight
+                this.ghostBoxMesh.visible = true;
+                this.ghostBoxMesh.scale.copy(targetSize);
+
+                // Color Blue
+                this.ghostBaseMat.color.setHex(0x0000FF);
+                this.ghostBaseMat.opacity = 0.5
+
+                // Position at Center of Target
+                this.placementGhost.position.copy(targetCenter);
+                this.placementGhost.rotation.set(0, 0, 0);
+                this.placementGhost.quaternion.copy(hit.object.quaternion);
+
+                // 2. Text Label
+                if (!this.ghostLabelSprite) {
+                    this.ghostLabelSprite = this.createLabelSprite("Aplicar", "#FFFF00");
+                    this.placementGhost.add(this.ghostLabelSprite);
+                }
+                this.ghostLabelSprite.visible = true;
+                this.ghostLabelSprite.position.set(0, targetSize.y / 2 + 0.5, 0); // Above object
+
+                // Update text
+                const hasLogic = hit.object.userData.logicProperties && hit.object.userData.logicProperties.waypoints;
+                const txt = hasLogic ? "Aplicado!" : "Aplicar";
+                const col = hasLogic ? "#00FF00" : "#FFFF00";
+                this.updateLabelSprite(this.ghostLabelSprite, txt, col);
+
+                this.lastValidPosition = hit.point;
+                return hit.point;
+            }
+
+            // Disable Label for others
+            if (this.ghostLabelSprite) this.ghostLabelSprite.visible = false;
+            this.ghostBaseMat.opacity = 0.3 // Reset opacity
+
             this.placementGhost.visible = true
 
             // --- Determine Size (Smart Sizing) ---
@@ -550,5 +609,50 @@ export class PlacementManager {
 
     getCurrentTarget() {
         return this.lastValidPosition || this.currentHit
+    }
+
+    createLabelSprite(text, colorStr) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 128; // Rectangular
+
+        this.drawLabelOnCanvas(ctx, text, colorStr, canvas.width, canvas.height);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(2, 1, 1); // Adjust size
+        return sprite;
+    }
+
+    updateLabelSprite(sprite, text, colorStr) {
+        if (!sprite || !sprite.material || !sprite.material.map) return;
+
+        const tex = sprite.material.map;
+        const canvas = tex.image;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.drawLabelOnCanvas(ctx, text, colorStr, canvas.width, canvas.height);
+
+        tex.needsUpdate = true;
+    }
+
+    drawLabelOnCanvas(ctx, text, colorStr, w, h) {
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.font = "bold 40px Arial";
+        ctx.fillStyle = colorStr;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, w / 2, h / 2);
+
+        // Border
+        ctx.strokeStyle = colorStr;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(0, 0, w, h);
     }
 }
