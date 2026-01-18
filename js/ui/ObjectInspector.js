@@ -337,6 +337,36 @@ export class ObjectInspector {
             this.logicSectionWrapper.style.display = 'none'
         }
 
+        // 6. Link to Logic Panel (New)
+        // Check if object has modifiers that should be edited in Logic Panel
+        const hasLogicParams = object.userData.logicProperties && (
+            object.userData.logicProperties.waypoints ||
+            object.userData.mapObjectType === 'movement_controller' ||
+            object.userData.mapObjectType === 'spawn_point'
+        )
+
+        if (hasLogicParams) {
+            // Remove existing button if any (for safety, though rebuild happens somewhat)
+            // Actually, we should probably append this to the Logic Section or a new footer.
+            // Let's append to logicSectionWrapper
+
+            // Check if button already exists in logicSection (container)
+            if (!this.editLogicBtn) {
+                this.editLogicBtn = document.createElement('button')
+                this.editLogicBtn.textContent = "⚙ Editar Lógica Avanzada"
+                this.editLogicBtn.style.cssText = `
+                    width: 100%; margin-top: 10px; padding: 8px; 
+                    background: #552200; color: orange; border: 1px solid orange; 
+                    cursor: pointer; border-radius: 4px; font-size: 11px;
+                `
+                this.editLogicBtn.onclick = () => this.openLogicPanel()
+                this.logicSectionWrapper.appendChild(this.editLogicBtn)
+            }
+            this.editLogicBtn.style.display = "block"
+        } else {
+            if (this.editLogicBtn) this.editLogicBtn.style.display = "none"
+        }
+
         // Disable Game Input - REMOVED to allow movement
         // if (this.game.inputManager) this.game.inputManager.enabled = false
         document.exitPointerLock()
@@ -569,5 +599,21 @@ export class ObjectInspector {
         }
 
         // Future: More properties loop
+    }
+    openLogicPanel() {
+        if (!this.selectedObject || !this.game || !this.game.constructionMenu) return
+
+        const target = this.selectedObject
+
+        // Hide Inspector
+        this.hide()
+
+        // Open Construction Menu -> Logic Panel -> Select Object
+        this.game.constructionMenu.toggle() // Ensure it opens (toggle works if closed)
+        if (!this.game.constructionMenu.isVisible) {
+            this.game.constructionMenu.toggle()
+        }
+
+        this.game.constructionMenu.selectLogicObject(target)
     }
 }

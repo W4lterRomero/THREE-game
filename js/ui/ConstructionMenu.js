@@ -1192,6 +1192,11 @@ export class ConstructionMenu {
                 itemRow.textContent = `Objeto #${index + 1}`
                 itemRow.style.cssText = `padding: 6px; background: #2a2a2a; cursor: pointer; border-radius: 4px; font-size: 14px;`
 
+                // Pre-highlight if selected
+                if (this.selectedLogicObject === obj) {
+                    itemRow.style.background = "#555"
+                }
+
                 itemRow.onmouseover = () => itemRow.style.background = "#444"
                 itemRow.onmouseout = () => {
                     if (this.selectedLogicObject !== obj) itemRow.style.background = "#2a2a2a"
@@ -1225,5 +1230,47 @@ export class ConstructionMenu {
         this.logicSystem.renderPanel(this.logicPropertiesPanel, object, () => {
             this.refreshLogicList()
         })
+    }
+
+    selectLogicObject(targetObject) {
+        if (!targetObject) return
+
+        // 1. Switch to Logic Tab
+        this.switchTab('logic')
+
+        // 2. Ensure list is fresh
+        this.refreshLogicList()
+
+        // 3. Find and Highlight in Tree
+        // We need to match the object in the tree. 
+        // Our refreshLogicList recreates the tree. 
+        // We need to iterate the tree and find the one matching targetObject.
+        this.selectedLogicObject = targetObject
+
+        // Render Properties
+        this.renderLogicProperties(targetObject)
+
+        // Visual Highlight in Tree (Best effort search)
+        // We scan the groups in the panel
+        const details = this.logicTreePanel.querySelectorAll('details')
+        details.forEach(det => {
+            // Check if this group contains our object? 
+            // The rows are anonymous divs, but we assigned onclick handlers closing over 'obj'.
+            // We can't easily find the DOM element back from the object unless we store it.
+            // Let's rely on re-rendering or flagging.
+            // Actually, since we just called refreshLogicList, the DOM is new.
+            // We can't find it easily without rebuilding with a "selected" flag passed to refreshLogicList?
+            // Or we just update the visual style here if we can identify it.
+
+            // Simpler: Let's modify refreshLogicList to accept a 'selectedObject' param to highlight it during render?
+            // Or just manually iterate 'groups' again (inefficient).
+
+            // Let's modify refreshLogicList slightly to handle 'this.selectedLogicObject' automatically?
+            // Yes, refreshLogicList already uses 'this.selectedLogicObject' to verify background color in onmouseout.
+            // But it doesn't set the INITIAL background color based on it.
+        })
+
+        // Re-call refreshLogicList to apply the visual highlight (since we set this.selectedLogicObject above)
+        this.refreshLogicList()
     }
 }
