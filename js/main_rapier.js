@@ -274,6 +274,9 @@ class Game {
 
         // Right Click Handler for Inspector (Using mousedown to support Pointer Lock)
         document.addEventListener('mousedown', (e) => {
+            // UI Protection
+            if (e.target !== this.sceneManager.renderer.domElement) return
+
             if (this.gameMode === 'editor') {
 
                 // --- MAP LOGIC CLICK ---
@@ -1093,6 +1096,10 @@ class Game {
         // Use Item (Click)
         document.addEventListener("mousedown", (e) => {
             if (this.inputManager && !this.inputManager.enabled) return
+
+            // Prevent interaction if clicking on UI (Not Canvas)
+            if (e.target !== this.sceneManager.renderer.domElement) return
+
             if (e.button === 0) { // Left Click
                 if (this.isMovingFarmingZone && this.moveGhost.visible) {
                     // Confirm Placement
