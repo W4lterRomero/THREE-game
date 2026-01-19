@@ -1,8 +1,25 @@
 import * as THREE from "three"
+import { LogicToolbar } from "../ui/LogicToolbar.js"
 
 export class LogicSystem {
     constructor(game) {
         this.game = game
+        this.isEditingMap = false
+        this.editingObject = null
+        this.toolbar = new LogicToolbar(game)
+
+        // Toolbar Callbacks
+        this.toolbar.onClose = () => this.endMapEdit()
+        this.toolbar.onToolChange = (tool) => {
+            console.log("Herramienta Lógica:", tool)
+            // Placement Manager will query this state
+        }
+
+        // Visualizer for paths
+        this.pathVisualizer = new THREE.Group()
+        if (this.game.sceneManager && this.game.sceneManager.scene) {
+            this.game.sceneManager.scene.add(this.pathVisualizer)
+        }
     }
 
     /**
@@ -77,12 +94,23 @@ export class LogicSystem {
 
     renderMovementUI(container, object, props, refreshCallback) {
         const mvHeader = document.createElement('div')
-        mvHeader.innerHTML = `<span style="color:#00FFFF">🏃 Animación</span>`
+        mvHeader.innerHTML = `<span style="color:#00FFFF"> Animación</span>`
         mvHeader.style.cssText = `
             margin-top: 15px; margin-bottom: 10px; 
             font-weight: bold; border-top: 1px solid #444; padding-top: 10px;
         `
         container.appendChild(mvHeader)
+
+        // --- Edit on Map Button ---
+        const editMapBtn = document.createElement('button')
+        editMapBtn.textContent = "Editar en Mapa"
+        editMapBtn.style.cssText = `
+            width: 100%; background: #0066cc; color: white; border: none; 
+            padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; font-weight: bold;
+        `
+        editMapBtn.onclick = () => this.startMapEdit(object)
+        container.appendChild(editMapBtn)
+        // --------------------------
 
         this.createInput(container, object, 'speed', props.speed || 2.0, 'number', 'Velocidad')
         this.createInput(container, object, 'loop', props.loop !== false, 'boolean', 'Bucle Infinito')
@@ -94,7 +122,7 @@ export class LogicSystem {
         wpHeader.style.cssText = `margin-top: 10px; font-size: 12px; color: #aaa;`
         container.appendChild(wpHeader)
 
-        // Capture Button
+        // Capture Button (Legacy)
         const captureBtn = document.createElement('button')
         captureBtn.textContent = "+ Capturar Ubicación Actual"
         captureBtn.style.cssText = `
@@ -110,6 +138,7 @@ export class LogicSystem {
             }
             props.waypoints.push(wp)
             this.renderPanel(container, object, refreshCallback) // Re-render self
+            this.updateVisualization() // Refresh lines
         }
         container.appendChild(captureBtn)
 
@@ -134,6 +163,7 @@ export class LogicSystem {
             del.onclick = () => {
                 props.waypoints.splice(idx, 1)
                 this.renderPanel(container, object, refreshCallback)
+                this.updateVisualization()
             }
             row.appendChild(del)
             wpList.appendChild(row)
@@ -157,9 +187,105 @@ export class LogicSystem {
                 // Clear panel or refresh
                 container.innerHTML = "<div style='color:#666;text-align:center'>Lógica eliminada.</div>"
                 if (refreshCallback) refreshCallback()
+                this.updateVisualization()
             }
         }
         container.appendChild(removeBtn)
+    }
+
+    // --- MAP EDIT MODE ---
+
+    startMapEdit(object) {
+        this.isEditingMap = true
+        this.editingObject = object
+
+        // Hide Main Menu
+        if (this.game.constructionMenu) {
+            this.game.constructionMenu.container.style.display = 'none'
+            // Keep game input disabled if needed, or ENABLE it for walking?
+            // "cuando le des a ese boton lo que va pasar es que se va poner visible un menu de opciones en el mapa"
+            // Typically map edit usually means we can fly/move to place things.
+            // Let's ENABLE game input but capture clicks.
+            if (this.game.inputManager) {
+                this.game.inputManager.enabled = true
+                this.game.isMouseDown = false // Reset
+                if (this.game.cameraController) this.game.cameraController.lock() // Lock mouse for look
+            }
+        }
+
+        // Show Toolbar
+        this.toolbar.show()
+
+        // Visualizers
+        this.updateVisualization()
+
+        console.log("Started Map Logic Edit Mode")
+    }
+
+    endMapEdit() {
+        this.isEditingMap = false
+        this.editingObject = null
+        this.toolbar.hide()
+
+        // Show Main Menu
+        if (this.game.constructionMenu) {
+            this.game.constructionMenu.container.style.display = 'flex'
+            // Disable input as menu is open
+            document.exitPointerLock()
+            if (this.game.inputManager) this.game.inputManager.enabled = false
+        }
+
+        // Clear Viz (Optional, or keep it?)
+        // Usually we want to see it while editing, hide when done? 
+        // Or hide when not in Logic Tab?
+        this.pathVisualizer.clear()
+    }
+
+    update(dt) {
+        if (!this.isEditingMap || !this.editingObject) return
+
+        // Handle Active Tool Logic
+        if (this.toolbar.activeTool === 'waypoint') {
+            // Let Placement Manager handle the Ghost preview if we hook it validly.
+            // Or we handle it here. 
+        }
+
+        // We should ensure visualization is up to date (moving object?)
+        // If object moves, we update lines. But object shouldn't move while editing unless we drag it.
+    }
+
+    updateVisualization() {
+        this.pathVisualizer.clear()
+        if (!this.editingObject) return
+
+        const wps = this.editingObject.userData.logicProperties.waypoints
+        if (!wps || wps.length === 0) return
+
+        // Draw Lines
+        const points = []
+        // Start from object position
+        points.push(this.editingObject.position.clone())
+        wps.forEach(wp => points.push(new THREE.Vector3(wp.x, wp.y, wp.z)))
+
+        // Loop?
+        if (this.editingObject.userData.logicProperties.loop) {
+            points.push(this.editingObject.position.clone())
+        }
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points)
+        const material = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: 2 })
+        const line = new THREE.Line(geometry, material)
+
+        // Draw Dots
+        points.forEach(p => {
+            const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0xFFAA00 })
+            const dot = new THREE.Mesh(dotGeo, dotMat)
+            dot.position.copy(p)
+            this.pathVisualizer.add(dot)
+        })
+
+        this.pathVisualizer.add(line)
     }
 
     // --- UTILS ---

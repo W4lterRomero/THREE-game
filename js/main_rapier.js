@@ -276,6 +276,27 @@ class Game {
         document.addEventListener('mousedown', (e) => {
             if (this.gameMode === 'editor') {
 
+                // --- MAP LOGIC CLICK ---
+                if (this.constructionMenu && this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.isEditingMap) {
+                    // If in Map Edit Mode, we intercept clicks for tools
+                    const logicSys = this.constructionMenu.logicSystem
+                    if (logicSys.toolbar.activeTool === 'waypoint' && e.button === 0) {
+                        const pos = this.placementManager.getCurrentTarget()
+                        if (pos && logicSys.editingObject) {
+                            const wp = {
+                                x: pos.x,
+                                y: pos.y,
+                                z: pos.z,
+                                delay: 0
+                            }
+                            logicSys.editingObject.userData.logicProperties.waypoints.push(wp)
+                            logicSys.updateVisualization()
+                            console.log("Waypoint Added via Map Tool", wp)
+                        }
+                        return // Stop processing
+                    }
+                }
+
                 // --- TARGET PICKING LOGIC (For Movement Controller) ---
                 if (e.button === 2 && this.constructionMenu && this.constructionMenu.isPickingTarget) {
                     // Raycast
@@ -622,10 +643,33 @@ class Game {
         }
 
         // Ghost Preview Update (via Manager)
-        if (this.placementManager && this.inventoryManager) {
+        if (this.gameMode === 'editor' && this.constructionMenu) {
+            // Logic Map Edit Mode
+            if (this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.isEditingMap) {
+                this.constructionMenu.logicSystem.update(dt)
+
+                if (this.constructionMenu.logicSystem.toolbar.activeTool === 'waypoint') {
+                    if (this.placementManager && this.character) {
+                        this.placementManager.updateLogicGhost(
+                            this.constructionMenu.logicSystem.editingObject,
+                            this.character.position
+                        )
+                    }
+                } else {
+                    if (this.placementManager) this.placementManager.placementGhost.visible = false
+                }
+            }
+            // Normal Editor Mode (Menu Closed)
+            else if (!this.constructionMenu.isVisible && this.placementManager && this.inventoryManager) {
+                const currentItem = this.inventoryManager.getCurrentItem()
+                // Pass the item object directly!
+                // Also pass position if character exists
+                const charPos = this.character ? this.character.getPosition() : null
+                this.placementManager.update(currentItem, this.placementRotationIndex || 0, charPos)
+            }
+        } else if (this.placementManager && this.inventoryManager) {
+            // Non-Editor Mode (Not typical, but fallback)
             const currentItem = this.inventoryManager.getCurrentItem()
-            // Pass the item object directly!
-            // Also pass position if character exists
             const charPos = this.character ? this.character.getPosition() : null
             this.placementManager.update(currentItem, this.placementRotationIndex || 0, charPos)
         }

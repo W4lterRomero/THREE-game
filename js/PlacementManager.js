@@ -607,6 +607,83 @@ export class PlacementManager {
         }
     }
 
+    /**
+     * Updates ghost for Logic Map Editor (References a live scene object instead of inventory item)
+     */
+    updateLogicGhost(targetObject, playerPosition) {
+        if (!targetObject) {
+            this.placementGhost.visible = false
+            return null
+        }
+
+        this.placementGhost.visible = true
+
+        // Hide standard ghosts
+        if (this.ghostRampMesh) this.ghostRampMesh.visible = false
+        if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false
+        if (this.ghostArrow) this.ghostArrow.visible = false
+        // Use box for now, TODO: Clone geometry of targetObject?
+        // Cloning complex geometry for ghost might be expensive or tricky if grouped.
+        // Let's us a semi-transparent box matching the targetObject's bbox.
+        this.ghostBoxMesh.visible = true
+
+        // Match Size
+        const box = new THREE.Box3().setFromObject(targetObject)
+        const size = new THREE.Vector3()
+        box.getSize(size)
+        this.ghostBoxMesh.scale.copy(size)
+        this.ghostBaseMat.color.setHex(0x0088ff) // Logic Color
+
+        // Raycast logic similar to update() but simplified
+        const raycaster = new THREE.Raycaster()
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera)
+        const intersects = raycaster.intersectObjects(this.scene.children, true)
+
+        const hit = intersects.find(h => {
+            if (h.distance >= 100) return false
+            if (h.object.type !== "Mesh") return false
+            if (h.object.userData.isPlayer) return false
+            // Ignore self (targetObject) to allow placing ON self? No, usually waypoints are external.
+            // But maybe we want the start point 0 to be self.
+            let parent = h.object
+            while (parent) {
+                if (parent === this.placementGhost || parent === targetObject) return false
+                parent = parent.parent
+            }
+            return true
+        })
+
+        if (!hit) {
+            this.placementGhost.visible = false
+            this.lastValidPosition = null
+            return null
+        }
+
+        // Snap to grid if active
+        let targetPos = hit.point.clone()
+        if (this.snapToGrid || this.aerialGridActive) {
+            // Reuse basic snapping logic logic, or simplify for waypoints (center snap)
+            // Let's just do simple grid snap
+            const gridSize = this.gridSize || 1
+            targetPos.x = Math.round(targetPos.x / gridSize) * gridSize
+            targetPos.z = Math.round(targetPos.z / gridSize) * gridSize
+            targetPos.y = Math.round(targetPos.y / gridSize) * gridSize
+            // Adjust Y to sit on top if floor hit?
+            if (hit.face && hit.face.normal.y > 0.5) {
+                targetPos.y = hit.point.y + size.y / 2
+            }
+        } else {
+            // Free placement, sit on floor
+            targetPos.y += size.y / 2
+        }
+
+        this.placementGhost.position.copy(targetPos)
+        this.placementGhost.rotation.copy(targetObject.rotation) // Keep original rotation
+
+        this.lastValidPosition = targetPos
+        return targetPos
+    }
+
     getCurrentTarget() {
         return this.lastValidPosition || this.currentHit
     }
