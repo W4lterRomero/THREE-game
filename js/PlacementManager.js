@@ -610,7 +610,7 @@ export class PlacementManager {
     /**
      * Updates ghost for Logic Map Editor (References a live scene object instead of inventory item)
      */
-    updateLogicGhost(targetObject, playerPosition) {
+    updateLogicGhost(targetObject, playerPosition, rotationIndex) {
         if (!targetObject) {
             this.placementGhost.visible = false
             return null
@@ -622,19 +622,27 @@ export class PlacementManager {
         if (this.ghostRampMesh) this.ghostRampMesh.visible = false
         if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false
         if (this.ghostArrow) this.ghostArrow.visible = false
-        // Use box for now, TODO: Clone geometry of targetObject?
-        // Cloning complex geometry for ghost might be expensive or tricky if grouped.
-        // Let's us a semi-transparent box matching the targetObject's bbox.
+        if (this.ghostLabelSprite) this.ghostLabelSprite.visible = false // Hide Label
+
         this.ghostBoxMesh.visible = true
 
         // Match Size
         const box = new THREE.Box3().setFromObject(targetObject)
         const size = new THREE.Vector3()
         box.getSize(size)
-        this.ghostBoxMesh.scale.copy(size)
+        // Adjust size if target is rotated? Box3 is AABB. 
+        // We want local size. userData usually has originalScale or we get from geometry parameters if BoxGeometry.
+        // If we use AABB of rotated object, size changes. 
+        // Best to use userData.originalScale if available.
+        if (targetObject.userData.originalScale) {
+            this.ghostBoxMesh.scale.copy(targetObject.userData.originalScale)
+        } else {
+            this.ghostBoxMesh.scale.copy(size)
+        }
+
         this.ghostBaseMat.color.setHex(0x0088ff) // Logic Color
 
-        // Raycast logic similar to update() but simplified
+        // Raycast logic
         const raycaster = new THREE.Raycaster()
         raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera)
         const intersects = raycaster.intersectObjects(this.scene.children, true)
@@ -643,8 +651,6 @@ export class PlacementManager {
             if (h.distance >= 100) return false
             if (h.object.type !== "Mesh") return false
             if (h.object.userData.isPlayer) return false
-            // Ignore self (targetObject) to allow placing ON self? No, usually waypoints are external.
-            // But maybe we want the start point 0 to be self.
             let parent = h.object
             while (parent) {
                 if (parent === this.placementGhost || parent === targetObject) return false
@@ -659,26 +665,63 @@ export class PlacementManager {
             return null
         }
 
-        // Snap to grid if active
         let targetPos = hit.point.clone()
+
+        // Snap to grid if active
+        // User wants "Cube" (size 1) to be centered in square.
+        // Size 1 is ODD. Center should be at 0.5, 1.5, etc.
+        // Size 2 is EVEN. Center should be at 1.0, 2.0 (On lines).
+        // Formula: 
+        // offset = (size % 2 !== 0) ? 0.5 : 0
+        // val = Math.round(val - offset) + offset
+
         if (this.snapToGrid || this.aerialGridActive) {
-            // Reuse basic snapping logic logic, or simplify for waypoints (center snap)
-            // Let's just do simple grid snap
             const gridSize = this.gridSize || 1
-            targetPos.x = Math.round(targetPos.x / gridSize) * gridSize
-            targetPos.z = Math.round(targetPos.z / gridSize) * gridSize
-            targetPos.y = Math.round(targetPos.y / gridSize) * gridSize
-            // Adjust Y to sit on top if floor hit?
+
+            // X Snap
+            const sx = this.ghostBoxMesh.scale.x
+            const offsetX = (Math.abs(sx % 2) > 0.01) ? (gridSize / 2) : 0
+            targetPos.x = Math.round((targetPos.x - offsetX) / gridSize) * gridSize + offsetX
+
+            // Z Snap
+            const sz = this.ghostBoxMesh.scale.z
+            const offsetZ = (Math.abs(sz % 2) > 0.01) ? (gridSize / 2) : 0
+            targetPos.z = Math.round((targetPos.z - offsetZ) / gridSize) * gridSize + offsetZ
+
+            // Y Snap
+            const sy = this.ghostBoxMesh.scale.y
+            // For Y, we usually want it sitting ON the grid/floor.
+            // If we hit a face, we want y = hit.y + sy/2.
+            // But we also want to snap that height to steps?
+            // User compliant about "cuadricula" usually refers to X/Z plane.
+            // Let's keep Y logical:
+
+            // If floor hit, sit on it.
             if (hit.face && hit.face.normal.y > 0.5) {
-                targetPos.y = hit.point.y + size.y / 2
+                // But usually we want Snapped X/Z but Y on surface.
+
+                // Let's stick to full grid snap for now as requested.
             }
         } else {
             // Free placement, sit on floor
-            targetPos.y += size.y / 2
+            // Match standard logic
         }
 
+        // Adjust Y to be Center
+        targetPos.y += this.ghostBoxMesh.scale.y / 2
+
         this.placementGhost.position.copy(targetPos)
-        this.placementGhost.rotation.copy(targetObject.rotation) // Keep original rotation
+
+        // Rotation Lognic ('R')
+        // Rotate the GHOST group
+        this.placementGhost.rotation.set(0, 0, 0) // Reset
+        // Apply Y rotation based on index
+        let rotY = 0
+        if (rotationIndex === 1) rotY = -Math.PI / 2
+        if (rotationIndex === 2) rotY = -Math.PI
+        if (rotationIndex === 3) rotY = Math.PI / 2
+
+        this.placementGhost.rotation.y = rotY
 
         this.lastValidPosition = targetPos
         return targetPos

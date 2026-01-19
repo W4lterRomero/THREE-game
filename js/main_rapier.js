@@ -287,7 +287,9 @@ class Game {
                                 x: pos.x,
                                 y: pos.y,
                                 z: pos.z,
-                                delay: 0
+                                z: pos.z,
+                                delay: 0,
+                                rotY: this.placementManager.placementGhost.rotation.y // Save rotation
                             }
                             logicSys.editingObject.userData.logicProperties.waypoints.push(wp)
                             logicSys.updateVisualization()
@@ -652,7 +654,8 @@ class Game {
                     if (this.placementManager && this.character) {
                         this.placementManager.updateLogicGhost(
                             this.constructionMenu.logicSystem.editingObject,
-                            this.character.position
+                            this.character.position,
+                            this.placementRotationIndex || 0
                         )
                     }
                 } else {
@@ -1384,6 +1387,13 @@ class Game {
                     // Snap Physics & Visual
                     obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
                     obj.position.set(p2.x, p2.y, p2.z)
+
+                    // Final Rotation Snap
+                    if (p2.rotY !== undefined) {
+                        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p2.rotY)
+                        obj.quaternion.copy(q)
+                        obj.userData.rigidBody.setNextKinematicRotation(q)
+                    }
                 } else {
                     // Interpolate
                     const a = obj.userData.moveAlpha
@@ -1393,6 +1403,30 @@ class Game {
 
                     obj.userData.rigidBody.setNextKinematicTranslation({ x, y, z })
                     obj.position.set(x, y, z)
+
+                    // Interpolate Rotation if available
+                    // Assume flat Y rotation for now. 
+                    // p1.rotY to p2.rotY
+                    // Handle undefined rotY (legacy)
+                    const r1 = (p1.rotY !== undefined) ? p1.rotY : obj.userData.originalRotY || 0 // Need to store base rotation?
+                    const r2 = (p2.rotY !== undefined) ? p2.rotY : r1
+
+                    // Shortest path interpolation for angle
+                    let diff = r2 - r1
+                    while (diff > Math.PI) diff -= Math.PI * 2
+                    while (diff < -Math.PI) diff += Math.PI * 2
+
+                    const currentRot = r1 + diff * a
+                    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentRot)
+
+                    // Combine with original base rotation (X/Z) if any? 
+                    // Usually map objects only rotate Y.
+                    // But if object was placed with X rotation (e.g. ramp), we should preserve it?
+                    // Physics body rotation is global.
+
+                    // Simple case: Just set rotation Y.
+                    obj.quaternion.copy(q)
+                    obj.userData.rigidBody.setNextKinematicRotation(q)
                 }
             }
         })

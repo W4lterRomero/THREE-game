@@ -272,17 +272,60 @@ export class LogicSystem {
             points.push(this.editingObject.position.clone())
         }
 
+        // Draw Line
         const geometry = new THREE.BufferGeometry().setFromPoints(points)
         const material = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: 2 })
         const line = new THREE.Line(geometry, material)
+        this.pathVisualizer.add(line)
 
-        // Draw Dots
-        points.forEach(p => {
+        // Draw Waypoint Indicators (Only registered points)
+        // Removed the points.forEach loop that included current position.
+
+        wps.forEach((wp, idx) => {
+            const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
+            // Dot (Visual anchor)
             const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
             const dotMat = new THREE.MeshBasicMaterial({ color: 0xFFAA00 })
             const dot = new THREE.Mesh(dotGeo, dotMat)
-            dot.position.copy(p)
+            dot.position.copy(pos)
             this.pathVisualizer.add(dot)
+
+            // Arrow
+            const arrowLen = 1.0
+            const arrowDir = new THREE.Vector3(0, 0, 1) // Default forward
+            if (wp.rotY !== undefined) {
+                arrowDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), wp.rotY)
+            } else {
+                // Use object rotation? Or default?
+                // If no rotation saved, assume 0 or previous?
+                // Let's just use Z+
+            }
+
+            const arrow = new THREE.ArrowHelper(arrowDir, pos, arrowLen, 0x00FF00)
+            this.pathVisualizer.add(arrow)
+
+            // Ghost Mesh Representation (Wireframe Box?)
+            // "quiero que quede la previzualizacion en el mapa cuando se coloque ... solo para saber de que forma va estar el objeto"
+            const ghostSize = new THREE.Vector3(1, 1, 1) // Default
+            if (this.editingObject.userData.originalScale) {
+                ghostSize.copy(this.editingObject.userData.originalScale)
+            } else {
+                const b = new THREE.Box3().setFromObject(this.editingObject)
+                b.getSize(ghostSize)
+            }
+
+            const ghostGeo = new THREE.BoxGeometry(ghostSize.x, ghostSize.y, ghostSize.z)
+            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, wireframe: true, transparent: true, opacity: 0.3 })
+            const ghost = new THREE.Mesh(ghostGeo, ghostMat)
+            ghost.position.copy(pos)
+            // Adjust Y center
+            ghost.position.y += ghostSize.y / 2
+
+            if (wp.rotY !== undefined) {
+                ghost.rotation.y = wp.rotY
+            }
+
+            this.pathVisualizer.add(ghost)
         })
 
         this.pathVisualizer.add(line)
