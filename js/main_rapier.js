@@ -1340,6 +1340,12 @@ class Game {
         this.sceneManager.scene.children.forEach(obj => {
             // Check if object has movement logic
             if (obj.userData.logicProperties && obj.userData.logicProperties.waypoints && obj.userData.logicProperties.waypoints.length > 0) {
+
+                // SKIP if currently being edited
+                if (this.constructionMenu && this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.editingObject === obj) {
+                    return
+                }
+
                 const props = obj.userData.logicProperties
 
                 if (!props.active) return

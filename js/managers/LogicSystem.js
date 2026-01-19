@@ -318,8 +318,6 @@ export class LogicSystem {
             const ghostMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, wireframe: true, transparent: true, opacity: 0.3 })
             const ghost = new THREE.Mesh(ghostGeo, ghostMat)
             ghost.position.copy(pos)
-            // Adjust Y center
-            ghost.position.y += ghostSize.y / 2
 
             if (wp.rotY !== undefined) {
                 ghost.rotation.y = wp.rotY
