@@ -12,7 +12,18 @@ export class LogicSystem {
         this.toolbar.onClose = () => this.endMapEdit()
         this.toolbar.onToolChange = (tool) => {
             console.log("Herramienta Lógica:", tool)
-            // Placement Manager will query this state
+
+            if (tool === 'play_pause') {
+                this.toggleAnimation()
+                // Don't keep it 'active' as a selected tool (like waypoint placement)
+                // Immediately deselect or just treat as trigger?
+                // The toolbar architecture highlights "activeTool". 
+                // Let's treat it as a toggle but we probably don't want it to remain "selected" in a way that blocks other inputs?
+                // Actually, for this specific button, we might want it to NOT be an exclusive tool mode.
+                // But structure uses setActiveTool. 
+                // Let's just run logic and let it stay highlighted if we want, OR immediately reset.
+                // Better: The toolbar handles highlight. Move logic needs to know if we are "playing".
+            }
         }
 
         // Visualizer for paths
@@ -219,7 +230,31 @@ export class LogicSystem {
         // Visualizers
         this.updateVisualization()
 
+        // Init Play Button State
+        // We use a temporary runtime flag for previewing while editing
+        // If object.userData.logicProperties.active is true, it might already be moving in game.
+        // But in "Edit Mode", we usually paused it (forced return in main loop).
+        // Let's introduce logicProperties.isPreviewing
+        if (this.editingObject.userData.logicProperties.isPreviewing === undefined) {
+            this.editingObject.userData.logicProperties.isPreviewing = false
+        }
+        this.toolbar.setPlayButtonState(this.editingObject.userData.logicProperties.isPreviewing)
+
         console.log("Started Map Logic Edit Mode")
+    }
+
+    toggleAnimation() {
+        if (!this.editingObject) return
+
+        const props = this.editingObject.userData.logicProperties
+        props.isPreviewing = !props.isPreviewing
+
+        this.toolbar.setPlayButtonState(props.isPreviewing)
+
+        // Also ensure we untoggle the button in toolbar if we don't want it to act as a "tool" that blocks others?
+        // But the user might want to see it green. 
+        // The toolbar class handles visuals based on checking activeTool. 
+        // We added explicit visual update in setPlayButtonState which overrides/supplements.
     }
 
     endMapEdit() {

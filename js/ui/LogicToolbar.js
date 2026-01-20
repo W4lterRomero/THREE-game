@@ -39,6 +39,7 @@ export class LogicToolbar {
 
         // Tools
         this.addToolButton("📍", "Añadir Punto de Ruta", "waypoint")
+        this.addToolButton("▶", "Iniciar/Pausar Animación", "play_pause")
         // this.addToolButton("✋", "Mover Puntos", "move_wp") // Future
 
         // Spacer
@@ -108,6 +109,15 @@ export class LogicToolbar {
         if (this.onToolChange) this.onToolChange(this.activeTool)
     }
 
+    setPlayButtonState(isPlaying) {
+        const btn = Array.from(this.container.children).find(c => c.dataset && c.dataset.tool === 'play_pause')
+        if (btn) {
+            btn.textContent = isPlaying ? "⏸" : "▶"
+            btn.title = isPlaying ? "Pausar Animación" : "Iniciar Animación"
+            btn.style.background = isPlaying ? "#004400" : "#333"
+        }
+    }
+
     show() {
         this.isVisible = true
         this.container.style.display = 'flex'
@@ -118,5 +128,7 @@ export class LogicToolbar {
         this.container.style.display = 'none'
         // Reset tool
         this.setActiveTool(null)
+        // Reset play button visual just in case
+        this.setPlayButtonState(false)
     }
 }

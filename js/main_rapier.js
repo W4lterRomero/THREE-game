@@ -1348,9 +1348,11 @@ class Game {
             // Check if object has movement logic
             if (obj.userData.logicProperties && obj.userData.logicProperties.waypoints && obj.userData.logicProperties.waypoints.length > 0) {
 
-                // SKIP if currently being edited
+                // SKIP if currently being edited AND NOT PREVIEWING
                 if (this.constructionMenu && this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.editingObject === obj) {
-                    return
+                    if (!obj.userData.logicProperties.isPreviewing) {
+                        return
+                    }
                 }
 
                 const props = obj.userData.logicProperties
