@@ -88,10 +88,28 @@ export class MapObjectItem extends Item {
             ctx.lineTo(40, 40)
             ctx.stroke()
 
+            ctx.textAlign = "center"
+            ctx.fillText("MOV", 32, 48)
+
+        } else if (this.type === 'interaction_button') {
+            // Button Icon
+            // Base
+            ctx.fillStyle = "#555"
+            ctx.fillRect(16, 40, 32, 16)
+            ctx.strokeRect(16, 40, 32, 16)
+
+            // Button Top
+            ctx.fillStyle = this.color ? '#' + new THREE.Color(this.color).getHexString() : "red"
+            ctx.beginPath()
+            ctx.arc(32, 32, 12, 0, Math.PI, true) // Semi circle up
+            ctx.fill()
+            ctx.stroke()
+
+            // "F" text
             ctx.fillStyle = "white"
             ctx.font = "bold 16px Arial"
             ctx.textAlign = "center"
-            ctx.fillText("MOV", 32, 48)
+            ctx.fillText("F", 32, 38)
 
         } else {
             // Wall / Default (Landscape Rect)
@@ -275,6 +293,43 @@ export class MapObjectItem extends Item {
             // Let's use a small sensor/collider.
             const col = RAPIER.ColliderDesc.ball(this.scale.x)
             collidersDesc.push(col)
+
+        } else if (this.type === 'interaction_button') {
+            // INTERACTION BUTTON 3D
+            const group = new THREE.Group()
+
+            // Pedestal (Box)
+            const pedestalGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5)
+            const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x333333 })
+            const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat)
+            pedestal.position.y = 0.4
+            pedestal.castShadow = true
+            pedestal.receiveShadow = true
+            group.add(pedestal)
+
+            // Button (Cylinder)
+            const btnGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16)
+            const btnMat = new THREE.MeshStandardMaterial({ color: this.color || 0xFF0000, emissive: this.color || 0xFF0000, emissiveIntensity: 0.2 })
+            const btn = new THREE.Mesh(btnGeo, btnMat)
+            btn.position.y = 0.85 // Top of pedestal
+            btn.userData.isButtonMesh = true // Marker for animation
+            group.add(btn)
+
+            // Interaction Trigger Visual (Optional ring?)
+            // Just logic prop init
+
+            object3D = group
+
+            // Physics: Box for pedestal
+            const col = RAPIER.ColliderDesc.cuboid(0.25, 0.4, 0.25)
+                .setTranslation(0, 0.4, 0)
+            collidersDesc.push(col)
+
+            // Initialize specfic logic props properties
+            if (!this.logicProperties) this.logicProperties = {}
+            if (this.logicProperties.holdTime === undefined) this.logicProperties.holdTime = 0
+            if (this.logicProperties.oneShot === undefined) this.logicProperties.oneShot = false
+            if (this.logicProperties.triggered === undefined) this.logicProperties.triggered = false
 
         } else {
             // BOX (Wall/Pillar)

@@ -88,6 +88,23 @@ export class ConstructionMenu {
             waypoints: []
         }
         this.logicItems.push(mover)
+
+        // Interaction Button
+        const button = new MapObjectItem(
+            "button",
+            "Botón Interactivo",
+            "interaction_button",
+            "",
+            0xFF0000,
+            { x: 1, y: 1, z: 1 } // Scale
+        )
+        // Default Logic
+        button.logicProperties = {
+            holdTime: 1.0,
+            oneShot: false,
+            targetUuid: null
+        }
+        this.logicItems.push(button)
     }
 
     setupUI() {
@@ -1272,5 +1289,24 @@ export class ConstructionMenu {
 
         // Re-call refreshLogicList to apply the visual highlight (since we set this.selectedLogicObject above)
         this.refreshLogicList()
+    }
+    startPickingTarget(controllerObj) {
+        if (!controllerObj) return
+
+        this.isPickingTarget = true
+        this.pickingController = controllerObj
+        this.container.style.display = 'none' // Hide menu
+        // Game will detect click via main_rapier.js and call logic ?
+        // Or we need to update state in Game?
+        // Game has 'isPickingTarget' logic inside main_rapier? 
+        // Let's check main_rapier.js to see if it reads from constructionMenu.
+        // Yes: if (this.constructionMenu && this.constructionMenu.isPickingTarget) ...
+
+        // We also need to hide LogicToolbar if it's open (which it likely is)
+        if (this.logicSystem) {
+            this.logicSystem.toolbar.hide()
+        }
+
+        alert("Modo Vinculación: Haz clic derecho sobre el objeto objetivo para vincularlo.")
     }
 }

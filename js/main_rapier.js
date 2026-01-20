@@ -368,11 +368,26 @@ class Game {
 
                     const intersects = raycaster.intersectObjects(this.sceneManager.scene.children, true)
 
-                    // Find first editable object
-                    const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+                    // Find first editable object (checking parents for Groups)
+                    const hit = intersects.find(h => {
+                        let obj = h.object
+                        while (obj) {
+                            if (obj.userData && obj.userData.isEditableMapObject) return true
+                            obj = obj.parent
+                        }
+                        return false
+                    })
 
                     if (hit) {
-                        this.objectInspector.show(hit.object)
+                        // Traverse up again to get the actual editable root
+                        let target = hit.object
+                        while (target && (!target.userData || !target.userData.isEditableMapObject)) {
+                            target = target.parent
+                        }
+
+                        if (target) {
+                            this.objectInspector.show(target)
+                        }
                     }
                 }
             }
@@ -520,6 +535,7 @@ class Game {
 
         // Movement Logic Update
         this.updateMovementLogic(dt)
+        this.updateButtonInteraction(dt) // Process Buttons
 
         // Weapon Auto-Fire Logic
         if (this.isMouseDown && this.inventoryManager) {
@@ -1318,7 +1334,12 @@ class Game {
         }
 
         const consumed = item.use(context)
-        // If we implemented consumption (removing item), we would do it here
+
+        // Refresh UI list if usage was successful (e.g. object placed)
+        if (consumed && this.constructionMenu) {
+            this.constructionMenu.refreshLogicList()
+        }
+
         // if (consumed) this.inventoryManager.removeCurrentItem()
     }
 
@@ -1337,6 +1358,126 @@ class Game {
         } else {
             object.userData.rigidBody.setBodyType(RAPIER.RigidBodyType.Fixed)
             console.log("Output converted to Fixed:", object.userData.mapObjectType)
+        }
+    }
+
+    updateButtonInteraction(dt) {
+        if (this.gameMode === 'editor') return // Usually disable in editor, or allow testing?
+
+        // Iterate active buttons
+        if (!this.sceneManager || !this.sceneManager.scene) return
+
+        // Optimize: Maintain a list of clickable buttons? 
+        // For now, scan scene children (could be slow if many objects)
+        // Or filter editable objects.
+        const charPos = this.character ? this.character.getPosition() : null
+        if (!charPos) return
+
+        let shownPrompt = false
+
+        this.sceneManager.scene.children.forEach(obj => {
+            if (obj.userData.mapObjectType === 'interaction_button') {
+                const props = obj.userData.logicProperties
+
+                // One Shot Check
+                if (props.oneShot && props.triggered) return
+
+                // Distance Check
+                const distSq = obj.position.distanceToSquared(charPos)
+                if (distSq < 9.0) { // < 3m
+                    // Show Prompt
+                    if (!shownPrompt) {
+                        const promptContainer = document.getElementById("move-prompt-container")
+                        const progressBar = document.getElementById("move-progress-bar")
+                        const promptText = document.getElementById("move-prompt-text") // Need to ensure this exists or reuse existing
+
+                        if (promptContainer) {
+                            promptContainer.style.display = "flex"
+                            // Custom text if possible?
+                            // reusing "Hold F"
+                        }
+                        shownPrompt = true
+
+                        // Check Input
+                        if (this.inputManager.keys.f) {
+                            // Increment Hold
+                            if (!props.activeHoldTime) props.activeHoldTime = 0
+                            props.activeHoldTime += dt
+
+                            const targetTime = props.holdTime || 0
+
+                            // Visual Progress
+                            let progress = 1.0
+                            if (targetTime > 0) {
+                                progress = Math.min(props.activeHoldTime / targetTime, 1.0)
+                            }
+                            if (progressBar) progressBar.style.width = `${progress * 100}%`
+
+                            // Trigger
+                            if (props.activeHoldTime >= targetTime && !props.triggered) {
+                                this.triggerButtonAction(obj)
+                                props.triggered = true // Mark triggered (reset needs logic?)
+                                // If not one-shot, we need to reset triggered when key released?
+                                if (!props.oneShot) {
+                                    // We set a flag to wait for release?
+                                    // Or simple: triggered = true disables until release.
+                                }
+                            }
+                        } else {
+                            // Reset
+                            props.activeHoldTime = 0
+                            if (progressBar) progressBar.style.width = "0%"
+                            if (!props.oneShot) props.triggered = false // Reset trigger state on release
+                        }
+                    }
+                } else {
+                    // Far away, reset temp state
+                    props.activeHoldTime = 0
+                    if (!props.oneShot) props.triggered = false
+                }
+            }
+        })
+
+        // Hide prompt if no button nearby (and not farming zone moving)
+        // Note: This conflicts with Farming Zone prompt if both active. 
+        // Need a unified prompt manager.
+        // For now, if shownPrompt is false AND not moving farming zone, hide.
+        if (!shownPrompt && !this.isMovingFarmingZone) {
+            const promptContainer = document.getElementById("move-prompt-container")
+            // Don't hide if farming zone logic is using it? 
+            // Farming logic handles its own distance check.
+            // We should only hide if we set it? 
+            // Let's assume Farming logic runs AFTER this and overwrites if needed, or vice-versa.
+        }
+    }
+
+    triggerButtonAction(buttonObj) {
+        const props = buttonObj.userData.logicProperties
+        console.log("Button Triggered!", props)
+
+        // Animate Button Mesh
+        if (buttonObj.children) {
+            const btnMesh = buttonObj.children.find(c => c.userData.isButtonMesh)
+            if (btnMesh) {
+                btnMesh.position.y = 0.5 // Press down
+                setTimeout(() => {
+                    btnMesh.position.y = 0.85 // Up
+                }, 200)
+            }
+        }
+
+        if (props.targetUuid) {
+            // Find Target
+            // Search whole scene?
+            const target = this.sceneManager.scene.children.find(c => c.userData.uuid === props.targetUuid)
+
+            if (target) {
+                // Action: Toggle Active
+                if (target.userData.logicProperties) {
+                    target.userData.logicProperties.active = !target.userData.logicProperties.active
+                    console.log("Toggled active state of", target.userData.mapObjectType)
+                }
+            }
         }
     }
 

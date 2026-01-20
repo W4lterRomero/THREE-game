@@ -342,7 +342,8 @@ export class ObjectInspector {
         const hasLogicParams = object.userData.logicProperties && (
             object.userData.logicProperties.waypoints ||
             object.userData.mapObjectType === 'movement_controller' ||
-            object.userData.mapObjectType === 'spawn_point'
+            object.userData.mapObjectType === 'spawn_point' ||
+            object.userData.mapObjectType === 'interaction_button'
         )
 
         if (hasLogicParams) {
@@ -597,6 +598,18 @@ export class ObjectInspector {
             ordInput.input.value = props.order
             this.logicContainer.appendChild(ordInput.container)
         }
+
+        // 4. Interaction Button Props (Quick Edit)
+        if (props.holdTime !== undefined) {
+            const holdInput = this.createNumberInput("Tiempo Retener (s)", (v) => updateProp('holdTime', v), 0, 0.1, "#FF4444")
+            holdInput.input.value = props.holdTime
+            this.logicContainer.appendChild(holdInput.container)
+        }
+
+        // One Shot (Checkbox needed? createNumberInput isn't great for boolean. Maybe skip for now or add checkbox support)
+        // Inspector currently lacks generic boolean input.
+        // Let's stick to number inputs here. Advanced logic panel handles boolean/target linking best.
+        // Users can click "Advanced Logic" for the rest.
 
         // Future: More properties loop
     }

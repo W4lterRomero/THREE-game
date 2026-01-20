@@ -95,6 +95,46 @@ export class LogicSystem {
         if (props.waypoints) {
             this.renderMovementUI(container, object, props, refreshCallback)
         }
+
+        // 3. Interaction Button Logic
+        if (object.userData.mapObjectType === 'interaction_button') {
+            this.renderButtonUI(container, object, props)
+        }
+    }
+
+    renderButtonUI(container, object, props) {
+        this.createInput(container, object, 'holdTime', props.holdTime || 0, 'number', 'Tiempo Retener (s)')
+        this.createInput(container, object, 'oneShot', props.oneShot || false, 'boolean', 'Un Solo Uso')
+
+        // Link Target
+        const linkBtn = document.createElement('button')
+        linkBtn.textContent = props.targetUuid ? "Cambiar Objetivo (Vinculado)" : "Vincular Objetivo"
+        linkBtn.style.cssText = `
+            width: 100%; background: ${props.targetUuid ? '#006600' : '#884400'}; color: white; border: none; 
+            padding: 8px; cursor: pointer; border-radius: 4px; margin-top: 10px; font-weight: bold;
+        `
+        linkBtn.onclick = () => {
+            // We need to trigger "Picking Mode" in the main game loop / ConstructionMenu
+            // Since LogicSystem doesn't have direct access to ConstructionMenu instance easily (unless passed in game)
+            // this.game.constructionMenu IS available.
+
+            if (this.game.constructionMenu) {
+                this.game.constructionMenu.startPickingTarget(object)
+                this.toolbar.hide() // Hide toolbar while picking? Or keep it? 
+                // Usually hiding logic UI is better to see the scene.
+                // The picking logic in main_rapier waits for click.
+            } else {
+                alert("Error: ConstructionMenu not found")
+            }
+        }
+        container.appendChild(linkBtn)
+
+        if (props.targetUuid) {
+            const info = document.createElement('div')
+            info.textContent = `UUID: ${props.targetUuid.substring(0, 8)}...`
+            info.style.cssText = "font-size:10px; color:#aaa; margin-top:2px;"
+            container.appendChild(info)
+        }
     }
 
     renderSpawnUI(container, object, props) {
@@ -410,6 +450,7 @@ export class LogicSystem {
         switch (type) {
             case 'spawn_point': return "Punto de Spawn";
             case 'movement_object': return "Objetos con Movimiento";
+            case 'interaction_button': return "Botones Interactivos";
             case 'movement_controller': return "Animador"; // In case it appears as a type
             default: return type ? (type.charAt(0).toUpperCase() + type.slice(1)) : "Objeto";
         }
