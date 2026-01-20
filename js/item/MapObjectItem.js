@@ -161,23 +161,40 @@ export class MapObjectItem extends Item {
         }
 
         // Context contains placementManager
-        if (context.placementManager) {
+        if (context && context.placementManager) {
             const position = context.placementManager.getCurrentTarget()
+            let rotationIndex = context.placementManager.getPlacementRotation() // Get rotation from placement manager
             if (position) {
-                this.spawnObject(context.scene, context.world, position, context.rotationIndex)
+                this.spawnObject(context.scene, context.world, position, rotationIndex)
                 return true
             }
         }
         return false
     }
 
-    spawnObject(scene, world, position, rotationIndex) {
-        // Delegate to unified builder
-        // Convert rotation index to Euler
-        const rotation = new THREE.Euler(0, 0, 0)
-        if (rotationIndex === 1) rotation.y = -Math.PI / 2
-        if (rotationIndex === 2) rotation.y = -Math.PI
-        if (rotationIndex === 3) rotation.y = Math.PI / 2
+    spawnObject(scene, world, position, rotationOrIndex = 0) {
+        let rotationIndex = 0
+        let quaternion = null
+        let rotation = new THREE.Euler(0, 0, 0)
+
+        if (rotationOrIndex && (typeof rotationOrIndex === 'object') && rotationOrIndex.isQuaternion) {
+            quaternion = rotationOrIndex
+            rotation.setFromQuaternion(quaternion) // Convert to Euler for createObjectInWorld
+        } else {
+            rotationIndex = rotationOrIndex
+            if (rotationIndex === 1) rotation.y = -Math.PI / 2
+            if (rotationIndex === 2) rotation.y = -Math.PI
+            if (rotationIndex === 3) rotation.y = Math.PI / 2
+            quaternion = new THREE.Quaternion().setFromEuler(rotation) // Convert to Quaternion for rigid body
+        }
+
+        let object3D = null
+        const collidersDesc = []
+        let rigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
+            .setTranslation(position.x, position.y, position.z)
+        if (quaternion) {
+            rigidBodyDesc.setRotation(quaternion)
+        }
 
         this.createObjectInWorld(scene, world, position, rotation)
     }
@@ -185,8 +202,8 @@ export class MapObjectItem extends Item {
     spawnObjectFromData(scene, world, pos, rot) {
         // rot is Euler or Quaternion? JSON usually stores Euler or Quat components.
         // Assuming Euler based on original code mesh.rotation.set()
-        const rotation = new THREE.Euler(rot.x, rot.y, rot.z)
         const position = new THREE.Vector3(pos.x, pos.y, pos.z)
+        const rotation = new THREE.Euler(rot._x, rot._y, rot._z) // Reconstruct Euler if needed, or assume passed object is Euler-like
 
         this.createObjectInWorld(scene, world, position, rotation)
     }

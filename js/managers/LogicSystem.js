@@ -46,11 +46,12 @@ export class LogicSystem {
             if (child.userData && child.userData.isEditableMapObject) {
                 // Check for inherent logic types or applied logic properties
                 const isSpawn = child.userData.mapObjectType === 'spawn_point'
+                const isButton = child.userData.mapObjectType === 'interaction_button'
                 const hasWaypoints = child.userData.logicProperties &&
                     child.userData.logicProperties.waypoints // Allow empty array
 
                 // Add your own logic flags here
-                if (isSpawn || hasWaypoints) {
+                if (isSpawn || isButton || hasWaypoints) {
                     logicObjects.push(child)
                 }
             }

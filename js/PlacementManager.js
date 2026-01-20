@@ -496,25 +496,64 @@ export class PlacementManager {
                     }
                 }
             } else {
-                // --- FREE PLACEMENT (No Grid) ---
+                // --- FREE PLACEMENT & SURFACE ALIGNMENT ---
+
+                // Special case: Interaction Buttons Align to Surface Normal
+                if (item.type === 'interaction_button' && hit.face) {
+                    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+
+                    // Align Y up to Normal
+                    const quaternion = new THREE.Quaternion()
+                    quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
+
+                    // Apply to ghost
+                    this.placementGhost.quaternion.copy(quaternion)
+                    this.lastValidQuaternion = quaternion.clone()
+
+                    // Position: Center on point + slight offset for button height
+                    // Button height is small (cylinder 0.1 height / 2 = 0.05 radius?)
+                    // MapObjectItem creates it at center. 
+                    // We want base to be flush.
+                    // realSize for button is 1,1,1 usually but visual is smaller.
+                    // Let's use 0 offset here as ghost usually centers. 
+                    // Actually, if we use setFromUnitVectors, the object center is at targetPos.
+                    // The visual button mesh in MapObjectItem was adjusted to be at y=0.05 inside the group.
+                    // So if we place group at surface point, it should be correct.
+                    this.placementGhost.rotation.setFromQuaternion(quaternion) // Ensure rotation property is updated if needed, though quat is primary
+
+                } else {
+                    // Reset Quaternion for normal items (Vertical Up)
+                    this.placementGhost.quaternion.identity()
+                    this.lastValidQuaternion = null
+                }
+
                 // We still want the object to sit ON the surface, not sink into it.
                 // Move center away from hit point by half extent along normal.
                 if (hit.face) {
                     const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
 
-                    // Project size onto normal to find extent in that direction
-                    // e.g. if normal is (0,1,0), we care about size.y
+                    // Project size onto normal
+                    // Exception: Buttons are small, maybe don't offset by full 1/2 size if they are custom group?
+                    // MapObjectItem interaction_button scale is 1,1,1 but visual is smaller.
+                    // If we offset by 0.5 (scale/2), it will float if the visual is small.
+                    // Let's rely on item type check.
+
+                    let yOffset = realSize.y / 2
+                    if (item.type === 'interaction_button') {
+                        yOffset = 0 // Button visual is built to sit on origin? 
+                        // In MapObjectItem button is at y=0.05. Group origin is 0. 
+                        // So placing group at surface is correct.
+                    }
+
                     const offset = new THREE.Vector3(
-                        normal.x * realSize.x,
-                        normal.y * realSize.y,
-                        normal.z * realSize.z
-                    ).multiplyScalar(0.5)
+                        normal.x * yOffset,
+                        normal.y * yOffset,
+                        normal.z * yOffset
+                    )
 
                     targetPos.add(offset)
                 } else {
-                    // Fallback if no face (e.g. strict point hit?), just assume Up
-                    // targetPos is hit.point. 
-                    // Assume floor placement
+                    // Fallback
                     targetPos.y += realSize.y / 2
                 }
             }
@@ -774,5 +813,12 @@ export class PlacementManager {
         ctx.strokeStyle = colorStr;
         ctx.lineWidth = 4;
         ctx.strokeRect(0, 0, w, h);
+    }
+    // Expose current rotation for spawner
+    getPlacementRotation() {
+        if (this.lastValidQuaternion) {
+            return this.lastValidQuaternion
+        }
+        return this.rotationIndex
     }
 }
