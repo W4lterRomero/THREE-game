@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { StairsUtils } from "../utils/StairsUtils.js"
+import { LogicItemsManager } from "./logic_items/LogicItemsManager.js"
 
 export class ObjectInspector {
     constructor(gameInstance) {
@@ -567,9 +568,10 @@ export class ObjectInspector {
     }
 
     renderLogicProperties(props) {
-        this.logicContainer.innerHTML = '' // Clear previous
+        if (!this.logicItemsManager) {
+            this.logicItemsManager = new LogicItemsManager()
+        }
 
-        // Helper to update props
         const updateProp = (key, value) => {
             if (this.selectedObject && this.selectedObject.userData.logicProperties) {
                 this.selectedObject.userData.logicProperties[key] = value
@@ -577,41 +579,7 @@ export class ObjectInspector {
             }
         }
 
-        // 1. Team (Equipo)
-        if (props.team !== undefined) {
-            const teamInput = this.createNumberInput("Equipo (1-4)", (v) => updateProp('team', v), 1, 1, "#00FF00")
-            teamInput.input.value = props.team
-            teamInput.input.max = 4
-            this.logicContainer.appendChild(teamInput.container)
-        }
-
-        // 2. Capacity
-        if (props.capacity !== undefined) {
-            const capInput = this.createNumberInput("Capacidad Jugadores", (v) => updateProp('capacity', v), 1, 1, "#00FFFF")
-            capInput.input.value = props.capacity
-            this.logicContainer.appendChild(capInput.container)
-        }
-
-        // 3. Order (Priority)
-        if (props.order !== undefined) {
-            const ordInput = this.createNumberInput("Orden de Spawn", (v) => updateProp('order', v), 0, 1, "#FFFF00")
-            ordInput.input.value = props.order
-            this.logicContainer.appendChild(ordInput.container)
-        }
-
-        // 4. Interaction Button Props (Quick Edit)
-        if (props.holdTime !== undefined) {
-            const holdInput = this.createNumberInput("Tiempo Retener (s)", (v) => updateProp('holdTime', v), 0, 0.1, "#FF4444")
-            holdInput.input.value = props.holdTime
-            this.logicContainer.appendChild(holdInput.container)
-        }
-
-        // One Shot (Checkbox needed? createNumberInput isn't great for boolean. Maybe skip for now or add checkbox support)
-        // Inspector currently lacks generic boolean input.
-        // Let's stick to number inputs here. Advanced logic panel handles boolean/target linking best.
-        // Users can click "Advanced Logic" for the rest.
-
-        // Future: More properties loop
+        this.logicItemsManager.renderAll(this.logicContainer, props, updateProp)
     }
     openLogicPanel() {
         if (!this.selectedObject || !this.game || !this.game.constructionMenu) return

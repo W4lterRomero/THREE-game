@@ -295,34 +295,39 @@ export class MapObjectItem extends Item {
             collidersDesc.push(col)
 
         } else if (this.type === 'interaction_button') {
-            // INTERACTION BUTTON 3D
+            // INTERACTION BUTTON 3D (Simple Button)
             const group = new THREE.Group()
 
-            // Pedestal (Box)
-            const pedestalGeo = new THREE.BoxGeometry(0.5, 0.8, 0.5)
-            const pedestalMat = new THREE.MeshStandardMaterial({ color: 0x333333 })
-            const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat)
-            pedestal.position.y = 0.4
-            pedestal.castShadow = true
-            pedestal.receiveShadow = true
-            group.add(pedestal)
-
             // Button (Cylinder)
-            const btnGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16)
-            const btnMat = new THREE.MeshStandardMaterial({ color: this.color || 0xFF0000, emissive: this.color || 0xFF0000, emissiveIntensity: 0.2 })
+            // Radius 0.3, Height 0.1
+            const btnGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32)
+            const btnMat = new THREE.MeshStandardMaterial({
+                color: this.color || 0xFF0000,
+                emissive: this.color || 0xFF0000,
+                emissiveIntensity: 0.2
+            })
             const btn = new THREE.Mesh(btnGeo, btnMat)
-            btn.position.y = 0.85 // Top of pedestal
-            btn.userData.isButtonMesh = true // Marker for animation
+            btn.position.y = 0.05 // Half height, so bottom is at 0
+            btn.userData.isButtonMesh = true
+
+            // Add a visual ring/base plate? Low profile.
+            const plateGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.02, 32)
+            const plateMat = new THREE.MeshStandardMaterial({ color: 0x333333 })
+            const plate = new THREE.Mesh(plateGeo, plateMat)
+            plate.position.y = 0.01
+            group.add(plate)
+
             group.add(btn)
 
-            // Interaction Trigger Visual (Optional ring?)
-            // Just logic prop init
+            // Counteract the generic lift at the end of function (which adds scale.y/2)
+            // preventing the button from floating if scale.y > button height
+            group.position.y -= this.scale.y / 2
 
             object3D = group
 
-            // Physics: Box for pedestal
-            const col = RAPIER.ColliderDesc.cuboid(0.25, 0.4, 0.25)
-                .setTranslation(0, 0.4, 0)
+            // Physics: Cylinder for button
+            const col = RAPIER.ColliderDesc.cylinder(0.05, 0.3)
+                .setTranslation(0, 0.05, 0)
             collidersDesc.push(col)
 
             // Initialize specfic logic props properties
