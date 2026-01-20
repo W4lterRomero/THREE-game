@@ -145,6 +145,7 @@ export class LogicSystem {
                 x: object.position.x,
                 y: object.position.y,
                 z: object.position.z,
+                rotY: object.rotation.y, // Capture current Y rotation
                 delay: 0
             }
             props.waypoints.push(wp)

@@ -378,6 +378,7 @@ export class MapObjectItem extends Item {
         object3D.userData.originalUUID = object3D.userData.uuid // Keep original if needed
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
+        object3D.userData.originalRotY = object3D.rotation.y // Store initial rotation for logic fallback
         object3D.userData.texturePath = this.texturePath // Store for serialization
 
         // Initialize Logic Properties if available (from constructor or default)
