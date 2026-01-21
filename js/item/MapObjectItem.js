@@ -338,7 +338,7 @@ export class MapObjectItem extends Item {
 
             // Counteract the generic lift at the end of function (which adds scale.y/2)
             // preventing the button from floating if scale.y > button height
-            group.position.y -= this.scale.y / 2
+            // group.position.y -= this.scale.y / 2
 
             object3D = group
 
@@ -369,7 +369,9 @@ export class MapObjectItem extends Item {
         object3D.position.copy(position)
         // Center Y Adjust: object origin is center. 
         // We want placement on ground. So move up by Half Height.
-        object3D.position.y += this.scale.y / 2
+        if (this.type !== 'interaction_button') {
+            object3D.position.y += this.scale.y / 2
+        }
 
         object3D.rotation.copy(rotation)
         object3D.scale.set(1, 1, 1) // Scale already built-in
