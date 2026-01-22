@@ -64,6 +64,52 @@
         <span class="key-hint">F</span> <span id="prompt-text">Recoger Item</span>
     </div>
 
+    <!-- Button Interaction Prompt (Floating) -->
+    <div id="button-interaction-prompt" style="
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        z-index: 1000;
+        transform: translate(-50%, -50%);
+    ">
+        <!-- Circular Progress Container -->
+        <div
+            style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+            <!-- Background Circle -->
+            <svg width="60" height="60" style="position: absolute; transform: rotate(-90deg);">
+                <circle cx="30" cy="30" r="26" stroke="rgba(0,0,0,0.5)" stroke-width="4" fill="rgba(0,0,0,0.3)" />
+                <!-- Progress Circle -->
+                <circle id="btn-progress-circle" cx="30" cy="30" r="26" stroke="#00ff00" stroke-width="4" fill="none"
+                    stroke-dasharray="163" stroke-dashoffset="163" stroke-linecap="round" />
+            </svg>
+            <!-- Key Hint -->
+            <span style="
+                color: white; 
+                font-family: sans-serif; 
+                font-weight: bold; 
+                font-size: 20px;
+                text-shadow: 1px 1px 2px black;
+                z-index: 1;
+            ">F</span>
+        </div>
+        <!-- Text Label -->
+        <div style="
+            margin-top: 5px; 
+            background: rgba(0,0,0,0.6); 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            color: white; 
+            font-family: sans-serif; 
+            font-size: 14px; 
+            text-shadow: 1px 1px 1px black;
+            white-space: nowrap;
+        ">Interactuar</div>
+    </div>
+
     <!-- Move Prompt & Progress -->
     <div id="move-prompt-container" style="
         position: absolute;

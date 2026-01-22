@@ -1053,9 +1053,31 @@ class Game {
                 }
             }
 
-            // Pickup Item (F)
+            // Pickup Item (F) OR Instant Button Interaction
             if (key === 'f') {
                 const charPos = this.character.getPosition()
+
+                // 1. Check for Instant Button Interaction FIRST
+                let triggeredButton = false
+                this.sceneManager.scene.children.forEach(obj => {
+                    if (!triggeredButton && obj.userData.mapObjectType === 'interaction_button') {
+                        const dSq = obj.position.distanceToSquared(charPos)
+                        if (dSq < 9.0) { // 3m
+                            const props = obj.userData.logicProperties
+                            if (props && props.holdTime === 0) {
+                                // ONE SHOT check
+                                if (!props.oneShot || !props.triggered) {
+                                    this.triggerButton(obj)
+                                    triggeredButton = true
+                                }
+                            }
+                        }
+                    }
+                })
+
+                if (triggeredButton) return // Don't pickup if we pressed button
+
+                // 2. Pickup Logic
                 const picked = this.itemDropManager.tryPickupNearest(charPos)
                 if (picked) {
                     if (picked.id === "fuego") {
@@ -1362,120 +1384,142 @@ class Game {
     }
 
     updateButtonInteraction(dt) {
-        if (this.gameMode === 'editor') return // Usually disable in editor, or allow testing?
+        // UI References
+        const promptEl = document.getElementById("button-interaction-prompt")
+        const progressCircle = document.getElementById("btn-progress-circle")
 
-        // Iterate active buttons
-        if (!this.sceneManager || !this.sceneManager.scene) return
+        if (!promptEl || !progressCircle) return
 
-        // Optimize: Maintain a list of clickable buttons? 
-        // For now, scan scene children (could be slow if many objects)
-        // Or filter editable objects.
+        // Hide by default
+        promptEl.style.display = "none"
+
+        if (this.gameMode === 'editor') {
+            // Optional: Allow logic in editor if specific flag is set, or just allow it.
+            // For testing "Por el momento", user likely wants to see it working immediately.
+            // Let's comment out the return or just run it.
+        }
+
         const charPos = this.character ? this.character.getPosition() : null
         if (!charPos) return
 
-        let shownPrompt = false
+        // Find nearest button
+        let nearest = null
+        let minDistSq = 9.0 // 3m radius
 
         this.sceneManager.scene.children.forEach(obj => {
             if (obj.userData.mapObjectType === 'interaction_button') {
                 const props = obj.userData.logicProperties
-
-                // One Shot Check
+                // Skip if OneShot and already triggered
                 if (props.oneShot && props.triggered) return
 
-                // Distance Check
-                const distSq = obj.position.distanceToSquared(charPos)
-                if (distSq < 9.0) { // < 3m
-                    // Show Prompt
-                    if (!shownPrompt) {
-                        const promptContainer = document.getElementById("move-prompt-container")
-                        const progressBar = document.getElementById("move-progress-bar")
-                        const promptText = document.getElementById("move-prompt-text") // Need to ensure this exists or reuse existing
-
-                        if (promptContainer) {
-                            promptContainer.style.display = "flex"
-                            // Custom text if possible?
-                            // reusing "Hold F"
-                        }
-                        shownPrompt = true
-
-                        // Check Input
-                        if (this.inputManager.keys.f) {
-                            // Increment Hold
-                            if (!props.activeHoldTime) props.activeHoldTime = 0
-                            props.activeHoldTime += dt
-
-                            const targetTime = props.holdTime || 0
-
-                            // Visual Progress
-                            let progress = 1.0
-                            if (targetTime > 0) {
-                                progress = Math.min(props.activeHoldTime / targetTime, 1.0)
-                            }
-                            if (progressBar) progressBar.style.width = `${progress * 100}%`
-
-                            // Trigger
-                            if (props.activeHoldTime >= targetTime && !props.triggered) {
-                                this.triggerButtonAction(obj)
-                                props.triggered = true // Mark triggered (reset needs logic?)
-                                // If not one-shot, we need to reset triggered when key released?
-                                if (!props.oneShot) {
-                                    // We set a flag to wait for release?
-                                    // Or simple: triggered = true disables until release.
-                                }
-                            }
-                        } else {
-                            // Reset
-                            props.activeHoldTime = 0
-                            if (progressBar) progressBar.style.width = "0%"
-                            if (!props.oneShot) props.triggered = false // Reset trigger state on release
-                        }
-                    }
-                } else {
-                    // Far away, reset temp state
-                    props.activeHoldTime = 0
-                    if (!props.oneShot) props.triggered = false
+                const dSq = obj.position.distanceToSquared(charPos)
+                if (dSq < minDistSq) {
+                    minDistSq = dSq
+                    nearest = obj
                 }
             }
         })
 
-        // Hide prompt if no button nearby (and not farming zone moving)
-        // Note: This conflicts with Farming Zone prompt if both active. 
-        // Need a unified prompt manager.
-        // For now, if shownPrompt is false AND not moving farming zone, hide.
-        if (!shownPrompt && !this.isMovingFarmingZone) {
-            const promptContainer = document.getElementById("move-prompt-container")
-            // Don't hide if farming zone logic is using it? 
-            // Farming logic handles its own distance check.
-            // We should only hide if we set it? 
-            // Let's assume Farming logic runs AFTER this and overwrites if needed, or vice-versa.
+        if (nearest) {
+            // Show UI
+            promptEl.style.display = "flex"
+
+            // Position UI (Project 3D -> 2D)
+            // Use button position (plus offsetY)
+            const btnPos = nearest.position.clone()
+            btnPos.y += 0.5 // Float above
+            btnPos.project(this.sceneManager.camera)
+
+            const x = (btnPos.x * .5 + .5) * window.innerWidth
+            const y = (-(btnPos.y * .5) + .5) * window.innerHeight
+
+            // Only show if in front
+            if (btnPos.z < 1) {
+                promptEl.style.left = `${x}px`
+                promptEl.style.top = `${y}px`
+            } else {
+                promptEl.style.display = "none"
+            }
+
+            // Logic
+            const props = nearest.userData.logicProperties
+            const holdTime = props.holdTime || 0
+
+            // Initialize temp state for hold tracking if missing
+            if (typeof props._currentHoldTime === 'undefined') props._currentHoldTime = 0
+
+            // CIRCLE PROGRESS LOGIC
+            // Circumference of r=26 is ~163
+            const circumference = 163
+
+            if (holdTime > 0) {
+                if (this.isFKeyDown) {
+                    props._currentHoldTime += dt
+
+                    // Update Circle
+                    const ratio = Math.min(props._currentHoldTime / holdTime, 1.0)
+                    const offset = circumference - (ratio * circumference)
+                    progressCircle.style.strokeDashoffset = offset
+
+                    // Trigger?
+                    if (props._currentHoldTime >= holdTime) {
+                        this.triggerButton(nearest)
+                        props._currentHoldTime = 0 // Reset after trigger
+                        progressCircle.style.strokeDashoffset = circumference // Visual reset
+                        this.isFKeyDown = false // Force release requirement? Or auto-repeat? Usually force release.
+                        // To prevent machine-gun triggering, we can set a cooldown or require re-press.
+                        // But for now simple reset is okay.
+                    }
+                } else {
+                    // Decay or Reset? Reset is standard.
+                    props._currentHoldTime = 0
+                    progressCircle.style.strokeDashoffset = circumference
+                }
+            } else {
+                // Instant Interaction (Time = 0)
+                // Visuals: Full circle or empty? Empty looks cleaner for "Press F".
+                progressCircle.style.strokeDashoffset = circumference
+
+                // Logic handled in keydown listener for responsiveness
+            }
+
         }
     }
 
-    triggerButtonAction(buttonObj) {
-        const props = buttonObj.userData.logicProperties
-        console.log("Button Triggered!", props)
+    triggerButton(buttonObj) {
+        console.log("Button Triggered!", buttonObj.userData.uuid)
 
-        // Animate Button Mesh
+        // Visual Feedback: Animate Button Mesh
         if (buttonObj.children) {
             const btnMesh = buttonObj.children.find(c => c.userData.isButtonMesh)
             if (btnMesh) {
-                btnMesh.position.y = 0.5 // Press down
+                // Animate interact (Press down)
+                const originalY = 0.05
+                btnMesh.position.y = 0.02
                 setTimeout(() => {
-                    btnMesh.position.y = 0.85 // Up
+                    btnMesh.position.y = originalY
                 }, 200)
             }
         }
 
-        if (props.targetUuid) {
-            // Find Target
-            // Search whole scene?
-            const target = this.sceneManager.scene.children.find(c => c.userData.uuid === props.targetUuid)
+        // Logic
+        const props = buttonObj.userData.logicProperties
+        if (props.oneShot) props.triggered = true
 
-            if (target) {
-                // Action: Toggle Active
-                if (target.userData.logicProperties) {
-                    target.userData.logicProperties.active = !target.userData.logicProperties.active
-                    console.log("Toggled active state of", target.userData.mapObjectType)
+        if (props.targetUuid) {
+            // Find target object
+            if (this.sceneManager && this.sceneManager.scene) {
+                let targetObj = null
+                this.sceneManager.scene.traverse(o => {
+                    if (o.userData.uuid === props.targetUuid) targetObj = o
+                })
+
+                if (targetObj) {
+                    // Activate/Toggle Movement
+                    if (targetObj.userData.logicProperties && targetObj.userData.logicProperties.active !== undefined) {
+                        targetObj.userData.logicProperties.active = !targetObj.userData.logicProperties.active
+                        console.log("Target Toggled:", targetObj.userData.logicProperties.active)
+                    }
                 }
             }
         }
