@@ -121,6 +121,56 @@ export class ObjectInspector {
             section.appendChild(nudgeContainer)
         })
 
+        // 1.5 Rotation Controls
+        this.createSection("Rotación (Grados)", (section) => {
+            const row = document.createElement('div')
+            row.style.cssText = `display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;`
+
+            this.inputRotX = this.createNumberInput("X°", (v) => this.updateRotation('x', v), -Infinity, 15, "#FF4444")
+            this.inputRotY = this.createNumberInput("Y°", (v) => this.updateRotation('y', v), -Infinity, 15, "#44FF44")
+            this.inputRotZ = this.createNumberInput("Z°", (v) => this.updateRotation('z', v), -Infinity, 15, "#4444FF")
+
+            row.appendChild(this.inputRotX.container)
+            row.appendChild(this.inputRotY.container)
+            row.appendChild(this.inputRotZ.container)
+            section.appendChild(row)
+
+            // Nudge Buttons (Rotate 90)
+            const nudgeContainer = document.createElement('div')
+            nudgeContainer.style.marginTop = "10px"
+            nudgeContainer.style.display = "grid"
+            nudgeContainer.style.gridTemplateColumns = "repeat(3, 1fr)"
+            nudgeContainer.style.gap = "5px"
+
+            const createRotNudgeGroup = (axis, color) => {
+                const group = document.createElement('div')
+                group.style.display = "flex"
+                group.style.flexDirection = "column"
+                group.style.gap = "2px"
+                group.style.borderTop = `2px solid ${color}`
+                group.style.paddingTop = "2px"
+
+                const btnPlus = document.createElement('button')
+                btnPlus.textContent = `+90°`
+                btnPlus.style.cssText = `background: #444; color: white; border: none; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 10px;`
+                btnPlus.onclick = () => this.nudgeRotation(axis, 90)
+
+                const btnMinus = document.createElement('button')
+                btnMinus.textContent = `-90°`
+                btnMinus.style.cssText = `background: #444; color: white; border: none; padding: 4px; cursor: pointer; border-radius: 3px; font-size: 10px;`
+                btnMinus.onclick = () => this.nudgeRotation(axis, -90)
+
+                group.appendChild(btnPlus)
+                group.appendChild(btnMinus)
+                return group
+            }
+
+            nudgeContainer.appendChild(createRotNudgeGroup('X', '#FF4444'))
+            nudgeContainer.appendChild(createRotNudgeGroup('Y', '#44FF44'))
+            nudgeContainer.appendChild(createRotNudgeGroup('Z', '#4444FF'))
+            section.appendChild(nudgeContainer)
+        })
+
         // 2. Dimensions/Scale Controls
         this.createSection("Dimensiones", (section) => {
             const row = document.createElement('div')
@@ -316,6 +366,11 @@ export class ObjectInspector {
         this.inputPosY.input.value = object.position.y.toFixed(2)
         this.inputPosZ.input.value = object.position.z.toFixed(2)
 
+        // Rotation (Radians -> Degrees)
+        this.inputRotX.input.value = (object.rotation.x * (180 / Math.PI)).toFixed(1)
+        this.inputRotY.input.value = (object.rotation.y * (180 / Math.PI)).toFixed(1)
+        this.inputRotZ.input.value = (object.rotation.z * (180 / Math.PI)).toFixed(1)
+
         // Scale/Dim (Assuming box geometry for now, or reading scale from userData if available)
         // If it's a scaled standard mesh, we use .scale properties combined with geometry params?
         // Our system uses geometry parameters for size usually.
@@ -420,6 +475,31 @@ export class ObjectInspector {
         if (axis === 'x') this.inputPosX.input.value = this.selectedObject.position.x.toFixed(2)
         if (axis === 'y') this.inputPosY.input.value = this.selectedObject.position.y.toFixed(2)
         if (axis === 'z') this.inputPosZ.input.value = this.selectedObject.position.z.toFixed(2)
+
+        this.refreshPhysicsAndVisuals()
+    }
+
+    updateRotation(axis, valueDegrees) {
+        if (!this.selectedObject) return
+        // Convert to radians
+        const radians = valueDegrees * (Math.PI / 180)
+        this.selectedObject.rotation[axis] = radians
+        this.refreshPhysicsAndVisuals()
+    }
+
+    nudgeRotation(axisAxis, amountDegrees) {
+        if (!this.selectedObject) return
+        const axis = axisAxis.toLowerCase()
+
+        // Add degrees, handle wrapping logic if we want, or just let Three.js handle > 360
+        this.selectedObject.rotation[axis] += amountDegrees * (Math.PI / 180)
+
+        // Update inputs (Convert back to degrees)
+        const deg = this.selectedObject.rotation[axis] * (180 / Math.PI)
+
+        if (axis === 'x') this.inputRotX.input.value = deg.toFixed(1)
+        if (axis === 'y') this.inputRotY.input.value = deg.toFixed(1)
+        if (axis === 'z') this.inputRotZ.input.value = deg.toFixed(1)
 
         this.refreshPhysicsAndVisuals()
     }
