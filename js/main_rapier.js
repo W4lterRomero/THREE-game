@@ -1455,48 +1455,68 @@ class Game {
             // Initialize temp state for hold tracking if missing
             if (typeof props._currentHoldTime === 'undefined') props._currentHoldTime = 0
 
+            // UI Elements
+            // Using CSS classes on parent promptEl instead of individual element style manipulation
+
             // CIRCLE PROGRESS LOGIC
-            // Circumference of r=26 is ~163
             const circumference = 163
 
+            // Refactor: Use CSS Classes
+            // Reset potential inline overrides (safety)
+            if (progressCircle.style.display === "none") progressCircle.style.display = ""
+            // Clear specific inline styles if they were set by previous logic
+            const bgCircle = document.getElementById("btn-bg-circle")
+            if (bgCircle) {
+                bgCircle.style.fill = ""
+                bgCircle.style.stroke = ""
+            }
+            // KeyHint color is now handled by CSS !important rule, no need to touch JS.
+
+
+            // Toggle Mode Class
             if (props.pulsationMode) {
-                // Pulsation Mode: Instant Feedback
-                if (this.isFKeyDown) {
-                    progressCircle.style.strokeDashoffset = 0 // Full
-                    progressCircle.style.stroke = "#00FF00" // Green
-                } else {
-                    progressCircle.style.strokeDashoffset = circumference // Empty
-                    progressCircle.style.stroke = "" // Reset to default
-                }
-            } else if (holdTime > 0) {
-                if (this.isFKeyDown) {
-                    props._currentHoldTime += dt
+                promptEl.classList.add("interaction-pulsation-mode")
+            } else {
+                promptEl.classList.remove("interaction-pulsation-mode")
+            }
 
-                    // Update Circle
-                    const ratio = Math.min(props._currentHoldTime / holdTime, 1.0)
-                    const offset = circumference - (ratio * circumference)
-                    progressCircle.style.strokeDashoffset = offset
-                    progressCircle.style.stroke = "" // Ensure default color
+            // Toggle Active State
+            if (this.isFKeyDown) {
+                promptEl.classList.add("active")
+            } else {
+                promptEl.classList.remove("active")
+            }
 
-                    // Trigger?
-                    if (props._currentHoldTime >= holdTime) {
-                        this.triggerButton(nearest)
-                        props._currentHoldTime = 0 // Reset after trigger
-                        progressCircle.style.strokeDashoffset = circumference // Visual reset
-                        this.isFKeyDown = false
+            // PROGRESS UPDATE (Still needed for Hold Mode)
+            if (props.pulsationMode) {
+                // Pulsation Mode: Purely Visual handled by CSS
+            } else {
+                // Normal / Hold Mode
+                if (holdTime > 0) {
+                    if (this.isFKeyDown) {
+                        props._currentHoldTime += dt
+
+                        // Update Circle
+                        const ratio = Math.min(props._currentHoldTime / holdTime, 1.0)
+                        const offset = circumference - (ratio * circumference)
+                        progressCircle.style.strokeDashoffset = offset
+
+                        // Trigger?
+                        if (props._currentHoldTime >= holdTime) {
+                            this.triggerButton(nearest)
+                            props._currentHoldTime = 0 // Reset after trigger
+                            progressCircle.style.strokeDashoffset = circumference // Visual reset
+                            this.isFKeyDown = false
+                        }
+                    } else {
+                        // Decay or Reset
+                        props._currentHoldTime = 0
+                        progressCircle.style.strokeDashoffset = circumference
                     }
                 } else {
-                    // Decay or Reset? Reset is standard.
-                    props._currentHoldTime = 0
+                    // Instant Interaction Fallback
                     progressCircle.style.strokeDashoffset = circumference
-                    progressCircle.style.stroke = ""
                 }
-            } else {
-                // Instant Interaction (Time = 0)
-                // Visuals: Full circle or empty? Empty looks cleaner for "Press F".
-                progressCircle.style.strokeDashoffset = circumference
-
-                // Logic handled in keydown listener for responsiveness
             }
 
         }

@@ -497,6 +497,7 @@ input:checked+.toggle-slider:before {
     font-family: 'Segoe UI', sans-serif;
     font-weight: bold;
 }
+
 /* Interaction Prompt */
 .interaction-prompt {
     position: absolute;
@@ -504,7 +505,7 @@ input:checked+.toggle-slider:before {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    
+
     background: rgba(0, 0, 0, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
@@ -514,22 +515,47 @@ input:checked+.toggle-slider:before {
     gap: 8px;
     pointer-events: none;
     z-index: 900;
-    
+
     color: white;
     font-family: 'Segoe UI', sans-serif;
     font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
-    
+
     transition: opacity 0.2s ease, transform 0.1s linear;
 }
 
 .interaction-prompt .key-hint {
-    background: #FFD700; /* Gold/Yellow for visibility */
+    background: #FFD700;
+    /* Gold/Yellow for visibility */
     color: #000;
     font-weight: bold;
     border-radius: 4px;
     padding: 2px 6px;
     font-size: 12px;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Button Interaction Prompts Refactor */
+/* Button Interaction Prompts Refactor */
+#btn-bg-circle {
+    transition: fill 0.2s, stroke 0.2s;
+}
+
+#btn-key-hint {
+    color: white !important;
+    /* Force White */
+    text-shadow: 1px 1px 2px black;
+}
+
+/* Pulsation Mode Logic */
+/* When parent has class 'pulsation-mode', hide the progress ring */
+.interaction-pulsation-mode #btn-progress-circle {
+    display: none;
+}
+
+/* When parent has class 'pulsation-mode' AND 'active' (pressed) */
+.interaction-pulsation-mode.active #btn-bg-circle {
+    fill: rgba(0, 255, 0, 0.5);
+    stroke: rgba(0, 255, 0, 0.8);
 }

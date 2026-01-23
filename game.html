@@ -81,13 +81,14 @@
             style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
             <!-- Background Circle -->
             <svg width="60" height="60" style="position: absolute; transform: rotate(-90deg);">
-                <circle cx="30" cy="30" r="26" stroke="rgba(0,0,0,0.5)" stroke-width="4" fill="rgba(0,0,0,0.3)" />
+                <circle id="btn-bg-circle" cx="30" cy="30" r="26" stroke="rgba(0,0,0,0.5)" stroke-width="4"
+                    fill="rgba(0,0,0,0.3)" />
                 <!-- Progress Circle -->
                 <circle id="btn-progress-circle" cx="30" cy="30" r="26" stroke="#00ff00" stroke-width="4" fill="none"
                     stroke-dasharray="163" stroke-dashoffset="163" stroke-linecap="round" />
             </svg>
             <!-- Key Hint -->
-            <span style="
+            <span id="btn-key-hint" style="
                 color: white; 
                 font-family: sans-serif; 
                 font-weight: bold; 
