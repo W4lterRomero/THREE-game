@@ -1749,7 +1749,7 @@ class Game {
                 // But blindly running objects might not have been edited.
                 // Let's runtime migrate?
                 obj.userData.logicProperties.sequences = [{
-                    name: "Legacy Sequence",
+                    name: "Secuencia Principal",
                     waypoints: obj.userData.logicProperties.waypoints,
                     loop: obj.userData.logicProperties.loop,
                     active: obj.userData.logicProperties.active,

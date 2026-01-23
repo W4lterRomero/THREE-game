@@ -146,6 +146,7 @@ export class LogicSystem {
                 triggerType: "none"
             })
         }
+        props.sequences[0].name = "Secuencia Principal"
 
         // Primary Sequence (Quick Edit)
         const mainSeq = props.sequences[0]
@@ -160,7 +161,7 @@ export class LogicSystem {
 
         // --- Edit on Map Button (Quick) ---
         const editMapBtn = document.createElement('button')
-        editMapBtn.textContent = "🗺️ Editar en Mapa 3D"
+        editMapBtn.textContent = "Editar en Mapa 3D"
         editMapBtn.style.cssText = `
             width: 100%; background: #0066cc; color: white; border: none; 
             padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; font-weight: bold;
@@ -182,7 +183,7 @@ export class LogicSystem {
 
         // Capture Button
         const captureBtn = document.createElement('button')
-        captureBtn.textContent = "+ Capturar Puntos Rápidos"
+        captureBtn.textContent = "+ Capturar Posición Actual"
         captureBtn.style.cssText = `
             width: 100%; background: #222; color: #aaa; border: 1px dashed #555; 
             padding: 4px; cursor: pointer; border-radius: 4px; margin-top: 5px; font-size:10px;
@@ -202,26 +203,10 @@ export class LogicSystem {
         }
         container.appendChild(captureBtn)
 
-        // Mini List for Main Seq
-        const wpList = document.createElement('div')
-        wpList.style.cssText = `max-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 5px; margin-bottom: 15px; border-bottom:1px solid #333; padding-bottom:10px;`
+        // Mini List HIDDEN as requested
+        // container.appendChild(wpList)
 
-        mainSeq.waypoints.forEach((wp, idx) => {
-            const row = document.createElement('div')
-            row.style.cssText = `background: #1a1a1a; padding: 2px; font-size: 10px; display: flex; justify-content: space-between;`
-            row.innerHTML = `<span>#${idx + 1} [${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}]</span>` // Shortened
-            const del = document.createElement('span')
-            del.textContent = "x"
-            del.style.cursor = "pointer"; del.style.color = "#f44"
-            del.onclick = () => {
-                mainSeq.waypoints.splice(idx, 1)
-                this.renderPanel(container, object, refreshCallback)
-                this.updateVisualization()
-            }
-            row.appendChild(del)
-            wpList.appendChild(row)
-        })
-        container.appendChild(wpList)
+
 
 
         // --- ADVANCED SEQUENCES SECION ---
@@ -243,7 +228,8 @@ export class LogicSystem {
             topRow.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
 
             const nameSpan = document.createElement('span')
-            nameSpan.textContent = (idx === 0 ? "★ " : "") + (seq.name || `Secuencia ${idx + 1}`)
+            let dispName = seq.name
+            nameSpan.textContent = (idx === 0 ? "★ " : "") + dispName
             nameSpan.style.cssText = "font-size:11px; color:#ddd;"
 
             topRow.appendChild(nameSpan)
@@ -435,6 +421,15 @@ export class LogicSystem {
                 const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
                 const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
                 const dotMat = new THREE.MeshBasicMaterial({ color: finalColor })
+                // ARROWS (DIRECTION) - RESTORED
+                const arrowLen = 1.0
+                const arrowDir = new THREE.Vector3(0, 0, 1) // Default forward
+                if (wp.rotY !== undefined) {
+                    arrowDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), wp.rotY)
+                }
+                const arrow = new THREE.ArrowHelper(arrowDir, pos, arrowLen, 0x00FF00) // Green Arrows
+                this.pathVisualizer.add(arrow)
+
                 const dot = new THREE.Mesh(dotGeo, dotMat)
                 dot.position.copy(pos)
                 this.pathVisualizer.add(dot)
