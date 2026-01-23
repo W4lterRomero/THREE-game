@@ -320,7 +320,13 @@ class Game {
 
                     if (hit) {
                         // Apply Target
-                        if (this.constructionMenu.pickingController) {
+                        if (this.constructionMenu.pickingCallback) {
+                            // GENERIC PICKING CALLBACK (New System)
+                            this.constructionMenu.pickingCallback(hit.object)
+                            this.constructionMenu.isPickingTarget = false
+                            this.constructionMenu.pickingCallback = null // Reset
+                            this.constructionMenu.pickingController = null
+                        } else if (this.constructionMenu.pickingController) {
                             const controller = this.constructionMenu.pickingController
                             const target = hit.object
 
@@ -1064,7 +1070,8 @@ class Game {
                         const dSq = obj.position.distanceToSquared(charPos)
                         if (dSq < 9.0) { // 3m
                             const props = obj.userData.logicProperties
-                            if (props && props.holdTime === 0) {
+                            // Pulsation Mode (Instant) OR Normal (HoldTime 0)
+                            if (props && (props.pulsationMode || props.holdTime === 0)) {
                                 // ONE SHOT check
                                 if (!props.oneShot || !props.triggered) {
                                     this.triggerButton(obj)
@@ -1452,7 +1459,16 @@ class Game {
             // Circumference of r=26 is ~163
             const circumference = 163
 
-            if (holdTime > 0) {
+            if (props.pulsationMode) {
+                // Pulsation Mode: Instant Feedback
+                if (this.isFKeyDown) {
+                    progressCircle.style.strokeDashoffset = 0 // Full
+                    progressCircle.style.stroke = "#00FF00" // Green
+                } else {
+                    progressCircle.style.strokeDashoffset = circumference // Empty
+                    progressCircle.style.stroke = "" // Reset to default
+                }
+            } else if (holdTime > 0) {
                 if (this.isFKeyDown) {
                     props._currentHoldTime += dt
 
@@ -1460,20 +1476,20 @@ class Game {
                     const ratio = Math.min(props._currentHoldTime / holdTime, 1.0)
                     const offset = circumference - (ratio * circumference)
                     progressCircle.style.strokeDashoffset = offset
+                    progressCircle.style.stroke = "" // Ensure default color
 
                     // Trigger?
                     if (props._currentHoldTime >= holdTime) {
                         this.triggerButton(nearest)
                         props._currentHoldTime = 0 // Reset after trigger
                         progressCircle.style.strokeDashoffset = circumference // Visual reset
-                        this.isFKeyDown = false // Force release requirement? Or auto-repeat? Usually force release.
-                        // To prevent machine-gun triggering, we can set a cooldown or require re-press.
-                        // But for now simple reset is okay.
+                        this.isFKeyDown = false
                     }
                 } else {
                     // Decay or Reset? Reset is standard.
                     props._currentHoldTime = 0
                     progressCircle.style.strokeDashoffset = circumference
+                    progressCircle.style.stroke = ""
                 }
             } else {
                 // Instant Interaction (Time = 0)
@@ -1522,6 +1538,19 @@ class Game {
                     }
                 }
             }
+        }
+
+        // --- REVERSE LINKING (Event Subscription) ---
+        if (this.sceneManager && this.sceneManager.scene) {
+            this.sceneManager.scene.traverse(obj => {
+                if (obj.userData && obj.userData.logicProperties && obj.userData.logicProperties.triggerButtonUuid === buttonObj.userData.uuid) {
+                    // Activate/Toggle Movement
+                    if (obj.userData.logicProperties.active !== undefined) {
+                        obj.userData.logicProperties.active = !obj.userData.logicProperties.active
+                        console.log("Reverse Linked Logic Triggered:", obj.userData.mapObjectType)
+                    }
+                }
+            })
         }
     }
 

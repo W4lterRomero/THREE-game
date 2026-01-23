@@ -106,36 +106,12 @@ export class LogicSystem {
     renderButtonUI(container, object, props) {
         this.createInput(container, object, 'holdTime', props.holdTime || 0, 'number', 'Tiempo Retener (s)')
         this.createInput(container, object, 'oneShot', props.oneShot || false, 'boolean', 'Un Solo Uso')
+        this.createInput(container, object, 'pulsationMode', props.pulsationMode || false, 'boolean', 'Modo Pulsación')
 
-        // Link Target
-        const linkBtn = document.createElement('button')
-        linkBtn.textContent = props.targetUuid ? "Cambiar Objetivo (Vinculado)" : "Vincular Objetivo"
-        linkBtn.style.cssText = `
-            width: 100%; background: ${props.targetUuid ? '#006600' : '#884400'}; color: white; border: none; 
-            padding: 8px; cursor: pointer; border-radius: 4px; margin-top: 10px; font-weight: bold;
-        `
-        linkBtn.onclick = () => {
-            // We need to trigger "Picking Mode" in the main game loop / ConstructionMenu
-            // Since LogicSystem doesn't have direct access to ConstructionMenu instance easily (unless passed in game)
-            // this.game.constructionMenu IS available.
-
-            if (this.game.constructionMenu) {
-                this.game.constructionMenu.startPickingTarget(object)
-                this.toolbar.hide() // Hide toolbar while picking? Or keep it? 
-                // Usually hiding logic UI is better to see the scene.
-                // The picking logic in main_rapier waits for click.
-            } else {
-                alert("Error: ConstructionMenu not found")
-            }
-        }
-        container.appendChild(linkBtn)
-
-        if (props.targetUuid) {
-            const info = document.createElement('div')
-            info.textContent = `UUID: ${props.targetUuid.substring(0, 8)}...`
-            info.style.cssText = "font-size:10px; color:#aaa; margin-top:2px;"
-            container.appendChild(info)
-        }
+        const info = document.createElement('div')
+        info.textContent = `UUID: ${object.userData.uuid.substring(0, 8)}...`
+        info.style.cssText = "font-size:10px; color:#aaa; margin-top:10px;"
+        container.appendChild(info)
     }
 
     renderSpawnUI(container, object, props) {
@@ -152,6 +128,48 @@ export class LogicSystem {
             font-weight: bold; border-top: 1px solid #444; padding-top: 10px;
         `
         container.appendChild(mvHeader)
+
+        // --- Event Linking (Reverse Linking) ---
+        const linkWrapper = document.createElement('div')
+        linkWrapper.style.cssText = `margin-bottom: 10px; padding: 5px; background: #222; border-radius: 4px;`
+
+        const linkTitle = document.createElement('div')
+        linkTitle.textContent = "VINCULAR EVENTO"
+        linkTitle.style.cssText = "font-size: 10px; color: #888; font-weight: bold; margin-bottom: 5px;"
+        linkWrapper.appendChild(linkTitle)
+
+        const linkStatus = document.createElement('div')
+        linkStatus.style.cssText = `font-size: 11px; color: ${props.triggerButtonUuid ? '#00FF00' : '#FF4444'}; margin-bottom: 5px;`
+        linkStatus.textContent = props.triggerButtonUuid ? "Vinculado" : "Sin Vinculación"
+        linkWrapper.appendChild(linkStatus)
+
+        const pickBtn = document.createElement('button')
+        pickBtn.textContent = props.triggerButtonUuid ? "Cambiar Botón" : "Seleccionar Botón"
+        pickBtn.style.cssText = `
+            width: 100%; padding: 4px; background: #333; color: white; border: 1px solid #555; 
+            cursor: pointer; border-radius: 4px; font-size: 10px;
+        `
+        pickBtn.onclick = () => {
+            if (this.game.constructionMenu) {
+                alert("Selecciona el BOTÓN que activará este objeto (Click Derecho sobre el botón)")
+
+                // Set picking mode on ConstructionMenu
+                this.game.constructionMenu.isPickingTarget = true
+                this.game.constructionMenu.pickingController = object // The object being edited
+                this.game.constructionMenu.pickingCallback = (selectedObj) => {
+                    if (selectedObj.userData.mapObjectType === 'interaction_button') {
+                        object.userData.logicProperties.triggerButtonUuid = selectedObj.userData.uuid
+                        alert("Vinculado correctamente al botón!")
+                        if (refreshCallback) refreshCallback() // Refresh UI to show "Vinculado"
+                    } else {
+                        alert("Error: Debes seleccionar un Botón de Interacción.")
+                    }
+                }
+            }
+        }
+        linkWrapper.appendChild(pickBtn)
+        container.appendChild(linkWrapper)
+        // ---------------------------------------
 
         // --- Edit on Map Button ---
         const editMapBtn = document.createElement('button')
