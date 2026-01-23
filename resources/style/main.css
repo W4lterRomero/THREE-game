@@ -556,6 +556,18 @@ input:checked+.toggle-slider:before {
 
 /* When parent has class 'pulsation-mode' AND 'active' (pressed) */
 .interaction-pulsation-mode.active #btn-bg-circle {
-    fill: rgba(0, 255, 0, 0.5);
-    stroke: rgba(0, 255, 0, 0.8);
+    fill: rgba(0, 255, 0, 0.8);
+    /* Brighter Green */
+    stroke: #00FF00;
+    /* Solid Green Stroke */
+    stroke-width: 6px;
+    /* Thicker stroke */
+    transition: none;
+    /* Instant feedback on press */
+}
+
+/* Add a press effect (Scale Down) */
+.interaction-pulsation-mode.active {
+    transform: translate(-50%, -50%) scale(0.9);
+    /* Keep centering transform + scale */
 }

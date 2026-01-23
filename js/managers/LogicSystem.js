@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import { LogicToolbar } from "../ui/LogicToolbar.js"
+import { LogicSequenceEditor } from "../ui/LogicSequenceEditor.js"
 
 export class LogicSystem {
     constructor(game) {
@@ -7,6 +8,7 @@ export class LogicSystem {
         this.isEditingMap = false
         this.editingObject = null
         this.toolbar = new LogicToolbar(game)
+        this.sequenceEditor = new LogicSequenceEditor(game, this)
 
         // Toolbar Callbacks
         this.toolbar.onClose = () => this.endMapEdit()
@@ -121,118 +123,98 @@ export class LogicSystem {
     }
 
     renderMovementUI(container, object, props, refreshCallback) {
+        // --- MIGRATION & INIT ---
+        if (props.waypoints && !props.sequences) {
+            props.sequences = [{
+                name: "Secuencia Principal",
+                waypoints: props.waypoints,
+                loop: props.loop !== false,
+                active: props.active !== false,
+                speed: props.speed || 2.0,
+                triggerType: "none"
+            }]
+            delete props.waypoints; delete props.loop; delete props.active; delete props.speed
+        }
+        if (!props.sequences) props.sequences = []
+        if (props.sequences.length === 0) {
+            props.sequences.push({
+                name: "Secuencia Principal",
+                waypoints: [],
+                loop: true,
+                active: true,
+                speed: 2.0,
+                triggerType: "none"
+            })
+        }
+
+        // Primary Sequence (Quick Edit)
+        const mainSeq = props.sequences[0]
+
         const mvHeader = document.createElement('div')
-        mvHeader.innerHTML = `<span style="color:#00FFFF"> Animación</span>`
+        mvHeader.innerHTML = `<span style="color:#00FFFF"> Animación (Rápida)</span>`
         mvHeader.style.cssText = `
             margin-top: 15px; margin-bottom: 10px; 
             font-weight: bold; border-top: 1px solid #444; padding-top: 10px;
         `
         container.appendChild(mvHeader)
 
-        // --- Event Linking (Reverse Linking) ---
-        const linkWrapper = document.createElement('div')
-        linkWrapper.style.cssText = `margin-bottom: 10px; padding: 5px; background: #222; border-radius: 4px;`
-
-        const linkTitle = document.createElement('div')
-        linkTitle.textContent = "VINCULAR EVENTO"
-        linkTitle.style.cssText = "font-size: 10px; color: #888; font-weight: bold; margin-bottom: 5px;"
-        linkWrapper.appendChild(linkTitle)
-
-        const linkStatus = document.createElement('div')
-        linkStatus.style.cssText = `font-size: 11px; color: ${props.triggerButtonUuid ? '#00FF00' : '#FF4444'}; margin-bottom: 5px;`
-        linkStatus.textContent = props.triggerButtonUuid ? "Vinculado" : "Sin Vinculación"
-        linkWrapper.appendChild(linkStatus)
-
-        const pickBtn = document.createElement('button')
-        pickBtn.textContent = props.triggerButtonUuid ? "Cambiar Botón" : "Seleccionar Botón"
-        pickBtn.style.cssText = `
-            width: 100%; padding: 4px; background: #333; color: white; border: 1px solid #555; 
-            cursor: pointer; border-radius: 4px; font-size: 10px;
-        `
-        pickBtn.onclick = () => {
-            if (this.game.constructionMenu) {
-                alert("Selecciona el BOTÓN que activará este objeto (Click Derecho sobre el botón)")
-
-                // Set picking mode on ConstructionMenu
-                this.game.constructionMenu.isPickingTarget = true
-                this.game.constructionMenu.pickingController = object // The object being edited
-                this.game.constructionMenu.pickingCallback = (selectedObj) => {
-                    if (selectedObj.userData.mapObjectType === 'interaction_button') {
-                        object.userData.logicProperties.triggerButtonUuid = selectedObj.userData.uuid
-                        alert("Vinculado correctamente al botón!")
-                        if (refreshCallback) refreshCallback() // Refresh UI to show "Vinculado"
-                    } else {
-                        alert("Error: Debes seleccionar un Botón de Interacción.")
-                    }
-                }
-            }
-        }
-        linkWrapper.appendChild(pickBtn)
-        container.appendChild(linkWrapper)
-        // ---------------------------------------
-
-        // --- Edit on Map Button ---
+        // --- Edit on Map Button (Quick) ---
         const editMapBtn = document.createElement('button')
-        editMapBtn.textContent = "Editar en Mapa"
+        editMapBtn.textContent = "🗺️ Editar en Mapa 3D"
         editMapBtn.style.cssText = `
             width: 100%; background: #0066cc; color: white; border: none; 
             padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 10px; font-weight: bold;
         `
-        editMapBtn.onclick = () => this.startMapEdit(object)
+        // Edit Primary Sequence (0) on Map
+        editMapBtn.onclick = () => this.startMapEdit(object, 0)
         container.appendChild(editMapBtn)
-        // --------------------------
 
-        this.createInput(container, object, 'speed', props.speed || 2.0, 'number', 'Velocidad')
-        this.createInput(container, object, 'loop', props.loop !== false, 'boolean', 'Bucle Infinito')
-        this.createInput(container, object, 'active', props.active !== false, 'boolean', 'Activo')
+        // --- Quick Properties (Seq 0) ---
+        this.createInput(container, mainSeq, 'speed', mainSeq.speed || 2.0, 'number', 'Velocidad')
+        this.createInput(container, mainSeq, 'loop', mainSeq.loop !== false, 'boolean', 'Bucle Infinito')
+        this.createInput(container, mainSeq, 'active', mainSeq.active !== false, 'boolean', 'Activo al Inicio')
 
-        // Waypoints List
+        // --- Quick Waypoints List ---
         const wpHeader = document.createElement('div')
-        wpHeader.textContent = `Puntos de Ruta (${props.waypoints.length})`
-        wpHeader.style.cssText = `margin-top: 10px; font-size: 12px; color: #aaa;`
+        wpHeader.textContent = `Puntos (Secuencia Principal): ${mainSeq.waypoints.length}`
+        wpHeader.style.cssText = `margin-top: 5px; font-size: 11px; color: #aaa;`
         container.appendChild(wpHeader)
 
-        // Capture Button (Legacy)
+        // Capture Button
         const captureBtn = document.createElement('button')
-        captureBtn.textContent = "+ Capturar Ubicación Actual"
+        captureBtn.textContent = "+ Capturar Puntos Rápidos"
         captureBtn.style.cssText = `
-            width: 100%; background: #004400; color: white; border: none; 
-            padding: 6px; cursor: pointer; border-radius: 4px; margin-top: 5px;
+            width: 100%; background: #222; color: #aaa; border: 1px dashed #555; 
+            padding: 4px; cursor: pointer; border-radius: 4px; margin-top: 5px; font-size:10px;
         `
         captureBtn.onclick = () => {
             const wp = {
                 x: object.position.x,
                 y: object.position.y,
                 z: object.position.z,
-                rotY: object.rotation.y, // Capture current Y rotation
-                delay: 0
+                rotY: object.rotation.y,
+                delay: 0,
+                teleport: false
             }
-            props.waypoints.push(wp)
-            this.renderPanel(container, object, refreshCallback) // Re-render self
-            this.updateVisualization() // Refresh lines
+            mainSeq.waypoints.push(wp)
+            this.renderPanel(container, object, refreshCallback)
+            this.updateVisualization()
         }
         container.appendChild(captureBtn)
 
-        // List
+        // Mini List for Main Seq
         const wpList = document.createElement('div')
-        wpList.style.cssText = `
-            max-height: 100px; overflow-y: auto; display: flex; 
-            flex-direction: column; gap: 2px; margin-top: 5px;
-        `
+        wpList.style.cssText = `max-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 5px; margin-bottom: 15px; border-bottom:1px solid #333; padding-bottom:10px;`
 
-        props.waypoints.forEach((wp, idx) => {
+        mainSeq.waypoints.forEach((wp, idx) => {
             const row = document.createElement('div')
-            row.style.cssText = `
-                background: #222; padding: 2px; font-size: 11px; 
-                display: flex; justify-content: space-between;
-            `
-            row.innerHTML = `<span>#${idx + 1} [${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span>`
-
+            row.style.cssText = `background: #1a1a1a; padding: 2px; font-size: 10px; display: flex; justify-content: space-between;`
+            row.innerHTML = `<span>#${idx + 1} [${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}]</span>` // Shortened
             const del = document.createElement('span')
-            del.textContent = "🗑"
-            del.style.cursor = "pointer"
+            del.textContent = "x"
+            del.style.cursor = "pointer"; del.style.color = "#f44"
             del.onclick = () => {
-                props.waypoints.splice(idx, 1)
+                mainSeq.waypoints.splice(idx, 1)
                 this.renderPanel(container, object, refreshCallback)
                 this.updateVisualization()
             }
@@ -241,34 +223,95 @@ export class LogicSystem {
         })
         container.appendChild(wpList)
 
-        // Remove Logic Button
-        const removeBtn = document.createElement('button')
-        removeBtn.textContent = "Eliminar Animación"
-        removeBtn.style.cssText = `
-            width: 100%; background: #440000; color: white; border: none; 
-            padding: 4px; cursor: pointer; border-radius: 4px; margin-top: 10px; font-size: 10px;
-        `
-        removeBtn.onclick = () => {
-            if (confirm("¿Eliminar lógica de movimiento?")) {
-                delete object.userData.logicProperties.waypoints
-                delete object.userData.logicProperties.speed
-                delete object.userData.logicProperties.loop
-                delete object.userData.logicProperties.active
 
-                // Clear panel or refresh
-                container.innerHTML = "<div style='color:#666;text-align:center'>Lógica eliminada.</div>"
-                if (refreshCallback) refreshCallback()
-                this.updateVisualization()
+        // --- ADVANCED SEQUENCES SECION ---
+        const advHeader = document.createElement('div')
+        advHeader.textContent = "Gestión Avanzada de Secuencias"
+        advHeader.style.cssText = "font-size:11px; font-weight:bold; color:#888; margin-bottom:5px;"
+        container.appendChild(advHeader)
+
+        // List all sequences
+        const seqList = document.createElement('div')
+        seqList.style.cssText = `display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;`
+
+        props.sequences.forEach((seq, idx) => {
+            const seqRow = document.createElement('div')
+            seqRow.style.cssText = `
+                background: #222; padding: 4px; border-radius: 4px; border: 1px solid #444;
+            `
+            const topRow = document.createElement('div')
+            topRow.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
+
+            const nameSpan = document.createElement('span')
+            nameSpan.textContent = (idx === 0 ? "★ " : "") + (seq.name || `Secuencia ${idx + 1}`)
+            nameSpan.style.cssText = "font-size:11px; color:#ddd;"
+
+            topRow.appendChild(nameSpan)
+
+            const toolsDiv = document.createElement('div')
+
+            // Edit Visual
+            const editBtn = document.createElement('button')
+            editBtn.textContent = "Editor Visual"
+            editBtn.style.cssText = "background: #0066cc; color: white; border: none; padding: 2px 5px; font-size: 9px; cursor: pointer; border-radius: 3px; margin-right:5px;"
+            editBtn.onclick = () => this.openSequenceEditor(object, idx)
+            toolsDiv.appendChild(editBtn)
+
+            // Delete
+            if (idx > 0) { // Protect main sequence? Or allow delete?
+                const delBtn = document.createElement('button')
+                delBtn.textContent = "🗑"
+                delBtn.style.cssText = "background:none; border:none; color:#f44; cursor:pointer;"
+                delBtn.onclick = () => {
+                    if (confirm("¿Eliminar?")) {
+                        props.sequences.splice(idx, 1)
+                        this.renderPanel(container, object, refreshCallback)
+                        this.updateVisualization()
+                    }
+                }
+                toolsDiv.appendChild(delBtn)
+            }
+
+            topRow.appendChild(toolsDiv)
+            seqRow.appendChild(topRow)
+            seqList.appendChild(seqRow)
+        })
+        container.appendChild(seqList)
+
+        // Add
+        const addSeqBtn = document.createElement('button')
+        addSeqBtn.textContent = "+ Nueva Secuencia"
+        addSeqBtn.style.cssText = `width: 100%; background: #333; color: white; border: 1px solid #555; padding: 4px; border-radius: 4px; font-size:10px;`
+        addSeqBtn.onclick = () => {
+            const name = prompt("Nombre:", "Nueva Secuencia")
+            if (name) {
+                props.sequences.push({
+                    name: name, waypoints: [], loop: true, active: false, speed: 2.0, triggerType: "none"
+                })
+                this.renderPanel(container, object, refreshCallback)
             }
         }
-        container.appendChild(removeBtn)
+        container.appendChild(addSeqBtn)
+    }
+
+    openSequenceEditor(object, sequenceIndex) {
+        // Find or create the editor overlay
+        // Implementation of LogicSequenceEditor integration
+        console.log("Opening sequence editor for", object, sequenceIndex)
+        alert("¡Pronto! Aquí se abrirá el editor visual de secuencias.")
+        // TODO: Call LogicSequenceEditor.open(object, sequenceIndex)
+    }
+
+    openSequenceEditor(object, sequenceIndex) {
+        this.sequenceEditor.open(object, sequenceIndex)
     }
 
     // --- MAP EDIT MODE ---
 
-    startMapEdit(object) {
+    startMapEdit(object, sequenceIndex = 0) {
         this.isEditingMap = true
         this.editingObject = object
+        this.editingSequenceIndex = sequenceIndex // Store index
 
         // Hide Main Menu
         if (this.game.constructionMenu) {
@@ -351,77 +394,70 @@ export class LogicSystem {
 
     updateVisualization() {
         this.pathVisualizer.clear()
-        if (!this.editingObject) return
 
-        const wps = this.editingObject.userData.logicProperties.waypoints
-        if (!wps || wps.length === 0) return
+        // Use editingObject OR the one in sequence editor if active
+        // Fallback to editingObject from LogicSystem if set.
+        const obj = this.editingObject || (this.sequenceEditor && this.sequenceEditor.currentObject)
+        if (!obj) return
 
-        // Draw Lines
-        const points = []
-        // Start from object position
-        points.push(this.editingObject.position.clone())
-        wps.forEach(wp => points.push(new THREE.Vector3(wp.x, wp.y, wp.z)))
+        const props = obj.userData.logicProperties
+        if (!props || !props.sequences) return
 
-        // Loop?
-        if (this.editingObject.userData.logicProperties.loop) {
-            points.push(this.editingObject.position.clone())
-        }
+        const colors = [0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF]
 
-        // Draw Line
-        const geometry = new THREE.BufferGeometry().setFromPoints(points)
-        const material = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: 2 })
-        const line = new THREE.Line(geometry, material)
-        this.pathVisualizer.add(line)
+        props.sequences.forEach((seq, idx) => {
+            if (!seq.waypoints || seq.waypoints.length === 0) return
 
-        // Draw Waypoint Indicators (Only registered points)
-        // Removed the points.forEach loop that included current position.
+            const color = colors[idx % colors.length]
+            const isEditing = (this.sequenceEditor && this.sequenceEditor.currentObject === obj && this.sequenceEditor.currentSeqIndex === idx)
+            const finalColor = isEditing ? 0xFFFFFF : color // Highlight white if editing
 
-        wps.forEach((wp, idx) => {
-            const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
-            // Dot (Visual anchor)
-            const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
-            const dotMat = new THREE.MeshBasicMaterial({ color: 0xFFAA00 })
-            const dot = new THREE.Mesh(dotGeo, dotMat)
-            dot.position.copy(pos)
-            this.pathVisualizer.add(dot)
+            // Draw Lines
+            const points = []
+            // Start from object position or assume relative? 
+            // We visualize assuming start from current obj pos for now, 
+            // but effectively the path is relative to where it starts.
+            points.push(obj.position.clone())
 
-            // Arrow
-            const arrowLen = 1.0
-            const arrowDir = new THREE.Vector3(0, 0, 1) // Default forward
-            if (wp.rotY !== undefined) {
-                arrowDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), wp.rotY)
-            } else {
-                // Use object rotation? Or default?
-                // If no rotation saved, assume 0 or previous?
-                // Let's just use Z+
+            seq.waypoints.forEach(wp => points.push(new THREE.Vector3(wp.x, wp.y, wp.z)))
+
+            if (seq.loop) {
+                points.push(obj.position.clone())
             }
 
-            const arrow = new THREE.ArrowHelper(arrowDir, pos, arrowLen, 0x00FF00)
-            this.pathVisualizer.add(arrow)
+            const geometry = new THREE.BufferGeometry().setFromPoints(points)
+            const material = new THREE.LineBasicMaterial({ color: finalColor, linewidth: isEditing ? 3 : 1 })
+            const line = new THREE.Line(geometry, material)
+            this.pathVisualizer.add(line)
 
-            // Ghost Mesh Representation (Wireframe Box?)
-            // "quiero que quede la previzualizacion en el mapa cuando se coloque ... solo para saber de que forma va estar el objeto"
-            const ghostSize = new THREE.Vector3(1, 1, 1) // Default
-            if (this.editingObject.userData.originalScale) {
-                ghostSize.copy(this.editingObject.userData.originalScale)
-            } else {
-                const b = new THREE.Box3().setFromObject(this.editingObject)
-                b.getSize(ghostSize)
-            }
+            // Waypoints
+            seq.waypoints.forEach((wp) => {
+                const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
+                const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
+                const dotMat = new THREE.MeshBasicMaterial({ color: finalColor })
+                const dot = new THREE.Mesh(dotGeo, dotMat)
+                dot.position.copy(pos)
+                this.pathVisualizer.add(dot)
 
-            const ghostGeo = new THREE.BoxGeometry(ghostSize.x, ghostSize.y, ghostSize.z)
-            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, wireframe: true, transparent: true, opacity: 0.3 })
-            const ghost = new THREE.Mesh(ghostGeo, ghostMat)
-            ghost.position.copy(pos)
+                // Ghost (Only if editing?)
+                if (isEditing) {
+                    const ghostSize = new THREE.Vector3(1, 1, 1)
+                    if (obj.userData.originalScale) {
+                        ghostSize.copy(obj.userData.originalScale)
+                    } else {
+                        const b = new THREE.Box3().setFromObject(obj)
+                        b.getSize(ghostSize)
+                    }
 
-            if (wp.rotY !== undefined) {
-                ghost.rotation.y = wp.rotY
-            }
-
-            this.pathVisualizer.add(ghost)
+                    const ghostGeo = new THREE.BoxGeometry(ghostSize.x, ghostSize.y, ghostSize.z)
+                    const ghostMat = new THREE.MeshBasicMaterial({ color: finalColor, wireframe: true, transparent: true, opacity: 0.1 })
+                    const ghost = new THREE.Mesh(ghostGeo, ghostMat)
+                    ghost.position.copy(pos)
+                    if (wp.rotY !== undefined) ghost.rotation.y = wp.rotY
+                    this.pathVisualizer.add(ghost)
+                }
+            })
         })
-
-        this.pathVisualizer.add(line)
     }
 
     // --- UTILS ---

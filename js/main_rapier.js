@@ -1542,32 +1542,51 @@ class Game {
         const props = buttonObj.userData.logicProperties
         if (props.oneShot) props.triggered = true
 
-        if (props.targetUuid) {
-            // Find target object
-            if (this.sceneManager && this.sceneManager.scene) {
-                let targetObj = null
-                this.sceneManager.scene.traverse(o => {
-                    if (o.userData.uuid === props.targetUuid) targetObj = o
-                })
+        const signalId = buttonObj.userData.uuid
 
-                if (targetObj) {
-                    // Activate/Toggle Movement
-                    if (targetObj.userData.logicProperties && targetObj.userData.logicProperties.active !== undefined) {
-                        targetObj.userData.logicProperties.active = !targetObj.userData.logicProperties.active
-                        console.log("Target Toggled:", targetObj.userData.logicProperties.active)
-                    }
-                }
-            }
-        }
-
-        // --- REVERSE LINKING (Event Subscription) ---
+        // Find objects listening to this signal
         if (this.sceneManager && this.sceneManager.scene) {
             this.sceneManager.scene.traverse(obj => {
-                if (obj.userData && obj.userData.logicProperties && obj.userData.logicProperties.triggerButtonUuid === buttonObj.userData.uuid) {
-                    // Activate/Toggle Movement
-                    if (obj.userData.logicProperties.active !== undefined) {
+                // 1. Check for Sequences listening
+                if (obj.userData.logicProperties && obj.userData.logicProperties.sequences) {
+                    obj.userData.logicProperties.sequences.forEach(seq => {
+                        if (seq.triggerType === 'signal' && seq.triggerSignal === signalId) {
+                            seq.active = true // Activate
+                            // Reset state to restart
+                            seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0 }
+                            console.log(`Sequence '${seq.name}' activated on`, obj.userData.name)
+
+                            // Optional: If valid logic, ensure object is kinematic
+                            this.setObjectBodyType(obj, 'kinematic')
+                        }
+                    })
+                }
+
+                // 2. Legacy / Direct Target Support (Keep for backward compat or simple toggle)
+                // If the button EXPLICITLY targets this object (Old system)
+                if (props.targetUuid === obj.userData.uuid) {
+                    // Toggle "Active" on the object itself (Legacy global properties)
+                    // Or toggle the first sequence?
+                    if (obj.userData.logicProperties) {
+                        // If using sequences, toggle the first one?
+                        if (obj.userData.logicProperties.sequences && obj.userData.logicProperties.sequences.length > 0) {
+                            const seq = obj.userData.logicProperties.sequences[0]
+                            seq.active = !seq.active
+                        } else if (obj.userData.logicProperties.active !== undefined) {
+                            // Legacy
+                            obj.userData.logicProperties.active = !obj.userData.logicProperties.active
+                        }
+                    }
+                }
+
+                // 3. Reverse Link Legacy (EventSubscriptionLogic)
+                if (obj.userData.logicProperties && obj.userData.logicProperties.triggerButtonUuid === signalId) {
+                    // Toggle Active
+                    if (obj.userData.logicProperties.sequences && obj.userData.logicProperties.sequences.length > 0) {
+                        const seq = obj.userData.logicProperties.sequences[0]
+                        seq.active = !seq.active
+                    } else if (obj.userData.logicProperties.active !== undefined) {
                         obj.userData.logicProperties.active = !obj.userData.logicProperties.active
-                        console.log("Reverse Linked Logic Triggered:", obj.userData.mapObjectType)
                     }
                 }
             })
@@ -1579,104 +1598,164 @@ class Game {
         if (!this.sceneManager || !this.sceneManager.scene) return
 
         this.sceneManager.scene.children.forEach(obj => {
-            // Check if object has movement logic
-            if (obj.userData.logicProperties && obj.userData.logicProperties.waypoints && obj.userData.logicProperties.waypoints.length > 0) {
+            if (!obj.userData.logicProperties) return
 
-                // SKIP if currently being edited AND NOT PREVIEWING
+            // Handle Sequences
+            const sequences = obj.userData.logicProperties.sequences
+            // Also support legacy waypoints if migration didn't happen for some reason (runtime added?)
+            // But we prefer sequences.
+
+            if (sequences && sequences.length > 0) {
+                // Check for Editing Preview Override
                 if (this.constructionMenu && this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.editingObject === obj) {
-                    if (!obj.userData.logicProperties.isPreviewing) {
+                    // If we are editing this object, ONLY run if previewing
+                    if (!obj.userData.logicProperties.isPreviewing) return
+                }
+
+                // Iterate active sequences
+                // Note: If multiple are active, last one applies transform.
+                sequences.forEach(seq => {
+                    if (!seq.active) return
+                    if (!seq.waypoints || seq.waypoints.length === 0) return
+
+                    // Ensure State
+                    if (!seq.currentState) {
+                        seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0 }
+                    }
+                    const state = seq.currentState
+
+                    // Ensure Physics
+                    this.setObjectBodyType(obj, 'kinematic')
+                    if (!obj.userData.rigidBody) return
+
+                    const waypoints = seq.waypoints
+                    const idx = state.wpIndex
+                    const nextIdx = (idx + 1) % waypoints.length
+
+                    // Loop Check
+                    if (!seq.loop && nextIdx === 0 && idx === waypoints.length - 1) {
+                        // End of sequence
+                        // seq.active = false // Auto-stop? Or just stay at end? 
+                        // Let's stay at end.
                         return
                     }
-                }
 
-                const props = obj.userData.logicProperties
+                    const p1 = waypoints[idx]
+                    const p2 = waypoints[nextIdx]
 
-                if (!props.active) return
+                    // WAIT LOGIC
+                    // Check if p1 has a delay that we haven't satisfied?
+                    // Usually delay is "Wait at p1 before moving to p2" or "Wait at p2"?
+                    // Let's assume "delay" on a waypoint means "Wait here for X seconds before moving to next".
+                    // So we check p1.delay.
 
-                // Ensure Kinematic Body
-                this.setObjectBodyType(obj, 'kinematic')
+                    if (p1.delay > 0 && !state.waitingCompleted) {
+                        if (!state.waiting) {
+                            state.waiting = true
+                            state.waitTimer = 0
+                        }
+                        state.waitTimer += dt
+                        if (state.waitTimer < p1.delay) {
+                            // Still waiting
+                            // Snap to p1 to ensure stability
+                            obj.userData.rigidBody.setNextKinematicTranslation({ x: p1.x, y: p1.y, z: p1.z })
+                            obj.position.set(p1.x, p1.y, p1.z)
+                            return
+                        } else {
+                            // Done waiting
+                            state.waiting = false
+                            state.waitingCompleted = true // Flag to not wait again for this index iteration
+                        }
+                    }
 
-                if (!obj.userData.rigidBody) return
+                    // MOVEMENT
+                    const speed = seq.speed || 2.0
 
-                // State Init
-                if (obj.userData.currentWpIndex === undefined) {
-                    obj.userData.currentWpIndex = 0
-                    obj.userData.moveAlpha = 0
-                }
+                    // Teleport Check (p2.teleport)
+                    if (p2.teleport) {
+                        state.wpIndex = nextIdx
+                        state.moveAlpha = 0
+                        state.waitingCompleted = false
+                        // Teleport
+                        obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
+                        obj.position.set(p2.x, p2.y, p2.z)
+                        if (p2.rotY !== undefined) {
+                            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p2.rotY)
+                            obj.quaternion.copy(q)
+                            obj.userData.rigidBody.setNextKinematicRotation(q)
+                        }
+                        return
+                    }
 
-                const waypoints = props.waypoints
-                const idx = obj.userData.currentWpIndex
-                const nextIdx = (idx + 1) % waypoints.length // Loop wrap
+                    const dist = new THREE.Vector3(p1.x, p1.y, p1.z).distanceTo(new THREE.Vector3(p2.x, p2.y, p2.z))
 
-                // If loop is disabled and we reached end
-                if (!props.loop && nextIdx === 0 && idx === waypoints.length - 1) return
+                    if (dist < 0.05) {
+                        // Instant jump (very close points)
+                        state.wpIndex = nextIdx
+                        state.moveAlpha = 0
+                        state.waitingCompleted = false
+                        return
+                    }
 
-                const p1 = waypoints[idx]
-                const p2 = waypoints[nextIdx]
+                    const duration = dist / speed
+                    state.moveAlpha += dt / duration
 
-                const dist = new THREE.Vector3(p1.x, p1.y, p1.z).distanceTo(new THREE.Vector3(p2.x, p2.y, p2.z))
-                if (dist < 0.05) {
-                    // Instant jump or skip
-                    obj.userData.currentWpIndex = nextIdx
-                    obj.userData.moveAlpha = 0
-                    return
-                }
+                    if (state.moveAlpha >= 1.0) {
+                        // Arrived at p2
+                        state.moveAlpha = 0
+                        state.wpIndex = nextIdx
+                        state.waitingCompleted = false // Reset wait for the new current point (p2 becomes p1 next frame)
 
-                const speed = props.speed || 2.0
-                const duration = dist / speed // seconds
+                        // Snap
+                        obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
+                        obj.position.set(p2.x, p2.y, p2.z)
 
-                // Update Alpha
-                obj.userData.moveAlpha += dt / duration
+                        // Rot Snap
+                        if (p2.rotY !== undefined) {
+                            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p2.rotY)
+                            obj.quaternion.copy(q)
+                            obj.userData.rigidBody.setNextKinematicRotation(q)
+                        }
+                    } else {
+                        // Interpolate
+                        const a = state.moveAlpha
+                        const x = THREE.MathUtils.lerp(p1.x, p2.x, a)
+                        const y = THREE.MathUtils.lerp(p1.y, p2.y, a)
+                        const z = THREE.MathUtils.lerp(p1.z, p2.z, a)
 
-                if (obj.userData.moveAlpha >= 1.0) {
-                    // Arrived
-                    obj.userData.moveAlpha = 0
-                    obj.userData.currentWpIndex = nextIdx
+                        obj.userData.rigidBody.setNextKinematicTranslation({ x, y, z })
+                        obj.position.set(x, y, z)
 
-                    // Snap Physics & Visual
-                    obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
-                    obj.position.set(p2.x, p2.y, p2.z)
+                        // Rot Interpolation
+                        const r1 = (p1.rotY !== undefined) ? p1.rotY : (obj.userData.originalRotY || 0)
+                        const r2 = (p2.rotY !== undefined) ? p2.rotY : r1
 
-                    // Final Rotation Snap
-                    if (p2.rotY !== undefined) {
-                        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p2.rotY)
+                        let diff = r2 - r1
+                        while (diff > Math.PI) diff -= Math.PI * 2
+                        while (diff < -Math.PI) diff += Math.PI * 2
+
+                        const currentRot = r1 + diff * a
+                        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentRot)
                         obj.quaternion.copy(q)
                         obj.userData.rigidBody.setNextKinematicRotation(q)
                     }
-                } else {
-                    // Interpolate
-                    const a = obj.userData.moveAlpha
-                    const x = THREE.MathUtils.lerp(p1.x, p2.x, a)
-                    const y = THREE.MathUtils.lerp(p1.y, p2.y, a)
-                    const z = THREE.MathUtils.lerp(p1.z, p2.z, a)
+                })
 
-                    obj.userData.rigidBody.setNextKinematicTranslation({ x, y, z })
-                    obj.position.set(x, y, z)
-
-                    // Interpolate Rotation if available
-                    // Assume flat Y rotation for now. 
-                    // p1.rotY to p2.rotY
-                    // Handle undefined rotY (legacy)
-                    const r1 = (p1.rotY !== undefined) ? p1.rotY : obj.userData.originalRotY || 0 // Need to store base rotation?
-                    const r2 = (p2.rotY !== undefined) ? p2.rotY : r1
-
-                    // Shortest path interpolation for angle
-                    let diff = r2 - r1
-                    while (diff > Math.PI) diff -= Math.PI * 2
-                    while (diff < -Math.PI) diff += Math.PI * 2
-
-                    const currentRot = r1 + diff * a
-                    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), currentRot)
-
-                    // Combine with original base rotation (X/Z) if any? 
-                    // Usually map objects only rotate Y.
-                    // But if object was placed with X rotation (e.g. ramp), we should preserve it?
-                    // Physics body rotation is global.
-
-                    // Simple case: Just set rotation Y.
-                    obj.quaternion.copy(q)
-                    obj.userData.rigidBody.setNextKinematicRotation(q)
-                }
+            } else if (obj.userData.logicProperties.waypoints) {
+                // LEGACY SUPPORT (If sequences missing)
+                // Copy-paste of old logic but using local variables
+                // ... (omitted to encourage migration, but if needed we can fallback)
+                // Actually LogicSystem automatically migrates on Edit.
+                // But blindly running objects might not have been edited.
+                // Let's runtime migrate?
+                obj.userData.logicProperties.sequences = [{
+                    name: "Legacy Sequence",
+                    waypoints: obj.userData.logicProperties.waypoints,
+                    loop: obj.userData.logicProperties.loop,
+                    active: obj.userData.logicProperties.active,
+                    speed: obj.userData.logicProperties.speed
+                }]
+                // Next frame it will pick up the sequence logic.
             }
         })
     }
