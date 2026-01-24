@@ -14,29 +14,20 @@ export class LogicSequenceEditor {
         if (this.container) return this.container
 
         const div = document.createElement('div')
-        div.style.cssText = `
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 2000; display: none;
-            flex-direction: column; font-family: sans-serif;
-        `
+        div.id = 'logic-sequence-editor'
 
         // --- Header ---
         const header = document.createElement('div')
-        header.style.cssText = `
-            padding: 10px 20px; background: #222; border-bottom: 1px solid #444;
-            display: flex; justify-content: space-between; align-items: center;
-        `
+        header.className = 'lse-header'
 
         const title = document.createElement('div')
-        title.innerHTML = `<strong>Editor de Secuencia</strong> <span id="seq-editor-subtitle" style="color:#aaa; font-size:12px;"></span>`
+        title.className = 'lse-title'
+        title.innerHTML = `Editor de Secuencia <span id="seq-editor-subtitle" class="lse-subtitle"></span>`
         header.appendChild(title)
 
         const closeBtn = document.createElement('button')
         closeBtn.textContent = "Cerrar & Guardar"
-        closeBtn.style.cssText = `
-            background: #444; color: white; border: 1px solid #666; 
-            padding: 5px 10px; cursor: pointer; border-radius: 4px;
-        `
+        closeBtn.className = 'lse-close-btn'
         closeBtn.onclick = () => this.close()
         header.appendChild(closeBtn)
 
@@ -44,18 +35,18 @@ export class LogicSequenceEditor {
 
         // --- Main Content (Split View) ---
         const content = document.createElement('div')
-        content.style.cssText = `flex: 1; display: flex; overflow: hidden;`
+        content.className = 'lse-content'
         div.appendChild(content)
 
         // LEFT: Properties & Triggers
         const sidebar = document.createElement('div')
-        sidebar.style.cssText = `width: 300px; background: #1a1a1a; border-right: 1px solid #333; padding: 15px; overflow-y: auto;`
+        sidebar.className = 'lse-sidebar'
         sidebar.id = "seq-editor-sidebar"
         content.appendChild(sidebar)
 
         // RIGHT: Timeline
         const timelineArea = document.createElement('div')
-        timelineArea.style.cssText = `flex: 1; background: #111; padding: 20px; overflow-y: auto; position: relative;`
+        timelineArea.className = 'lse-timeline'
         timelineArea.id = "seq-editor-timeline"
         content.appendChild(timelineArea)
 
@@ -110,14 +101,14 @@ export class LogicSequenceEditor {
         const seq = this.currentObject.userData.logicProperties.sequences[this.currentSeqIndex]
         if (!seq) return
 
-        this.subtitle.textContent = ` : ${seq.name}`
+        this.subtitle.textContent = `: ${seq.name}`
 
         // --- SIDEBAR ---
         this.sidebar.innerHTML = ""
 
         // 1. General Props
-        const propsHeader = document.createElement('div')
-        propsHeader.innerHTML = `<h4 style="margin:0 0 10px 0; color:#4db8ff;">Propiedades</h4>`
+        const propsHeader = document.createElement('h4')
+        propsHeader.textContent = "Propiedades"
         this.sidebar.appendChild(propsHeader)
 
         this.createInput(this.sidebar, seq, 'name', seq.name, 'text', 'Nombre')
@@ -126,8 +117,9 @@ export class LogicSequenceEditor {
         this.createInput(this.sidebar, seq, 'active', seq.active, 'boolean', 'Activo al Inicio')
 
         // 2. Triggers (Event Listeners)
-        const trigHeader = document.createElement('div')
-        trigHeader.innerHTML = `<h4 style="margin:20px 0 10px 0; color:#ffcc00;">Disparadores (Triggers)</h4>`
+        const trigHeader = document.createElement('h4')
+        trigHeader.textContent = "Disparadores (Triggers)"
+        trigHeader.style.marginTop = "20px"
         this.sidebar.appendChild(trigHeader)
 
         const trigDesc = document.createElement('div')
@@ -141,7 +133,8 @@ export class LogicSequenceEditor {
         row.innerHTML = `<div style="color:#aaa; font-size:12px; margin-bottom:4px;">Tipo de Disparador</div>`
 
         const select = document.createElement('select')
-        select.style.cssText = "width:100%; background:#222; color:white; padding:5px; border:1px solid #444; border-radius:4px;"
+        select.className = 'lse-input'
+        select.style.width = "100%"
         select.innerHTML = `
             <option value="none">Ninguno (Manual / Siempre Activo)</option>
             <option value="signal">Señal de Evento (Botón, etc)</option>
@@ -175,11 +168,8 @@ export class LogicSequenceEditor {
 
         // --- MAP 3D EDIT BUTTON ---
         const map3dBtn = document.createElement('button')
-        map3dBtn.textContent = "🗺️ Editar en Mapa 3D"
-        map3dBtn.style.cssText = `
-             width:100%; margin-top: 20px; padding: 10px; 
-             background: #0066cc; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 4px;
-        `
+        map3dBtn.textContent = "Editar en Mapa 3D"
+        map3dBtn.className = 'lse-map-btn'
         map3dBtn.onclick = () => {
             this.close() // Close editor
             // Trigger map edit mode for this sequence
@@ -194,32 +184,24 @@ export class LogicSequenceEditor {
         // Add Waypoint Button
         const addWpBtn = document.createElement('button')
         addWpBtn.textContent = "+ Agregar Punto (Capturar Actual)"
-        addWpBtn.style.cssText = `
-            position: sticky; top: 0; z-index: 10;
-            background: #0066cc; color: white; border: none; padding: 10px; 
-            width: 100%; font-weight: bold; cursor: pointer; margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        `
+        addWpBtn.className = 'lse-add-btn'
         addWpBtn.onclick = () => this.addWaypoint(seq)
         this.timeline.appendChild(addWpBtn)
 
         // Timeline Items
         seq.waypoints.forEach((wp, idx) => {
             const item = document.createElement('div')
-            item.style.cssText = `
-                background: #333; border-left: 4px solid #0066cc; margin-bottom: 10px;
-                padding: 10px; position: relative;
-            `
+            item.className = 'lse-item'
 
             // Header: #1 -> 2.5s Delay -> ...
             const header = document.createElement('div')
-            header.style.cssText = "display:flex; justify-content:space-between; margin-bottom:5px;"
+            header.className = 'lse-item-header'
             header.innerHTML = `<strong>Paso #${idx + 1}</strong> <span style='font-family:monospace; color:#aaa;'>[${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span>`
             item.appendChild(header)
 
             // Actions
             const actions = document.createElement('div')
-            actions.style.cssText = "display:flex; gap:10px; align-items:center;"
+            actions.className = 'lse-item-actions'
 
             // Delay Input
             const delayLabel = document.createElement('label')
@@ -300,15 +282,14 @@ export class LogicSequenceEditor {
 
     createInput(container, targetObj, key, val, type, labelText) {
         const row = document.createElement('div')
-        row.style.cssText = `display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom:8px;`
+        row.className = 'lse-input-row'
 
         const label = document.createElement('label')
+        label.className = 'lse-input-label'
         label.textContent = labelText || key
-        label.style.color = "#aaa"
-        label.style.fontSize = "12px"
 
         const input = document.createElement('input')
-        input.style.cssText = `background: #222; border: 1px solid #444; color: white; padding: 4px; border-radius: 4px; width: 60%; font-size:12px;`
+        input.className = 'lse-input'
 
         if (type === 'number') {
             input.type = "number"
@@ -337,3 +318,4 @@ export class LogicSequenceEditor {
         container.appendChild(row)
     }
 }
+
