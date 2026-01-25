@@ -116,56 +116,6 @@ export class LogicSequenceEditor {
         this.createInput(this.sidebar, seq, 'speed', seq.speed, 'number', 'Velocidad')
         this.createInput(this.sidebar, seq, 'active', seq.active, 'boolean', 'Activo al Inicio')
 
-        // 2. Triggers (Event Listeners)
-        const trigHeader = document.createElement('h4')
-        trigHeader.textContent = "Disparadores (Triggers)"
-        trigHeader.style.marginTop = "20px"
-        this.sidebar.appendChild(trigHeader)
-
-        const trigDesc = document.createElement('div')
-        trigDesc.style.cssText = "font-size:11px; color:#888; margin-bottom:10px; line-height:1.4;"
-        trigDesc.textContent = "Define qué evento inicia esta secuencia. Si 'Activo al Inicio' está apagado, la secuencia esperará esta señal."
-        this.sidebar.appendChild(trigDesc)
-
-        // Trigger Type Selector
-        const row = document.createElement('div')
-        row.style.cssText = `margin-bottom: 10px;`
-        row.innerHTML = `<div style="color:#aaa; font-size:12px; margin-bottom:4px;">Tipo de Disparador</div>`
-
-        const select = document.createElement('select')
-        select.className = 'lse-input'
-        select.style.width = "100%"
-        select.innerHTML = `
-            <option value="none">Ninguno (Manual / Siempre Activo)</option>
-            <option value="signal">Señal de Evento (Botón, etc)</option>
-        `
-        select.value = seq.triggerType || "none"
-        select.onchange = (e) => {
-            seq.triggerType = e.target.value
-            this.render() // Re-render to show/hide extra fields
-        }
-        row.appendChild(select)
-        this.sidebar.appendChild(row)
-
-        if (seq.triggerType === 'signal') {
-            // Signal ID / Button Link
-            const signalBox = document.createElement('div')
-            signalBox.style.cssText = "background:#2a2a2a; padding:10px; border-radius:4px; margin-top:5px;"
-
-            const linkStatus = document.createElement('div')
-            linkStatus.innerHTML = `Estado: <span style="color:${seq.triggerSignal ? '#0f0' : '#f44'}">${seq.triggerSignal ? "Vinculado" : "Sin Vínculo"}</span>`
-            linkStatus.style.cssText = "font-size:11px; margin-bottom:5px;"
-            signalBox.appendChild(linkStatus)
-
-            const pickBtn = document.createElement('button')
-            pickBtn.textContent = "Vincular a Botón"
-            pickBtn.style.cssText = "width:100%; background:#444; color:white; border:none; padding:4px; cursor:pointer; font-size:11px;"
-            pickBtn.onclick = () => this.pickTriggerObject(seq)
-            signalBox.appendChild(pickBtn)
-
-            this.sidebar.appendChild(signalBox)
-        }
-
         // --- MAP 3D EDIT BUTTON ---
         const map3dBtn = document.createElement('button')
         map3dBtn.textContent = "Editar en Mapa 3D"
@@ -181,60 +131,102 @@ export class LogicSequenceEditor {
         // --- TIMELINE ---
         this.timeline.innerHTML = ""
 
+        // Wrapper for buttons
+        const btnWrapper = document.createElement('div')
+        btnWrapper.style.cssText = "display: flex; gap: 10px; margin-bottom: 20px;"
+
         // Add Waypoint Button
         const addWpBtn = document.createElement('button')
-        addWpBtn.textContent = "+ Agregar Punto (Capturar Actual)"
+        addWpBtn.textContent = "+ Punto (Posición)"
         addWpBtn.className = 'lse-add-btn'
+        addWpBtn.style.marginBottom = "0"
+        addWpBtn.style.flex = "1"
         addWpBtn.onclick = () => this.addWaypoint(seq)
-        this.timeline.appendChild(addWpBtn)
+        btnWrapper.appendChild(addWpBtn)
+
+        // Add Signal Wait Button
+        const addSigBtn = document.createElement('button')
+        addSigBtn.textContent = "+ Señal de Botón"
+        addSigBtn.className = 'lse-add-btn'
+        addSigBtn.style.background = "#cc7700"
+        addSigBtn.style.marginBottom = "0"
+        addSigBtn.style.flex = "1"
+        addSigBtn.onclick = () => this.showButtonSelector(seq)
+        btnWrapper.appendChild(addSigBtn)
+
+        this.timeline.appendChild(btnWrapper)
 
         // Timeline Items
         seq.waypoints.forEach((wp, idx) => {
             const item = document.createElement('div')
             item.className = 'lse-item'
 
-            // Header: #1 -> 2.5s Delay -> ...
-            const header = document.createElement('div')
-            header.className = 'lse-item-header'
-            header.innerHTML = `<strong>Paso #${idx + 1}</strong> <span style='font-family:monospace; color:#aaa;'>[${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span>`
-            item.appendChild(header)
+            if (wp.type === 'wait_signal') {
+                item.style.borderLeftColor = "#cc7700"
+                item.innerHTML = `
+                    <div class="lse-item-header">
+                        <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal</span>
+                    </div>
+                    <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
+                        Botón: <span style="color:white; font-weight:bold;">${wp.signalName || "Desconocido"}</span>
+                    </div>
+                `
+                // Delete Btn
+                const delBtn = document.createElement('button')
+                delBtn.textContent = "🗑"
+                delBtn.style.cssText = "float:right; background:none; border:none; cursor:pointer; font-size:14px; margin-top:-20px;"
+                delBtn.onclick = () => {
+                    seq.waypoints.splice(idx, 1)
+                    this.render()
+                    this.logicSystem.updateVisualization()
+                }
+                item.appendChild(delBtn)
 
-            // Actions
-            const actions = document.createElement('div')
-            actions.className = 'lse-item-actions'
+            } else {
+                // Standard Waypoint
+                // Header: #1 -> 2.5s Delay -> ...
+                const header = document.createElement('div')
+                header.className = 'lse-item-header'
+                header.innerHTML = `<strong>Paso #${idx + 1}</strong> <span style='font-family:monospace; color:#aaa;'>[${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span>`
+                item.appendChild(header)
 
-            // Delay Input
-            const delayLabel = document.createElement('label')
-            delayLabel.textContent = "Espera (s): "
-            delayLabel.style.fontSize = "12px"
-            const delayInput = document.createElement('input')
-            delayInput.type = "number"
-            delayInput.value = wp.delay || 0
-            delayInput.style.cssText = "width:50px; background:#222; border:1px solid #444; color:white; font-size:12px;"
-            delayInput.onchange = (e) => wp.delay = parseFloat(e.target.value)
+                // Actions
+                const actions = document.createElement('div')
+                actions.className = 'lse-item-actions'
 
-            actions.appendChild(delayLabel)
-            actions.appendChild(delayInput)
+                // Delay Input
+                const delayLabel = document.createElement('label')
+                delayLabel.textContent = "Espera (s): "
+                delayLabel.style.fontSize = "12px"
+                const delayInput = document.createElement('input')
+                delayInput.type = "number"
+                delayInput.value = wp.delay || 0
+                delayInput.style.cssText = "width:50px; background:#222; border:1px solid #444; color:white; font-size:12px;"
+                delayInput.onchange = (e) => wp.delay = parseFloat(e.target.value)
 
-            // Teleport Flag?
-            const tpLabel = document.createElement('label')
-            tpLabel.innerHTML = `<input type="checkbox" ${wp.teleport ? 'checked' : ''}> Teleport`
-            tpLabel.style.fontSize = "12px"
-            tpLabel.querySelector('input').onchange = (e) => wp.teleport = e.target.checked
-            actions.appendChild(tpLabel)
+                actions.appendChild(delayLabel)
+                actions.appendChild(delayInput)
 
-            // Delete
-            const delBtn = document.createElement('button')
-            delBtn.textContent = "🗑"
-            delBtn.style.cssText = "margin-left:auto; background:none; border:none; cursor:pointer; font-size:14px;"
-            delBtn.onclick = () => {
-                seq.waypoints.splice(idx, 1)
-                this.render()
-                this.logicSystem.updateVisualization()
+                // Teleport Flag?
+                const tpLabel = document.createElement('label')
+                tpLabel.innerHTML = `<input type="checkbox" ${wp.teleport ? 'checked' : ''}> Teleport`
+                tpLabel.style.fontSize = "12px"
+                tpLabel.querySelector('input').onchange = (e) => wp.teleport = e.target.checked
+                actions.appendChild(tpLabel)
+
+                // Delete
+                const delBtn = document.createElement('button')
+                delBtn.textContent = "🗑"
+                delBtn.style.cssText = "margin-left:auto; background:none; border:none; cursor:pointer; font-size:14px;"
+                delBtn.onclick = () => {
+                    seq.waypoints.splice(idx, 1)
+                    this.render()
+                    this.logicSystem.updateVisualization()
+                }
+                actions.appendChild(delBtn)
+
+                item.appendChild(actions)
             }
-            actions.appendChild(delBtn)
-
-            item.appendChild(actions)
             this.timeline.appendChild(item)
         })
     }
@@ -242,6 +234,7 @@ export class LogicSequenceEditor {
     addWaypoint(seq) {
         // Capture current transform of the object
         const wp = {
+            type: 'move',
             x: this.currentObject.position.x,
             y: this.currentObject.position.y,
             z: this.currentObject.position.z,
@@ -254,30 +247,90 @@ export class LogicSequenceEditor {
         this.logicSystem.updateVisualization()
     }
 
-    pickTriggerObject(seq) {
-        if (this.game.constructionMenu) {
-            // Temporarily hide editor? Or just use alert
-            this.container.style.display = 'none' // Hide to see
-            alert("Selecciona el BOTÓN que activará esta secuencia (Click Derecho).")
+    showButtonSelector(seq) {
+        // Create a modal list of buttons on top of existing UI
+        const overlay = document.createElement('div')
+        overlay.style.cssText = `
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8); z-index: 2100;
+            display: flex; justify-content: center; align-items: center;
+        `
 
-            this.game.constructionMenu.isPickingTarget = true
-            this.game.constructionMenu.pickingController = this.currentObject
-            this.game.constructionMenu.pickingCallback = (selectedObj) => {
-                if (selectedObj.userData.mapObjectType === 'interaction_button') {
-                    seq.triggerSignal = selectedObj.userData.uuid // Use UUID as signal ID
-                    alert("Vinculado correctamente!")
-                } else {
-                    alert("¡Debes seleccionar un Botón!")
+        const panel = document.createElement('div')
+        panel.style.cssText = `
+            background: #222; border: 2px solid #444; border-radius: 8px;
+            width: 300px; max-height: 80%; padding: 20px;
+            display: flex; flex-direction: column; gap: 10px;
+        `
+
+        const title = document.createElement('h3')
+        title.textContent = "Selecciona un Botón"
+        title.style.margin = "0 0 10px 0"
+        title.style.textAlign = "center"
+        panel.appendChild(title)
+
+        const list = document.createElement('div')
+        list.style.cssText = "overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 5px;"
+
+        // Find buttons using LogicSystem's helper or manually
+        // We need Scene reference
+        const buttons = []
+        if (this.game.sceneManager && this.game.sceneManager.scene) {
+            this.game.sceneManager.scene.traverse(obj => {
+                if (obj.userData && obj.userData.mapObjectType === 'interaction_button') {
+                    buttons.push(obj)
                 }
-                // Re-open editor
-                this.container.style.display = 'flex'
-                this.render()
-
-                // Clear picking mode
-                this.game.constructionMenu.isPickingTarget = false
-                this.game.constructionMenu.pickingCallback = null
-            }
+            })
         }
+
+        if (buttons.length === 0) {
+            list.innerHTML = "<div style='color:#666; text-align:center;'>No hay botones en la escena.</div>"
+        } else {
+            buttons.forEach(btn => {
+                const row = document.createElement('button')
+                // Name or ID
+                const name = btn.userData.logicProperties && btn.userData.logicProperties.name
+                    ? btn.userData.logicProperties.name
+                    : "Botón Sin Nombre"
+                const uuid = btn.userData.uuid.substring(0, 5)
+
+                row.textContent = `${name} (${uuid})`
+                row.style.cssText = `
+                    background: #333; color: white; border: 1px solid #444;
+                    padding: 8px; text-align: left; cursor: pointer; border-radius: 4px;
+                `
+                row.onmouseover = () => row.style.background = "#444"
+                row.onmouseout = () => row.style.background = "#333"
+
+                row.onclick = () => {
+                    // Add Wait Step
+                    seq.waypoints.push({
+                        type: 'wait_signal',
+                        signalId: btn.userData.uuid,
+                        signalName: name,
+                        // Capture current transform so interpolator has a valid target
+                        x: this.currentObject.position.x,
+                        y: this.currentObject.position.y,
+                        z: this.currentObject.position.z,
+                        rotY: this.currentObject.rotation.y
+                    })
+                    this.render()
+                    this.logicSystem.updateVisualization()
+                    document.body.removeChild(overlay)
+                }
+                list.appendChild(row)
+            })
+        }
+        panel.appendChild(list)
+
+        const cancelBtn = document.createElement('button')
+        cancelBtn.textContent = "Cancelar"
+        cancelBtn.style.cssText = "padding: 8px; background: #666; border: none; color: white; cursor: pointer; border-radius: 4px; margin-top: 10px;"
+        cancelBtn.onclick = () => document.body.removeChild(overlay)
+        panel.appendChild(cancelBtn)
+
+        overlay.appendChild(panel)
+        document.body.appendChild(overlay)
     }
 
     createInput(container, targetObj, key, val, type, labelText) {

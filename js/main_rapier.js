@@ -1559,6 +1559,18 @@ class Game {
                             // Optional: If valid logic, ensure object is kinematic
                             this.setObjectBodyType(obj, 'kinematic')
                         }
+
+                        // Check for 'wait_signal' steps in active sequences
+                        if (seq.active && seq.currentState) {
+                            const currentIdx = seq.currentState.wpIndex
+                            if (seq.waypoints && seq.waypoints.length > currentIdx) {
+                                const step = seq.waypoints[currentIdx]
+                                if (step.type === 'wait_signal' && step.signalId === signalId) {
+                                    seq.currentState.signalReceived = true
+                                    console.log(`Signal received for step ${currentIdx} in sequence '${seq.name}'`)
+                                }
+                            }
+                        }
                     })
                 }
 
@@ -1668,17 +1680,57 @@ class Game {
                         }
                     }
 
+                    // signal wait logic
+                    if (p1.type === 'wait_signal' && !state.signalReceived) {
+                        // Stay at p1 until signal received
+                        if (p1.x !== undefined) {
+                            obj.userData.rigidBody.setNextKinematicTranslation({ x: p1.x, y: p1.y, z: p1.z })
+                            obj.position.set(p1.x, p1.y, p1.z)
+                        }
+                        return
+                    } else if (p1.type === 'wait_signal' && state.signalReceived) {
+                        // Proceed immediately to next step?
+                        // If p1 is purely a logic step, it might not have coordinates (it effectively uses prev pos).
+                        // If it has coordinates, we are already there (logic above handles snap).
+                        // We just allow the code to flow to movement interpolation? 
+                        // But if p1 == p2 (wait step implies 0 distance usually if reusing position), dist < 0.05 check handles jump.
+
+                        // We need to clear the signal flag for the *next* loop, BUT we need to ensure we don't clear it before we actually "leave" this step.
+                        // The logic below sets `wpIndex = nextIdx` when `moveAlpha >= 1`.
+                        // We should clear `signalReceived` when we switch index.
+                    }
+
                     // MOVEMENT
                     const speed = seq.speed || 2.0
+
+                    // Safe P1 (Start Point)
+                    const startPos = new THREE.Vector3()
+                    if (p1.x !== undefined) {
+                        startPos.set(p1.x, p1.y, p1.z)
+                    } else {
+                        // Fallback to object position if P1 is a logic step without coords
+                        startPos.copy(obj.position)
+                    }
+
+                    // Safe P2 (End Point)
+                    const endPos = new THREE.Vector3()
+                    if (p2.x !== undefined) {
+                        endPos.set(p2.x, p2.y, p2.z)
+                    } else {
+                        endPos.copy(startPos)
+                    }
 
                     // Teleport Check (p2.teleport)
                     if (p2.teleport) {
                         state.wpIndex = nextIdx
                         state.moveAlpha = 0
                         state.waitingCompleted = false
+                        state.signalReceived = false
                         // Teleport
-                        obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
-                        obj.position.set(p2.x, p2.y, p2.z)
+                        if (p2.x !== undefined) {
+                            obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
+                            obj.position.set(p2.x, p2.y, p2.z)
+                        }
                         if (p2.rotY !== undefined) {
                             const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p2.rotY)
                             obj.quaternion.copy(q)
@@ -1687,13 +1739,14 @@ class Game {
                         return
                     }
 
-                    const dist = new THREE.Vector3(p1.x, p1.y, p1.z).distanceTo(new THREE.Vector3(p2.x, p2.y, p2.z))
+                    const dist = startPos.distanceTo(endPos)
 
                     if (dist < 0.05) {
                         // Instant jump (very close points)
                         state.wpIndex = nextIdx
                         state.moveAlpha = 0
                         state.waitingCompleted = false
+                        state.signalReceived = false
                         return
                     }
 
@@ -1705,10 +1758,13 @@ class Game {
                         state.moveAlpha = 0
                         state.wpIndex = nextIdx
                         state.waitingCompleted = false // Reset wait for the new current point (p2 becomes p1 next frame)
+                        state.signalReceived = false // Reset signal flag
 
                         // Snap
-                        obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
-                        obj.position.set(p2.x, p2.y, p2.z)
+                        if (p2.x !== undefined) {
+                            obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
+                            obj.position.set(p2.x, p2.y, p2.z)
+                        }
 
                         // Rot Snap
                         if (p2.rotY !== undefined) {
@@ -1719,9 +1775,9 @@ class Game {
                     } else {
                         // Interpolate
                         const a = state.moveAlpha
-                        const x = THREE.MathUtils.lerp(p1.x, p2.x, a)
-                        const y = THREE.MathUtils.lerp(p1.y, p2.y, a)
-                        const z = THREE.MathUtils.lerp(p1.z, p2.z, a)
+                        const x = THREE.MathUtils.lerp(startPos.x, endPos.x, a)
+                        const y = THREE.MathUtils.lerp(startPos.y, endPos.y, a)
+                        const z = THREE.MathUtils.lerp(startPos.z, endPos.z, a)
 
                         obj.userData.rigidBody.setNextKinematicTranslation({ x, y, z })
                         obj.position.set(x, y, z)
