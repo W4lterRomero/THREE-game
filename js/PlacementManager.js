@@ -679,7 +679,8 @@ export class PlacementManager {
             this.ghostBoxMesh.scale.copy(size)
         }
 
-        this.ghostBaseMat.color.setHex(0x0088ff) // Logic Color
+        this.ghostBaseMat.color.setHex(0x0000FF) // Logic Color (BLUE)
+        this.ghostBaseMat.opacity = 0.5 // Higher opacity
 
         // Raycast logic
         const raycaster = new THREE.Raycaster()

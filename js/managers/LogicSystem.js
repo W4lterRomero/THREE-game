@@ -315,6 +315,8 @@ export class LogicSystem {
 
         // Show Toolbar
         this.toolbar.show()
+        // AUTO-SELECT WAYPOINT TOOL
+        this.toolbar.setActiveTool('waypoint')
 
         // Visualizers
         this.updateVisualization()
