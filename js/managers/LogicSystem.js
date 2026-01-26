@@ -407,19 +407,28 @@ export class LogicSystem {
             // but effectively the path is relative to where it starts.
             points.push(obj.position.clone())
 
-            seq.waypoints.forEach(wp => points.push(new THREE.Vector3(wp.x, wp.y, wp.z)))
+            seq.waypoints.forEach(wp => {
+                if (wp.x !== undefined && wp.y !== undefined && wp.z !== undefined) {
+                    points.push(new THREE.Vector3(wp.x, wp.y, wp.z))
+                }
+            })
 
-            if (seq.loop) {
+            if (seq.loop && points.length > 0) {
                 points.push(obj.position.clone())
             }
 
-            const geometry = new THREE.BufferGeometry().setFromPoints(points)
-            const material = new THREE.LineBasicMaterial({ color: finalColor, linewidth: isEditing ? 3 : 1 })
-            const line = new THREE.Line(geometry, material)
-            this.pathVisualizer.add(line)
+            if (points.length > 1) {
+                const geometry = new THREE.BufferGeometry().setFromPoints(points)
+                const material = new THREE.LineBasicMaterial({ color: finalColor, linewidth: isEditing ? 3 : 1 })
+                const line = new THREE.Line(geometry, material)
+                this.pathVisualizer.add(line)
+            }
 
             // Waypoints
             seq.waypoints.forEach((wp) => {
+                // SKIP LOGIC STEPS (No Position)
+                if (wp.x === undefined || wp.y === undefined || wp.z === undefined) return;
+
                 const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
                 const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
                 const dotMat = new THREE.MeshBasicMaterial({ color: finalColor })

@@ -307,12 +307,7 @@ export class LogicSequenceEditor {
                     seq.waypoints.push({
                         type: 'wait_signal',
                         signalId: btn.userData.uuid,
-                        signalName: name,
-                        // Capture current transform so interpolator has a valid target
-                        x: this.currentObject.position.x,
-                        y: this.currentObject.position.y,
-                        z: this.currentObject.position.z,
-                        rotY: this.currentObject.rotation.y
+                        signalName: name
                     })
                     this.render()
                     this.logicSystem.updateVisualization()
