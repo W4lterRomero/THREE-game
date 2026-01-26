@@ -453,7 +453,9 @@ export class MapObjectItem extends Item {
         object3D.userData.isMapObject = true
         object3D.userData.mapObjectType = this.type
         // Save UUID if provided (from constructor), else one will need to be generated if missing
-        object3D.userData.uuid = this.uuid || THREE.MathUtils.generateUUID()
+        // ALWAYS generate a new UUID for the object instance in the world to ensure uniqueness.
+        // The Item's uuid (this.uuid) is the ID of the TOOL, not the object instance.
+        object3D.userData.uuid = THREE.MathUtils.generateUUID()
         object3D.userData.originalUUID = object3D.userData.uuid // Keep original if needed
         object3D.userData.color = this.color
         object3D.userData.originalScale = this.scale
