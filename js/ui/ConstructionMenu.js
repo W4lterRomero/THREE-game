@@ -1206,20 +1206,37 @@ export class ConstructionMenu {
 
             objs.forEach((obj, index) => {
                 const itemRow = document.createElement('div')
-                itemRow.textContent = `Objeto #${index + 1}`
-                itemRow.style.cssText = `padding: 6px; background: #2a2a2a; cursor: pointer; border-radius: 4px; font-size: 14px;`
+
+                // Determine Name: Use signalName if available, otherwise name, otherwise default
+                let displayName = `Objeto #${index + 1}`
+                if (obj.userData.logicProperties) {
+                    if (obj.userData.logicProperties.signalName) displayName = obj.userData.logicProperties.signalName
+                    else if (obj.userData.logicProperties.name) displayName = obj.userData.logicProperties.name
+                }
+
+                itemRow.textContent = displayName
+                itemRow.style.cssText = `padding: 6px; background: #2a2a2a; cursor: pointer; border-radius: 4px; font-size: 14px; user-select: none;`
 
                 // Pre-highlight if selected
                 if (this.selectedLogicObject === obj) {
                     itemRow.style.background = "#555"
                 }
 
-                itemRow.onmouseover = () => itemRow.style.background = "#444"
+                itemRow.onmouseover = () => {
+                    // Don't change if currently editing (input exists)
+                    if (itemRow.querySelector('input')) return
+                    itemRow.style.background = "#444"
+                }
                 itemRow.onmouseout = () => {
+                    if (itemRow.querySelector('input')) return
                     if (this.selectedLogicObject !== obj) itemRow.style.background = "#2a2a2a"
                     else itemRow.style.background = "#555"
                 }
-                itemRow.onclick = () => {
+
+                // Single Click: Select
+                itemRow.onclick = (e) => {
+                    if (itemRow.querySelector('input')) return // Ignore if editing
+
                     // Visual Selection
                     const allRows = this.logicTreePanel.querySelectorAll('div div')
                     allRows.forEach(r => r.style.background = "#2a2a2a")
@@ -1227,6 +1244,63 @@ export class ConstructionMenu {
 
                     this.selectedLogicObject = obj
                     this.renderLogicProperties(obj)
+                }
+
+                // Double Click: Rename
+                itemRow.ondblclick = (e) => {
+                    e.stopPropagation()
+
+                    // Create Input
+                    const input = document.createElement('input')
+                    input.type = 'text'
+                    input.value = displayName
+                    input.style.cssText = `
+                        width: 100%; 
+                        background: #111; 
+                        color: white; 
+                        border: 1px solid #00FF00; 
+                        padding: 2px 4px; 
+                        font-size: 14px; 
+                        border-radius: 2px;
+                        outline: none;
+                    `
+
+                    // Replace content
+                    itemRow.textContent = ''
+                    itemRow.appendChild(input)
+                    input.focus()
+                    // Select all text
+                    input.select()
+
+                    // Prevent click propagation from input so it doesn't trigger row onClick
+                    input.onclick = (ev) => ev.stopPropagation()
+
+                    const confirm = () => {
+                        let newName = input.value.trim()
+                        if (!newName) newName = `Objeto #${index + 1}`
+
+                        // Update Logic Props
+                        if (!obj.userData.logicProperties) obj.userData.logicProperties = {}
+
+                        // Set requested properties
+                        obj.userData.logicProperties.signalName = newName
+                        obj.userData.logicProperties.name = newName
+
+                        // Refresh to show new name and restore UI
+                        this.refreshLogicList()
+
+                        // Refresh properties panel if currently selected
+                        if (this.selectedLogicObject === obj) {
+                            this.renderLogicProperties(obj)
+                        }
+                    }
+
+                    input.onblur = confirm
+                    input.onkeydown = (ev) => {
+                        if (ev.key === 'Enter') {
+                            confirm()
+                        }
+                    }
                 }
 
                 list.appendChild(itemRow)
