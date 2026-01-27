@@ -200,15 +200,18 @@ export class MapObjectItem extends Item {
     }
 
     spawnObjectFromData(scene, world, pos, rot) {
-        // rot is Euler or Quaternion? JSON usually stores Euler or Quat components.
-        // Assuming Euler based on original code mesh.rotation.set()
-        const position = new THREE.Vector3(pos.x, pos.y, pos.z)
-        const rotation = new THREE.Euler(rot._x, rot._y, rot._z) // Reconstruct Euler if needed, or assume passed object is Euler-like
+        // Fix: Use .x .y .z from saved JSON (which matches saveMap structure), fallback to _x if raw Euler stored
+        const rx = rot.x !== undefined ? rot.x : rot._x
+        const ry = rot.y !== undefined ? rot.y : rot._y
+        const rz = rot.z !== undefined ? rot.z : rot._z
 
-        this.createObjectInWorld(scene, world, position, rotation)
+        const position = new THREE.Vector3(pos.x, pos.y, pos.z)
+        const rotation = new THREE.Euler(rx, ry, rz)
+
+        this.createObjectInWorld(scene, world, position, rotation, true)
     }
 
-    createObjectInWorld(scene, world, position, rotation) {
+    createObjectInWorld(scene, world, position, rotation, isCenterPosition = false) {
         let object3D
         const collidersDesc = []
 
@@ -369,7 +372,8 @@ export class MapObjectItem extends Item {
         object3D.position.copy(position)
         // Center Y Adjust: object origin is center. 
         // We want placement on ground. So move up by Half Height.
-        if (this.type !== 'interaction_button') {
+        // BUT if loading from data (isCenterPosition), the position is ALREADY the center.
+        if (this.type !== 'interaction_button' && !isCenterPosition) {
             object3D.position.y += this.scale.y / 2
         }
 

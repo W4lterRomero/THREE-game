@@ -1,114 +1,86 @@
 {
     "gameVersion": "1.0",
-    "timestamp": 1769480901453,
+    "timestamp": 1769488829080,
     "objects": [
         {
-            "type": "interaction_button",
-            "color": 16711680,
+            "type": "pillar",
+            "color": 16777215,
             "originalScale": {
-                "x": 1,
-                "y": 1,
-                "z": 1
+                "x": 2,
+                "y": 10,
+                "z": 2
             },
             "pos": {
-                "x": 0.8240137094698419,
-                "y": 8.881784197001252e-16,
-                "z": 1.2679403933195212
+                "x": -0.0844016603829949,
+                "y": 4.999999999999999,
+                "z": 1.7704446964047007
             },
             "rot": {
                 "x": 0,
                 "y": 0,
                 "z": 0
             },
-            "logicProperties": {
-                "holdTime": 1,
-                "oneShot": false,
-                "targetUuid": null,
-                "triggered": false,
-                "_currentHoldTime": 0,
-                "signalName": "EEEE",
-                "name": "EEEE"
-            }
+            "uuid": "d3e60795-460a-4e27-a7bf-a65eb2249b5e"
         },
         {
-            "type": "interaction_button",
-            "color": 16711680,
+            "type": "wall",
+            "color": 16777215,
             "originalScale": {
                 "x": 1,
                 "y": 1,
                 "z": 1
             },
             "pos": {
-                "x": 2.1433736402695613,
-                "y": 1.0597604144561025e-15,
-                "z": -0.7727366076465052
-            },
-            "rot": {
-                "x": 2.220446049250313e-16,
-                "y": 0,
-                "z": 0
-            },
-            "logicProperties": {
-                "holdTime": 1,
-                "oneShot": false,
-                "targetUuid": null,
-                "triggered": false,
-                "_currentHoldTime": 0,
-                "signalName": "OBJETO E",
-                "name": "OBJETO E"
-            }
-        },
-        {
-            "type": "interaction_button",
-            "color": 16711680,
-            "originalScale": {
-                "x": 1,
-                "y": 1,
-                "z": 1
-            },
-            "pos": {
-                "x": 2.848792018952974,
-                "y": 8.881784197001252e-16,
-                "z": -2.6086271503497698
+                "x": -4.5,
+                "y": 0.5,
+                "z": 4.5
             },
             "rot": {
                 "x": 0,
                 "y": 0,
                 "z": 0
             },
-            "logicProperties": {
-                "holdTime": 1,
-                "oneShot": false,
-                "targetUuid": null,
-                "triggered": false,
-                "_currentHoldTime": 0
-            }
+            "uuid": "6de6971f-4bfd-4e4a-a296-057e856ed7ef"
         },
         {
-            "type": "interaction_button",
-            "color": 16711680,
+            "type": "wall",
+            "color": 16777215,
             "originalScale": {
                 "x": 1,
                 "y": 1,
                 "z": 1
             },
             "pos": {
-                "x": 3.473526723704532,
-                "y": 8.881784197001252e-16,
-                "z": -4.238465690792467
+                "x": -8.5,
+                "y": 0.5,
+                "z": 4.5
             },
             "rot": {
                 "x": 0,
                 "y": 0,
                 "z": 0
             },
-            "logicProperties": {
-                "holdTime": 1,
-                "oneShot": false,
-                "targetUuid": null,
-                "triggered": false,
-                "_currentHoldTime": 0
-            }
+            "uuid": "d1695429-03e5-42fa-90ce-1c64745d7ba7"
+        },
+        {
+            "type": "wall",
+            "color": 16777215,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": -11.5,
+                "y": 0.499999999999999,
+                "z": 4.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "uuid": "1e43b09d-f4e8-41c4-b9c1-33231e6960ee"
         },
         {
             "type": "pillar",
@@ -119,88 +91,56 @@
                 "z": 2
             },
             "pos": {
-                "x": 6.110990174147555,
-                "y": 5.000000000000001,
-                "z": -3.5287995700816053
+                "x": -17,
+                "y": 4.999999999999999,
+                "z": 5
             },
             "rot": {
                 "x": 0,
                 "y": 0,
                 "z": 0
             },
-            "logicProperties": {
-                "waypoints": [
-                    {
-                        "x": 6.439572072836655,
-                        "y": 5.000000000000001,
-                        "z": -6.82626895980009,
-                        "rotY": 0,
-                        "delay": 0,
-                        "teleport": false
-                    },
-                    {
-                        "x": 5.1952361519944805,
-                        "y": 5,
-                        "z": 5.661210191894117,
-                        "delay": 0,
-                        "rotY": 0
-                    },
-                    {
-                        "type": "wait_signal",
-                        "signalId": "5a479530-3cac-432a-afe5-85b1369fc1d2",
-                        "signalName": "EEEE"
-                    }
-                ],
-                "speed": 2,
-                "loop": true,
-                "active": true,
-                "sequences": [
-                    {
-                        "name": "Secuencia Principal",
-                        "waypoints": [
-                            {
-                                "x": 6.439572072836655,
-                                "y": 5.000000000000001,
-                                "z": -6.82626895980009,
-                                "rotY": 0,
-                                "delay": 0,
-                                "teleport": false
-                            },
-                            {
-                                "x": 5.1952361519944805,
-                                "y": 5,
-                                "z": 5.661210191894117,
-                                "delay": 0,
-                                "rotY": 0
-                            },
-                            {
-                                "type": "wait_signal",
-                                "signalId": "5a479530-3cac-432a-afe5-85b1369fc1d2",
-                                "signalName": "EEEE"
-                            }
-                        ],
-                        "loop": true,
-                        "active": true,
-                        "speed": 2,
-                        "currentState": {
-                            "wpIndex": 0,
-                            "moveAlpha": 0.264062053650845,
-                            "waiting": false,
-                            "waitTimer": 0,
-                            "segmentStart": {
-                                "x": 6.439572072836655,
-                                "y": 5.000000000000001,
-                                "z": -6.82626895980009
-                            },
-                            "waitingCompleted": false,
-                            "signalReceived": false
-                        }
-                    }
-                ],
-                "signalName": "S",
-                "name": "S",
-                "isPreviewing": false
-            }
+            "uuid": "5124ecf3-7a00-4460-a958-e0b57b5ad312"
+        },
+        {
+            "type": "stairs",
+            "color": 16777215,
+            "originalScale": {
+                "x": 4,
+                "y": 2,
+                "z": 4
+            },
+            "pos": {
+                "x": -21,
+                "y": 1.0000000000000009,
+                "z": 4
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "uuid": "f2e5c42b-4a98-4378-b286-dfe2a6710996"
+        },
+        {
+            "type": "wall",
+            "color": 16777215,
+            "originalScale": {
+                "x": 5,
+                "y": 0.5,
+                "z": 5
+            },
+            "pos": {
+                "x": -27.5,
+                "y": 0.25,
+                "z": 4.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "uuid": "30ec6bca-9ef0-407a-9d0d-fcfefaab2285"
         },
         {
             "type": "pillar",
@@ -211,15 +151,316 @@
                 "z": 1
             },
             "pos": {
-                "x": 5.1952361519944805,
-                "y": 7,
-                "z": 5.661210191894117
+                "x": -34.5,
+                "y": 2,
+                "z": 4.5
             },
             "rot": {
                 "x": 0,
                 "y": 0,
-                "z": 1.5707963267948963
-            }
+                "z": 0
+            },
+            "uuid": "55f2eff0-9fa8-4921-870b-8aec640cd67d"
+        },
+        {
+            "type": "wall",
+            "color": 16777215,
+            "originalScale": {
+                "x": 5,
+                "y": 3,
+                "z": 0.5
+            },
+            "pos": {
+                "x": -41.5,
+                "y": 1.5,
+                "z": 4.25
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "uuid": "1cdccd9e-8233-47bf-9f58-34d0032a1a0e"
+        },
+        {
+            "type": "pillar",
+            "color": 16777215,
+            "originalScale": {
+                "x": 2,
+                "y": 10,
+                "z": 2
+            },
+            "pos": {
+                "x": -19.919121858238555,
+                "y": 5.000000000000002,
+                "z": -13.846813023626908
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "waypoints": [
+                    {
+                        "type": "move",
+                        "x": -25,
+                        "y": 5.000000000000003,
+                        "z": -13,
+                        "rotY": 0,
+                        "delay": 0,
+                        "teleport": false
+                    },
+                    {
+                        "x": -19,
+                        "y": 5.000000000000002,
+                        "z": -14,
+                        "delay": 0,
+                        "rotY": 0
+                    }
+                ],
+                "speed": 2,
+                "loop": true,
+                "active": true,
+                "sequences": [
+                    {
+                        "name": "Secuencia Principal",
+                        "waypoints": [
+                            {
+                                "type": "move",
+                                "x": -25,
+                                "y": 5.000000000000003,
+                                "z": -13,
+                                "rotY": 0,
+                                "delay": 0,
+                                "teleport": false
+                            },
+                            {
+                                "x": -19,
+                                "y": 5.000000000000002,
+                                "z": -14,
+                                "delay": 0,
+                                "rotY": 0
+                            }
+                        ],
+                        "loop": true,
+                        "active": true,
+                        "speed": 2,
+                        "currentState": {
+                            "wpIndex": 1,
+                            "moveAlpha": 0.15318697637309178,
+                            "waiting": false,
+                            "waitTimer": 0,
+                            "segmentStart": {
+                                "x": -19,
+                                "y": 5.000000000000002,
+                                "z": -14
+                            },
+                            "waitingCompleted": false,
+                            "signalReceived": false
+                        }
+                    }
+                ],
+                "isPreviewing": false
+            },
+            "uuid": "23480d56-5ea3-41c6-b026-0ff7edcc3ea9"
+        },
+        {
+            "type": "spawn_point",
+            "color": 65280,
+            "originalScale": {
+                "x": 1,
+                "y": 2,
+                "z": 1
+            },
+            "pos": {
+                "x": -19,
+                "y": 6.000000000000002,
+                "z": -14
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "team": 1,
+                "capacity": 1,
+                "order": 1
+            },
+            "uuid": "40c1c166-8c78-46ad-a94f-fb3a307f3b05"
+        },
+        {
+            "type": "pillar",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 4,
+                "z": 1
+            },
+            "pos": {
+                "x": -3.631999999895692,
+                "y": 2.0000000000000027,
+                "z": -11.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "waypoints": [
+                    {
+                        "x": -7.5,
+                        "y": 2.0000000000000027,
+                        "z": -11.5,
+                        "rotY": 0,
+                        "delay": 0,
+                        "teleport": false
+                    },
+                    {
+                        "x": -3.5,
+                        "y": 2.0000000000000027,
+                        "z": -11.5,
+                        "delay": 0,
+                        "rotY": 0
+                    },
+                    {
+                        "type": "wait_signal",
+                        "signalId": "d43f573a-4f7a-476d-9f39-ea420d11105d",
+                        "signalName": "Botón Sin Nombre"
+                    }
+                ],
+                "speed": 2,
+                "loop": true,
+                "active": true,
+                "sequences": [
+                    {
+                        "name": "Secuencia Principal",
+                        "waypoints": [
+                            {
+                                "x": -7.5,
+                                "y": 2.0000000000000027,
+                                "z": -11.5,
+                                "rotY": 0,
+                                "delay": 0,
+                                "teleport": false
+                            },
+                            {
+                                "x": -3.5,
+                                "y": 2.0000000000000027,
+                                "z": -11.5,
+                                "delay": 0,
+                                "rotY": 0
+                            },
+                            {
+                                "type": "wait_signal",
+                                "signalId": "d43f573a-4f7a-476d-9f39-ea420d11105d",
+                                "signalName": "Botón Sin Nombre"
+                            }
+                        ],
+                        "loop": true,
+                        "active": true,
+                        "speed": 2,
+                        "currentState": {
+                            "wpIndex": 0,
+                            "moveAlpha": 0.967000000026077,
+                            "waiting": false,
+                            "waitTimer": 0,
+                            "segmentStart": {
+                                "x": -7.5,
+                                "y": 2.0000000000000027,
+                                "z": -11.5
+                            },
+                            "waitingCompleted": false,
+                            "signalReceived": false
+                        }
+                    }
+                ],
+                "isPreviewing": true
+            },
+            "uuid": "fdcb341a-746d-46a8-9183-5a3e6d35e35c"
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": -10.5,
+                "y": 1.6653345369377348e-15,
+                "z": -7.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0
+            },
+            "uuid": "d43f573a-4f7a-476d-9f39-ea420d11105d"
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": -5.5,
+                "y": 3.552713678800501e-15,
+                "z": -7.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0
+            },
+            "uuid": "57a08b8a-9df6-4a78-9776-20d26911fec3"
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": -0.5,
+                "y": 3.4416913763379853e-15,
+                "z": -7.5
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0
+            },
+            "uuid": "5b8c6362-4efc-4387-9f33-c6979a781864"
         }
     ]
 }
