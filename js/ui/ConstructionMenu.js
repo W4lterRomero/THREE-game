@@ -1297,6 +1297,7 @@ export class ConstructionMenu {
 
                     input.onblur = confirm
                     input.onkeydown = (ev) => {
+                        ev.stopPropagation()
                         if (ev.key === 'Enter') {
                             confirm()
                         }
