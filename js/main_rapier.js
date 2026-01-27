@@ -1191,7 +1191,8 @@ class Game {
                     originalScale: obj.userData.originalScale, // {x,y,z}
                     pos: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
                     rot: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
-                    logicProperties: obj.userData.logicProperties // Create if exists
+                    logicProperties: obj.userData.logicProperties, // Create if exists
+                    uuid: obj.userData.uuid // Save UUID for references
                 })
             }
         })
@@ -1258,6 +1259,21 @@ class Game {
 
             // Manual Spawn to support fine rotation if needed
             tempItem.spawnObjectFromData(this.sceneManager.scene, this.world, data.pos, data.rot)
+
+            // Restore Original UUID if saved (CRITICAL for Logic Signals)
+            // Note: spawnObjectFromData usually generates a NEW uuid in userData. 
+            // We need to override it with the saved one.
+            // We can find the last added object? Or spawnObjectFromData returns it?
+            // Currently spawnObjectFromData returns void.
+            // We have to find the object we just added. 
+            // Since we know the position, we can find it? Or we can query the last child of scene?
+            // "scene.add(object3D)" puts it at the end? Yes usually.
+
+            const lastObj = this.sceneManager.scene.children[this.sceneManager.scene.children.length - 1]
+            if (data.uuid && lastObj) {
+                lastObj.userData.uuid = data.uuid
+                // Also restore trigger state?
+            }
         })
         console.log("Map Loaded:", jsonData.objects.length, "objects")
     }

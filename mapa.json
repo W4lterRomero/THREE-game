@@ -1,0 +1,225 @@
+{
+    "gameVersion": "1.0",
+    "timestamp": 1769480901453,
+    "objects": [
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": 0.8240137094698419,
+                "y": 8.881784197001252e-16,
+                "z": 1.2679403933195212
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0,
+                "signalName": "EEEE",
+                "name": "EEEE"
+            }
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": 2.1433736402695613,
+                "y": 1.0597604144561025e-15,
+                "z": -0.7727366076465052
+            },
+            "rot": {
+                "x": 2.220446049250313e-16,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0,
+                "signalName": "OBJETO E",
+                "name": "OBJETO E"
+            }
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": 2.848792018952974,
+                "y": 8.881784197001252e-16,
+                "z": -2.6086271503497698
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0
+            }
+        },
+        {
+            "type": "interaction_button",
+            "color": 16711680,
+            "originalScale": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            },
+            "pos": {
+                "x": 3.473526723704532,
+                "y": 8.881784197001252e-16,
+                "z": -4.238465690792467
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "holdTime": 1,
+                "oneShot": false,
+                "targetUuid": null,
+                "triggered": false,
+                "_currentHoldTime": 0
+            }
+        },
+        {
+            "type": "pillar",
+            "color": 16777215,
+            "originalScale": {
+                "x": 2,
+                "y": 10,
+                "z": 2
+            },
+            "pos": {
+                "x": 6.110990174147555,
+                "y": 5.000000000000001,
+                "z": -3.5287995700816053
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "logicProperties": {
+                "waypoints": [
+                    {
+                        "x": 6.439572072836655,
+                        "y": 5.000000000000001,
+                        "z": -6.82626895980009,
+                        "rotY": 0,
+                        "delay": 0,
+                        "teleport": false
+                    },
+                    {
+                        "x": 5.1952361519944805,
+                        "y": 5,
+                        "z": 5.661210191894117,
+                        "delay": 0,
+                        "rotY": 0
+                    },
+                    {
+                        "type": "wait_signal",
+                        "signalId": "5a479530-3cac-432a-afe5-85b1369fc1d2",
+                        "signalName": "EEEE"
+                    }
+                ],
+                "speed": 2,
+                "loop": true,
+                "active": true,
+                "sequences": [
+                    {
+                        "name": "Secuencia Principal",
+                        "waypoints": [
+                            {
+                                "x": 6.439572072836655,
+                                "y": 5.000000000000001,
+                                "z": -6.82626895980009,
+                                "rotY": 0,
+                                "delay": 0,
+                                "teleport": false
+                            },
+                            {
+                                "x": 5.1952361519944805,
+                                "y": 5,
+                                "z": 5.661210191894117,
+                                "delay": 0,
+                                "rotY": 0
+                            },
+                            {
+                                "type": "wait_signal",
+                                "signalId": "5a479530-3cac-432a-afe5-85b1369fc1d2",
+                                "signalName": "EEEE"
+                            }
+                        ],
+                        "loop": true,
+                        "active": true,
+                        "speed": 2,
+                        "currentState": {
+                            "wpIndex": 0,
+                            "moveAlpha": 0.264062053650845,
+                            "waiting": false,
+                            "waitTimer": 0,
+                            "segmentStart": {
+                                "x": 6.439572072836655,
+                                "y": 5.000000000000001,
+                                "z": -6.82626895980009
+                            },
+                            "waitingCompleted": false,
+                            "signalReceived": false
+                        }
+                    }
+                ],
+                "signalName": "S",
+                "name": "S",
+                "isPreviewing": false
+            }
+        },
+        {
+            "type": "pillar",
+            "color": 16777215,
+            "originalScale": {
+                "x": 1,
+                "y": 4,
+                "z": 1
+            },
+            "pos": {
+                "x": 5.1952361519944805,
+                "y": 7,
+                "z": 5.661210191894117
+            },
+            "rot": {
+                "x": 0,
+                "y": 0,
+                "z": 1.5707963267948963
+            }
+        }
+    ]
+}
