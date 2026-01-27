@@ -1553,7 +1553,7 @@ class Game {
                         if (seq.triggerType === 'signal' && seq.triggerSignal === signalId) {
                             seq.active = true // Activate
                             // Reset state to restart
-                            seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0 }
+                            seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0, segmentStart: obj.position.clone() }
                             console.log(`Sequence '${seq.name}' activated on`, obj.userData.name)
 
                             // Optional: If valid logic, ensure object is kinematic
@@ -1577,7 +1577,7 @@ class Game {
                 // 2. Legacy / Direct Target Support (Keep for backward compat or simple toggle)
                 // If the button EXPLICITLY targets this object (Old system)
                 if (props.targetUuid === obj.userData.uuid) {
-                    // Toggle "Active" on the object itself (Legacy global properties)
+                    e   // Toggle "Active" on the object itself (Legacy global properties)
                     // Or toggle the first sequence?
                     if (obj.userData.logicProperties) {
                         // If using sequences, toggle the first one?
@@ -1632,7 +1632,7 @@ class Game {
 
                     // Ensure State
                     if (!seq.currentState) {
-                        seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0 }
+                        seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0, segmentStart: obj.position.clone() }
                     }
                     const state = seq.currentState
 
@@ -1708,8 +1708,12 @@ class Game {
                     if (p1.x !== undefined) {
                         startPos.set(p1.x, p1.y, p1.z)
                     } else {
-                        // Fallback to object position if P1 is a logic step without coords
-                        startPos.copy(obj.position)
+                        // Fallback to segmentStart or object position
+                        if (state.segmentStart) {
+                            startPos.copy(state.segmentStart)
+                        } else {
+                            startPos.copy(obj.position)
+                        }
                     }
 
                     // Safe P2 (End Point)
@@ -1726,6 +1730,7 @@ class Game {
                         state.moveAlpha = 0
                         state.waitingCompleted = false
                         state.signalReceived = false
+                        state.segmentStart = null // Will set after teleport
                         // Teleport
                         if (p2.x !== undefined) {
                             obj.userData.rigidBody.setNextKinematicTranslation({ x: p2.x, y: p2.y, z: p2.z })
@@ -1736,6 +1741,7 @@ class Game {
                             obj.quaternion.copy(q)
                             obj.userData.rigidBody.setNextKinematicRotation(q)
                         }
+                        state.segmentStart = obj.position.clone()
                         return
                     }
 
@@ -1747,6 +1753,10 @@ class Game {
                         state.moveAlpha = 0
                         state.waitingCompleted = false
                         state.signalReceived = false
+                        state.signalReceived = false
+                        // Set segment start for next step
+                        if (p2.x !== undefined) state.segmentStart = new THREE.Vector3(p2.x, p2.y, p2.z)
+                        else state.segmentStart = startPos.clone() // Effectively where we are
                         return
                     }
 
@@ -1759,6 +1769,10 @@ class Game {
                         state.wpIndex = nextIdx
                         state.waitingCompleted = false // Reset wait for the new current point (p2 becomes p1 next frame)
                         state.signalReceived = false // Reset signal flag
+
+                        // Set segment start for next leg
+                        if (p2.x !== undefined) state.segmentStart = new THREE.Vector3(p2.x, p2.y, p2.z)
+                        else state.segmentStart = endPos.clone()
 
                         // Snap
                         if (p2.x !== undefined) {
