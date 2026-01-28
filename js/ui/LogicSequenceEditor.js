@@ -116,6 +116,75 @@ export class LogicSequenceEditor {
         this.createInput(this.sidebar, seq, 'speed', seq.speed, 'number', 'Velocidad')
         this.createInput(this.sidebar, seq, 'active', seq.active, 'boolean', 'Activo al Inicio')
 
+        // --- TRIGGER SECTION ---
+        const trigHeader = document.createElement('h4')
+        trigHeader.textContent = "Disparador (Trigger)"
+        trigHeader.style.marginTop = "15px"
+        this.sidebar.appendChild(trigHeader)
+
+        // Trigger Type
+        const typeRow = document.createElement('div')
+        typeRow.className = 'lse-input-row'
+        const typeLabel = document.createElement('label')
+        typeLabel.className = 'lse-input-label'
+        typeLabel.textContent = "Tipo"
+
+        const typeSelect = document.createElement('select')
+        typeSelect.className = 'lse-input'
+        typeSelect.innerHTML = `
+            <option value="none">Ninguno (Manual/Auto)</option>
+            <option value="signal">Señal de Botón</option>
+        `
+        typeSelect.value = seq.triggerType || "none"
+        typeSelect.onchange = (e) => {
+            seq.triggerType = e.target.value
+            this.render()
+        }
+        typeRow.appendChild(typeLabel)
+        typeRow.appendChild(typeSelect)
+        this.sidebar.appendChild(typeRow)
+
+        // Trigger Buttons (If Signal)
+        if (seq.triggerType === 'signal') {
+            const btnList = document.createElement('div')
+            btnList.style.marginTop = "5px"
+
+            // Ensure array
+            if (!seq.triggerSignals) {
+                seq.triggerSignals = []
+                if (seq.triggerSignal) seq.triggerSignals.push({ id: seq.triggerSignal, name: "Botón" })
+            }
+
+            seq.triggerSignals.forEach((btnData, idx) => {
+                const btnRow = document.createElement('div')
+                btnRow.style.cssText = "display:flex; justify-content:space-between; background:#222; padding:4px; margin-bottom:2px; border:1px solid #444; font-size:12px; color:#ddd;"
+                btnRow.innerHTML = `
+                    <span>${btnData.name}</span>
+                    <span style="cursor:pointer; color:#f44; font-weight:bold;">x</span>
+                `
+                btnRow.querySelector('span:last-child').onclick = () => {
+                    seq.triggerSignals.splice(idx, 1)
+                    this.render()
+                }
+                btnList.appendChild(btnRow)
+            })
+
+            const addTrigBtn = document.createElement('button')
+            addTrigBtn.textContent = "+ Agregar Botón Disparador"
+            addTrigBtn.style.cssText = "width:100%; background:#333; border: 1px dashed #555; color:#aaa; font-size:10px; padding:4px; cursor:pointer;"
+            addTrigBtn.onclick = () => {
+                this.showButtonSelector((selectedBtn) => {
+                    const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
+                        ? selectedBtn.userData.logicProperties.name
+                        : "Botón"
+                    seq.triggerSignals.push({ id: selectedBtn.userData.uuid, name: name })
+                    this.render()
+                })
+            }
+            btnList.appendChild(addTrigBtn)
+            this.sidebar.appendChild(btnList)
+        }
+
         // --- MAP 3D EDIT BUTTON ---
         const map3dBtn = document.createElement('button')
         map3dBtn.textContent = "Editar en Mapa 3D"
@@ -151,7 +220,18 @@ export class LogicSequenceEditor {
         addSigBtn.style.background = "#cc7700"
         addSigBtn.style.marginBottom = "0"
         addSigBtn.style.flex = "1"
-        addSigBtn.onclick = () => this.showButtonSelector(seq)
+        addSigBtn.onclick = () => this.showButtonSelector((selectedBtn) => {
+            const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
+                ? selectedBtn.userData.logicProperties.name
+                : "Botón"
+
+            seq.waypoints.push({
+                type: 'wait_signal',
+                signalIds: [{ id: selectedBtn.userData.uuid, name: name }]
+            })
+            this.render()
+            this.logicSystem.updateVisualization()
+        })
         btnWrapper.appendChild(addSigBtn)
 
         this.timeline.appendChild(btnWrapper)
@@ -163,15 +243,58 @@ export class LogicSequenceEditor {
 
             if (wp.type === 'wait_signal') {
                 item.style.borderLeftColor = "#cc7700"
+
+                // Ensure array exists
+                if (!wp.signalIds) {
+                    wp.signalIds = []
+                    if (wp.signalId) wp.signalIds.push({ id: wp.signalId, name: wp.signalName || "Botón" })
+                }
+
+                let buttonsHtml = ""
+                wp.signalIds.forEach((btnData, btnIdx) => {
+                    buttonsHtml += `
+                        <div style="display:flex; justify-content:space-between; background:#333; padding:2px 5px; margin-bottom:2px; border-radius:3px;">
+                            <span>${btnData.name}</span>
+                            <span class="remove-btn-trigger" data-step-idx="${idx}" data-btn-idx="${btnIdx}" style="cursor:pointer; color:#f44;">x</span>
+                        </div>
+                    `
+                })
+
                 item.innerHTML = `
                     <div class="lse-item-header">
-                        <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal</span>
+                        <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal(es)</span>
                     </div>
                     <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
-                        Botón: <span style="color:white; font-weight:bold;">${wp.signalName || "Desconocido"}</span>
+                        ${buttonsHtml}
+                        <button class="add-btn-trigger" data-step-idx="${idx}" style="background:#444; border:none; color:#aaa; cursor:pointer; width:100%; font-size:10px; margin-top:5px;">+ Agregar Botón</button>
                     </div>
                 `
-                // Delete Btn
+
+                // Add Event Listeners for dynamic buttons
+                const removeBtns = item.querySelectorAll('.remove-btn-trigger')
+                removeBtns.forEach(btn => {
+                    btn.onclick = (e) => {
+                        e.stopPropagation()
+                        const sIdx = parseInt(btn.dataset.stepIdx)
+                        const bIdx = parseInt(btn.dataset.btnIdx)
+                        seq.waypoints[sIdx].signalIds.splice(bIdx, 1)
+                        this.render()
+                    }
+                })
+
+                const addBtn = item.querySelector('.add-btn-trigger')
+                addBtn.onclick = () => {
+                    this.showButtonSelector((selectedBtn) => {
+                        const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
+                            ? selectedBtn.userData.logicProperties.name
+                            : "Botón"
+                        wp.signalIds.push({ id: selectedBtn.userData.uuid, name: name })
+                        this.render()
+                    })
+                }
+
+
+                // Delete Step Btn
                 const delBtn = document.createElement('button')
                 delBtn.textContent = "🗑"
                 delBtn.style.cssText = "float:right; background:none; border:none; cursor:pointer; font-size:14px; margin-top:-20px;"
@@ -247,7 +370,7 @@ export class LogicSequenceEditor {
         this.logicSystem.updateVisualization()
     }
 
-    showButtonSelector(seq) {
+    showButtonSelector(onSelectCallback) {
         // Create a modal list of buttons on top of existing UI
         const overlay = document.createElement('div')
         overlay.style.cssText = `
@@ -303,14 +426,9 @@ export class LogicSequenceEditor {
                 row.onmouseout = () => row.style.background = "#333"
 
                 row.onclick = () => {
-                    // Add Wait Step
-                    seq.waypoints.push({
-                        type: 'wait_signal',
-                        signalId: btn.userData.uuid,
-                        signalName: name
-                    })
-                    this.render()
-                    this.logicSystem.updateVisualization()
+                    if (onSelectCallback) {
+                        onSelectCallback(btn)
+                    }
                     document.body.removeChild(overlay)
                 }
                 list.appendChild(row)

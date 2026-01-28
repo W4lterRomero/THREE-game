@@ -1566,14 +1566,26 @@ class Game {
                 // 1. Check for Sequences listening
                 if (obj.userData.logicProperties && obj.userData.logicProperties.sequences) {
                     obj.userData.logicProperties.sequences.forEach(seq => {
-                        if (seq.triggerType === 'signal' && seq.triggerSignal === signalId) {
-                            seq.active = true // Activate
-                            // Reset state to restart
-                            seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0, segmentStart: obj.position.clone() }
-                            console.log(`Sequence '${seq.name}' activated on`, obj.userData.name)
+                        const signalMatches = (targetId, targetIds) => {
+                            if (targetIds && Array.isArray(targetIds)) {
+                                return targetIds.some(s => s.id === signalId || s === signalId) // Handle object {id,name} or raw string
+                            }
+                            return targetId === signalId
+                        }
 
-                            // Optional: If valid logic, ensure object is kinematic
-                            this.setObjectBodyType(obj, 'kinematic')
+                        // 1. Sequence Activation
+                        if (seq.triggerType === 'signal') {
+                            const match = signalMatches(seq.triggerSignal, seq.triggerSignals)
+
+                            if (match) {
+                                seq.active = true // Activate
+                                // Reset state to restart
+                                seq.currentState = { wpIndex: 0, moveAlpha: 0, waiting: false, waitTimer: 0, segmentStart: obj.position.clone() }
+                                console.log(`Sequence '${seq.name}' activated on`, obj.userData.name)
+
+                                // Optional: If valid logic, ensure object is kinematic
+                                this.setObjectBodyType(obj, 'kinematic')
+                            }
                         }
 
                         // Check for 'wait_signal' steps in active sequences
@@ -1581,9 +1593,12 @@ class Game {
                             const currentIdx = seq.currentState.wpIndex
                             if (seq.waypoints && seq.waypoints.length > currentIdx) {
                                 const step = seq.waypoints[currentIdx]
-                                if (step.type === 'wait_signal' && step.signalId === signalId) {
-                                    seq.currentState.signalReceived = true
-                                    console.log(`Signal received for step ${currentIdx} in sequence '${seq.name}'`)
+                                if (step.type === 'wait_signal') {
+                                    const match = signalMatches(step.signalId, step.signalIds)
+                                    if (match) {
+                                        seq.currentState.signalReceived = true
+                                        console.log(`Signal received for step ${currentIdx} in sequence '${seq.name}'`)
+                                    }
                                 }
                             }
                         }
