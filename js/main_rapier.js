@@ -679,7 +679,7 @@ class Game {
                     if (this.placementManager && this.character) {
                         this.placementManager.updateLogicGhost(
                             this.constructionMenu.logicSystem.editingObject,
-                            this.character.position,
+                            this.character.getPosition(),
                             this.placementRotationIndex || 0
                         )
                     }

@@ -40,7 +40,8 @@ export class LogicToolbar {
         // Tools
         this.addToolButton("📍", "Añadir Punto de Ruta", "waypoint")
         this.addToolButton("▶", "Iniciar/Pausar Animación", "play_pause")
-        // this.addToolButton("✋", "Mover Puntos", "move_wp") // Future
+        this.addToolButton("🕸️", "Activar/Desactivar Grid Aéreo", "aerial_grid") // New Aerial Grid Button
+        // this.addToolButton("Mover Puntos", "move_wp") // Future
 
         // Spacer
         const spacer = document.createElement('div')
@@ -115,6 +116,15 @@ export class LogicToolbar {
             btn.textContent = isPlaying ? "⏸" : "▶"
             btn.title = isPlaying ? "Pausar Animación" : "Iniciar Animación"
             btn.style.background = isPlaying ? "#004400" : "#333"
+        }
+    }
+
+    setAerialGridState(isActive) {
+        const btn = Array.from(this.container.children).find(c => c.dataset && c.dataset.tool === 'aerial_grid')
+        if (btn) {
+            // Visual feedback for active grid
+            btn.style.background = isActive ? "#004400" : "#333"
+            btn.style.borderColor = isActive ? "#00ff00" : "#555"
         }
     }
 

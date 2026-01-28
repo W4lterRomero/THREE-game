@@ -655,7 +655,22 @@ export class PlacementManager {
             return null
         }
 
+
         this.placementGhost.visible = true
+
+        // --- Aerial Grid Dynamic Update (Logic Mode) ---
+        if (this.aerialGridActive && playerPosition) {
+            if (!this.aerialGridFixed) {
+                const gridY = Math.round(playerPosition.y)
+                this.aerialVisual.position.y = gridY
+                this.aerialCollider.position.y = gridY
+            }
+            this.aerialVisual.visible = true
+            this.aerialVisual.position.x = Math.round(playerPosition.x)
+            this.aerialVisual.position.z = Math.round(playerPosition.z)
+        } else if (!this.aerialGridActive) {
+            if (this.aerialVisual) this.aerialVisual.visible = false
+        }
 
         // Hide standard ghosts
         if (this.ghostRampMesh) this.ghostRampMesh.visible = false

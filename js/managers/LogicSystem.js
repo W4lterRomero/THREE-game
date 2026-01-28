@@ -17,16 +17,12 @@ export class LogicSystem {
 
             if (tool === 'play_pause') {
                 this.toggleAnimation()
-                // Don't keep it 'active' as a selected tool (like waypoint placement)
-                // Immediately deselect or just treat as trigger?
-                // The toolbar architecture highlights "activeTool". 
-                // Let's treat it as a toggle but we probably don't want it to remain "selected" in a way that blocks other inputs?
-                // Actually, for this specific button, we might want it to NOT be an exclusive tool mode.
-                // But structure uses setActiveTool. 
-                // Let's just run logic and let it stay highlighted if we want, OR immediately reset.
-                // Better: The toolbar handles highlight. Move logic needs to know if we are "playing".
+                // Don't keep it 'active' as a selected tool
+            } else if (tool === 'aerial_grid') {
+                this.toggleAerialGrid()
             }
         }
+
 
         // Visualizer for paths
         this.pathVisualizer = new THREE.Group()
@@ -318,6 +314,11 @@ export class LogicSystem {
         // AUTO-SELECT WAYPOINT TOOL
         this.toolbar.setActiveTool('waypoint')
 
+        // Sync Aerial Grid State (it might be active from main menu)
+        if (this.game.placementManager) {
+            this.toolbar.setAerialGridState(this.game.placementManager.aerialGridActive)
+        }
+
         // Visualizers
         this.updateVisualization()
 
@@ -341,11 +342,25 @@ export class LogicSystem {
         props.isPreviewing = !props.isPreviewing
 
         this.toolbar.setPlayButtonState(props.isPreviewing)
+    }
 
-        // Also ensure we untoggle the button in toolbar if we don't want it to act as a "tool" that blocks others?
-        // But the user might want to see it green. 
-        // The toolbar class handles visuals based on checking activeTool. 
-        // We added explicit visual update in setPlayButtonState which overrides/supplements.
+    toggleAerialGrid() {
+        if (this.game.placementManager) {
+            const isActive = !this.game.placementManager.aerialGridActive
+            this.game.placementManager.setAerialGrid(isActive)
+
+            this.toolbar.setAerialGridState(isActive)
+
+            const mainChk = document.getElementById("chk-aerial-grid")
+            if (mainChk) mainChk.checked = isActive
+
+            const statusEl = document.getElementById("aerial-grid-status")
+            if (statusEl) {
+                statusEl.style.display = isActive ? "block" : "none"
+                statusEl.textContent = "G: Suelo No Fijado"
+                statusEl.style.color = "#00FF00"
+            }
+        }
     }
 
     endMapEdit() {
