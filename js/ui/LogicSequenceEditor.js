@@ -171,7 +171,7 @@ export class LogicSequenceEditor {
 
             const addTrigBtn = document.createElement('button')
             addTrigBtn.textContent = "+ Agregar Botón Disparador"
-            addTrigBtn.style.cssText = "width:100%; background:#333; border: 1px dashed #555; color:#aaa; font-size:10px; padding:4px; cursor:pointer;"
+            addTrigBtn.style.cssText = "width:1000%; background:#333; border: 1px dashed #555; color:#aaa; font-size:10px; padding:4px; cursor:pointer;"
             addTrigBtn.onclick = () => {
                 this.showButtonSelector((selectedBtn) => {
                     const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
@@ -266,7 +266,7 @@ export class LogicSequenceEditor {
                     </div>
                     <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
                         ${buttonsHtml}
-                        <button class="add-btn-trigger" data-step-idx="${idx}" style="background:#444; border:none; color:#aaa; cursor:pointer; width:100%; font-size:10px; margin-top:5px;">+ Agregar Botón</button>
+                        <button class="add-btn-trigger" data-step-idx="${idx}" style="background:#444; border:none; color:#aaa; cursor:pointer; width:80%; font-size:10px; margin-top:5px; padding:4px;">+ Agregar Botón</button>
                     </div>
                 `
 
@@ -297,7 +297,7 @@ export class LogicSequenceEditor {
                 // Delete Step Btn
                 const delBtn = document.createElement('button')
                 delBtn.textContent = "🗑"
-                delBtn.style.cssText = "float:right; background:none; border:none; cursor:pointer; font-size:14px; margin-top:-20px;"
+                delBtn.style.cssText = "float:right; background:none; border:none; cursor:pointer; font-size:14px; margin-top:-24px;"
                 delBtn.onclick = () => {
                     seq.waypoints.splice(idx, 1)
                     this.render()
@@ -390,6 +390,7 @@ export class LogicSequenceEditor {
         title.textContent = "Selecciona un Botón"
         title.style.margin = "0 0 10px 0"
         title.style.textAlign = "center"
+        title.style.color = "white"
         panel.appendChild(title)
 
         const list = document.createElement('div')
