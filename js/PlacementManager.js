@@ -193,7 +193,7 @@ export class PlacementManager {
             }
 
             // Check against other MapObjects logic
-            if (obj.geometry) {
+            if (obj.userData && obj.userData.isMapObject && obj.geometry) {
                 // If it's a mesh, get its bounding box
                 const objBox = new THREE.Box3().setFromObject(obj)
 
@@ -331,6 +331,8 @@ export class PlacementManager {
         this.currentHit = hit ? hit.point : null
 
         if (hit) {
+            this.lastValidQuaternion = null
+
             // --- MOVEMENT CONTROLLER LOGIC ---
             if (item.type === 'movement_controller') {
                 const isTargetObject = hit.object.userData && hit.object.userData.isEditableMapObject;
@@ -393,7 +395,7 @@ export class PlacementManager {
             this.placementGhost.visible = true
 
             // --- Determine Size (Smart Sizing) ---
-            const realSize = this.getRealSize(item, rotationIndex)
+            let realSize = this.getRealSize(item, rotationIndex)
             const gridSize = this.gridSize || 1
             let targetPos = hit.point.clone()
 
@@ -402,7 +404,35 @@ export class PlacementManager {
                 const isAerialHit = (hit.object === this.aerialCollider)
                 const isMapObject = hit.object.userData && hit.object.userData.isMapObject
 
-                if (isMapObject && hit.face) {
+                if (item.type === 'interaction_button' && hit.face) {
+                    // --- BUTTON SURFACE LOGIC (GRID) ---
+                    // Button specific size (Visual 0.6 x 0.1 x 0.6)
+                    realSize = new THREE.Vector3(0.6, 0.1, 0.6)
+
+                    // Align to Normal
+                    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+                    const quaternion = new THREE.Quaternion()
+                    quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
+
+                    this.lastValidQuaternion = quaternion.clone()
+                    this.placementGhost.quaternion.copy(quaternion)
+
+                    // Snap Logic on Surface
+                    // Keep axis parallel to normal (flush)
+                    // Snap axes perpendicular to normal
+                    const axes = ['x', 'y', 'z']
+                    axes.forEach(ax => {
+                        if (Math.abs(normal[ax]) > 0.5) {
+                            // Parallel to normal -> flush but OFFSET by half height
+                            targetPos[ax] = hit.point[ax] + normal[ax] * (realSize.y / 2)
+                        } else {
+                            // Perpendicular -> Snap to Grid Center
+                            const offset = gridSize / 2
+                            targetPos[ax] = Math.round((hit.point[ax] - offset) / gridSize) * gridSize + offset
+                        }
+                    })
+
+                } else if (isMapObject && hit.face) {
                     // --- SMART SNAPPING (Block-to-Block) ---
                     const hitBox = new THREE.Box3().setFromObject(hit.object)
                     const hitCenter = new THREE.Vector3()
@@ -500,6 +530,8 @@ export class PlacementManager {
 
                 // Special case: Interaction Buttons Align to Surface Normal
                 if (item.type === 'interaction_button' && hit.face) {
+                    // Custom Size override for free placement too
+                    realSize = new THREE.Vector3(0.6, 0.1, 0.6)
                     const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
 
                     // Align Y up to Normal
@@ -510,16 +542,12 @@ export class PlacementManager {
                     this.placementGhost.quaternion.copy(quaternion)
                     this.lastValidQuaternion = quaternion.clone()
 
-                    // Position: Center on point + slight offset for button height
-                    // Button height is small (cylinder 0.1 height / 2 = 0.05 radius?)
-                    // MapObjectItem creates it at center. 
-                    // We want base to be flush.
-                    // realSize for button is 1,1,1 usually but visual is smaller.
-                    // Let's use 0 offset here as ghost usually centers. 
-                    // Actually, if we use setFromUnitVectors, the object center is at targetPos.
-                    // The visual button mesh in MapObjectItem was adjusted to be at y=0.05 inside the group.
-                    // So if we place group at surface point, it should be correct.
-                    this.placementGhost.rotation.setFromQuaternion(quaternion) // Ensure rotation property is updated if needed, though quat is primary
+                    // Position needs offset by half height along normal
+                    // Use updated realSize.y
+                    const offset = normal.multiplyScalar(realSize.y / 2)
+                    targetPos.add(offset)
+
+                    this.placementGhost.rotation.setFromQuaternion(quaternion)
 
                 } else {
                     // Reset Quaternion for normal items (Vertical Up)
@@ -530,28 +558,17 @@ export class PlacementManager {
                 // We still want the object to sit ON the surface, not sink into it.
                 // Move center away from hit point by half extent along normal.
                 if (hit.face) {
-                    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
-
-                    // Project size onto normal
-                    // Exception: Buttons are small, maybe don't offset by full 1/2 size if they are custom group?
-                    // MapObjectItem interaction_button scale is 1,1,1 but visual is smaller.
-                    // If we offset by 0.5 (scale/2), it will float if the visual is small.
-                    // Let's rely on item type check.
-
-                    let yOffset = realSize.y / 2
-                    if (item.type === 'interaction_button') {
-                        yOffset = 0 // Button visual is built to sit on origin? 
-                        // In MapObjectItem button is at y=0.05. Group origin is 0. 
-                        // So placing group at surface is correct.
+                    if (item.type !== 'interaction_button') {
+                        // Generic surface offset logic
+                        const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+                        const yOffset = realSize.y / 2
+                        const offset = new THREE.Vector3(
+                            normal.x * yOffset,
+                            normal.y * yOffset,
+                            normal.z * yOffset
+                        )
+                        targetPos.add(offset)
                     }
-
-                    const offset = new THREE.Vector3(
-                        normal.x * yOffset,
-                        normal.y * yOffset,
-                        normal.z * yOffset
-                    )
-
-                    targetPos.add(offset)
                 } else {
                     // Fallback
                     targetPos.y += realSize.y / 2
@@ -566,7 +583,9 @@ export class PlacementManager {
                 this.ghostBaseMat.visible = true
                 this.ghostRampMesh.visible = false
                 this.ghostBoxMesh.visible = false
-                if (this.ghostStairsGroup) this.ghostStairsGroup.visible = false
+                if (this.ghostStairsGroup) {
+                    this.ghostStairsGroup.visible = false
+                }
 
                 if (item.type === 'ramp') {
                     this.ghostRampMesh.visible = true
@@ -582,8 +601,14 @@ export class PlacementManager {
                     this.ghostStairsGroup.visible = true
                     this.rebuildStairsGhost(item)
                 } else {
+                    // Standard Box
                     this.ghostBoxMesh.visible = true
-                    this.ghostBoxMesh.scale.set(item.scale.x, item.scale.y, item.scale.z)
+                    if (item.type === 'interaction_button') {
+                        // Use correct visual size for ghost
+                        this.ghostBoxMesh.scale.set(realSize.x, realSize.y, realSize.z)
+                    } else {
+                        this.ghostBoxMesh.scale.set(item.scale.x, item.scale.y, item.scale.z)
+                    }
                     // Reset Y because targetPos is Center now
                     this.ghostBoxMesh.position.y = 0
                 }
@@ -597,7 +622,9 @@ export class PlacementManager {
             }
 
             // Apply rotation to ghost group
-            if (item.constructor.name === "MapObjectItem") {
+            if (this.lastValidQuaternion) {
+                this.placementGhost.quaternion.copy(this.lastValidQuaternion)
+            } else if (item.constructor.name === "MapObjectItem") {
                 this.placementGhost.rotation.y = 0
                 if (rotationIndex === 1) this.placementGhost.rotation.y = -Math.PI / 2
                 if (rotationIndex === 2) this.placementGhost.rotation.y = -Math.PI
