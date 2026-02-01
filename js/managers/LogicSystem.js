@@ -434,7 +434,7 @@ export class LogicSystem {
 
             if (points.length > 1) {
                 const geometry = new THREE.BufferGeometry().setFromPoints(points)
-                const material = new THREE.LineBasicMaterial({ color: finalColor, linewidth: isEditing ? 3 : 1 })
+                const material = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: isEditing ? 3 : 1 })
                 const line = new THREE.Line(geometry, material)
                 this.pathVisualizer.add(line)
             }
@@ -446,7 +446,7 @@ export class LogicSystem {
 
                 const pos = new THREE.Vector3(wp.x, wp.y, wp.z)
                 const dotGeo = new THREE.SphereGeometry(0.2, 8, 8)
-                const dotMat = new THREE.MeshBasicMaterial({ color: finalColor })
+                const dotMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 })
                 // ARROWS (DIRECTION) - RESTORED
                 const arrowLen = 1.0
                 const arrowDir = new THREE.Vector3(0, 0, 1) // Default forward
@@ -471,7 +471,7 @@ export class LogicSystem {
                     }
 
                     const ghostGeo = new THREE.BoxGeometry(ghostSize.x, ghostSize.y, ghostSize.z)
-                    const ghostMat = new THREE.MeshBasicMaterial({ color: finalColor, wireframe: true, transparent: true, opacity: 0.1 })
+                    const ghostMat = new THREE.MeshBasicMaterial({ color: 0x0000FF, wireframe: true, transparent: true, opacity: 0.3 })
                     const ghost = new THREE.Mesh(ghostGeo, ghostMat)
                     ghost.position.copy(pos)
                     if (wp.rotY !== undefined) ghost.rotation.y = wp.rotY
