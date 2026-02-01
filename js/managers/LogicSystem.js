@@ -412,7 +412,9 @@ export class LogicSystem {
             if (!seq.waypoints || seq.waypoints.length === 0) return
 
             const color = colors[idx % colors.length]
-            const isEditing = (this.sequenceEditor && this.sequenceEditor.currentObject === obj && this.sequenceEditor.currentSeqIndex === idx)
+            const isSeqEditorActive = (this.sequenceEditor && this.sequenceEditor.currentObject === obj && this.sequenceEditor.currentSeqIndex === idx)
+            const isMapEditActive = (this.isEditingMap && this.editingObject === obj && (this.editingSequenceIndex === idx || this.editingSequenceIndex === undefined))
+            const isEditing = isSeqEditorActive || isMapEditActive
             const finalColor = isEditing ? 0xFFFFFF : color // Highlight white if editing
 
             // Draw Lines
