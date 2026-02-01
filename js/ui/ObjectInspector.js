@@ -761,27 +761,16 @@ export class ObjectInspector {
 
         // Visual Feedback for Editor
         if (isInvisible) {
-            this.selectedObject.visible = true // Always visible in editor
+            // User Request: No color, no texture, no shadow, no existence (except collision)
+            // So we hide it completely.
+            this.selectedObject.visible = false
 
-            // Set transparency to indicate invisibility
-            if (this.selectedObject.material) {
-                this.selectedObject.material.transparent = true
-                this.selectedObject.material.opacity = 0.3
-                this.selectedObject.material.needsUpdate = true
-            }
-
-            // Handle group children (stairs)
-            if (this.selectedObject.isGroup) {
-                this.selectedObject.children.forEach(c => {
-                    if (c.material) {
-                        c.material.transparent = true
-                        c.material.opacity = 0.3
-                        c.material.needsUpdate = true
-                    }
-                })
-            }
+            // Note: InteractionManager/Inspector might lose selection if it relies on Raycast against visible objects.
+            // But user explicitly asked for this behavior.
         } else {
             // Restore visibility with custom opacity
+            this.selectedObject.visible = true
+
             const targetOpacity = (this.selectedObject.userData.opacity !== undefined) ? this.selectedObject.userData.opacity : 1.0
             const isTransparent = targetOpacity < 1.0
 

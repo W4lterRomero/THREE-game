@@ -1296,19 +1296,9 @@ class Game {
                     // If Play: Hide
 
                     if (this.gameMode === 'editor') {
-                        // Editor Feedback
-                        if (lastObj.material) {
-                            lastObj.material.transparent = true
-                            lastObj.material.opacity = 0.3
-                        }
-                        if (lastObj.isGroup) {
-                            lastObj.children.forEach(c => {
-                                if (c.material) {
-                                    c.material.transparent = true
-                                    c.material.opacity = 0.3
-                                }
-                            })
-                        }
+                        // User request: No ghost effect. Completely invisible.
+                        // Collision stays (RigidBody created before this).
+                        lastObj.visible = false
                     } else {
                         // Game Mode: Invisible
                         lastObj.visible = false
