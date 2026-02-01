@@ -208,6 +208,28 @@ export class ObjectInspector {
             this.colorPicker.addEventListener('input', (e) => this.updateColor(e.target.value))
 
             row.appendChild(this.colorPicker)
+
+            // Opacity Slider
+            const opacityContainer = document.createElement('div')
+            opacityContainer.style.cssText = "display: flex; align-items: center; gap: 5px; margin-left: 10px;"
+
+            const opacityLabel = document.createElement('label')
+            opacityLabel.textContent = "Op:"
+            opacityLabel.style.fontSize = "12px"
+            opacityLabel.style.color = "#ccc"
+
+            this.opacitySlider = document.createElement('input')
+            this.opacitySlider.type = "range"
+            this.opacitySlider.min = "0"
+            this.opacitySlider.max = "1"
+            this.opacitySlider.step = "0.1"
+            this.opacitySlider.style.width = "60px"
+            this.opacitySlider.addEventListener('input', (e) => this.updateTransparency(parseFloat(e.target.value)))
+
+            opacityContainer.appendChild(opacityLabel)
+            opacityContainer.appendChild(this.opacitySlider)
+            row.appendChild(opacityContainer)
+
             section.appendChild(row)
 
             // Palette (Reuse generic logic or simple one)
@@ -406,6 +428,13 @@ export class ObjectInspector {
         // Color
         if (object.material && object.material.color) {
             this.colorPicker.value = '#' + object.material.color.getHexString()
+        }
+
+        // Opacity
+        if (this.opacitySlider) {
+            // Default to 1.0 if not set
+            const op = (object.userData.opacity !== undefined) ? object.userData.opacity : 1.0
+            this.opacitySlider.value = op
         }
 
         // Invisible
@@ -670,6 +699,30 @@ export class ObjectInspector {
         }
     }
 
+    updateTransparency(opacity) {
+        if (!this.selectedObject) return
+
+        this.selectedObject.userData.opacity = opacity
+
+        // If "Invisible" is checked, we don't apply manual opacity override in editor
+        // because it uses fixed 0.3 for feedback.
+        if (this.selectedObject.userData.invisible) return
+
+        const apply = (mesh) => {
+            if (mesh.material) {
+                mesh.material.transparent = opacity < 1.0
+                mesh.material.opacity = opacity
+                mesh.material.needsUpdate = true
+            }
+        }
+
+        if (this.selectedObject.isGroup) {
+            this.selectedObject.children.forEach(apply)
+        } else {
+            apply(this.selectedObject)
+        }
+    }
+
     updateInvisible(isInvisible) {
         if (!this.selectedObject) return
 
@@ -697,18 +750,24 @@ export class ObjectInspector {
                 })
             }
         } else {
-            // Restore visibility
+            // Restore visibility with custom opacity
+            const targetOpacity = (this.selectedObject.userData.opacity !== undefined) ? this.selectedObject.userData.opacity : 1.0
+            const isTransparent = targetOpacity < 1.0
+
             if (this.selectedObject.material) {
-                this.selectedObject.material.transparent = false
-                this.selectedObject.material.opacity = 1.0
+                this.selectedObject.material.transparent = isTransparent
+                this.selectedObject.material.opacity = targetOpacity
                 this.selectedObject.material.needsUpdate = true
             }
 
             if (this.selectedObject.isGroup) {
+                const targetOpacity = (this.selectedObject.userData.opacity !== undefined) ? this.selectedObject.userData.opacity : 1.0
+                const isTransparent = targetOpacity < 1.0
+
                 this.selectedObject.children.forEach(c => {
                     if (c.material) {
-                        c.material.transparent = false
-                        c.material.opacity = 1.0
+                        c.material.transparent = isTransparent
+                        c.material.opacity = targetOpacity
                         c.material.needsUpdate = true
                     }
                 })
