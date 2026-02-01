@@ -256,6 +256,29 @@ export class ObjectInspector {
             section.appendChild(uploadBtn)
         })
 
+        // 4.5 Visibility Controls (Invisible but Collidable)
+        this.createSection("Visibilidad", (section) => {
+            const row = document.createElement('div')
+            row.style.cssText = `display: flex; align-items: center; gap: 10px;`
+
+            this.chkInvisible = document.createElement('input')
+            this.chkInvisible.type = 'checkbox'
+            this.chkInvisible.id = 'chk-obj-invisible'
+            this.chkInvisible.style.transform = "scale(1.2)"
+            this.chkInvisible.onchange = (e) => this.updateInvisible(e.target.checked)
+
+            const label = document.createElement('label')
+            label.textContent = "Invisible (Solo Colisión)"
+            label.htmlFor = 'chk-obj-invisible'
+            label.style.fontSize = "12px"
+            label.style.cursor = "pointer"
+            label.style.color = "#ccc"
+
+            row.appendChild(this.chkInvisible)
+            row.appendChild(label)
+            section.appendChild(row)
+        })
+
         // 5. Logic Properties (Dynamic)
         // 5. Logic Properties (Dynamic)
         this.logicSectionWrapper = this.createSection("Lógica de Juego", (section) => {
@@ -383,6 +406,13 @@ export class ObjectInspector {
         // Color
         if (object.material && object.material.color) {
             this.colorPicker.value = '#' + object.material.color.getHexString()
+        }
+
+        // Invisible
+        if (object.userData.invisible) {
+            this.chkInvisible.checked = true
+        } else {
+            this.chkInvisible.checked = false
         }
 
         // Logic Properties
@@ -614,6 +644,8 @@ export class ObjectInspector {
                         mesh.material.map = tex
                         mesh.material.needsUpdate = true
                     }
+
+
                 }
 
                 if (this.selectedObject.isGroup) {
@@ -634,6 +666,52 @@ export class ObjectInspector {
                 this.selectedObject.children.forEach(remove)
             } else {
                 remove(this.selectedObject)
+            }
+        }
+    }
+
+    updateInvisible(isInvisible) {
+        if (!this.selectedObject) return
+
+        this.selectedObject.userData.invisible = isInvisible
+
+        // Visual Feedback for Editor
+        if (isInvisible) {
+            this.selectedObject.visible = true // Always visible in editor
+
+            // Set transparency to indicate invisibility
+            if (this.selectedObject.material) {
+                this.selectedObject.material.transparent = true
+                this.selectedObject.material.opacity = 0.3
+                this.selectedObject.material.needsUpdate = true
+            }
+
+            // Handle group children (stairs)
+            if (this.selectedObject.isGroup) {
+                this.selectedObject.children.forEach(c => {
+                    if (c.material) {
+                        c.material.transparent = true
+                        c.material.opacity = 0.3
+                        c.material.needsUpdate = true
+                    }
+                })
+            }
+        } else {
+            // Restore visibility
+            if (this.selectedObject.material) {
+                this.selectedObject.material.transparent = false
+                this.selectedObject.material.opacity = 1.0
+                this.selectedObject.material.needsUpdate = true
+            }
+
+            if (this.selectedObject.isGroup) {
+                this.selectedObject.children.forEach(c => {
+                    if (c.material) {
+                        c.material.transparent = false
+                        c.material.opacity = 1.0
+                        c.material.needsUpdate = true
+                    }
+                })
             }
         }
     }

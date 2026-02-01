@@ -91,7 +91,16 @@ export class LevelLoader {
     }
 
     createStaticBody(mesh, invisible = false) {
-        if (invisible) {
+        // If "invisible" arg is true, it means it's a collider-only object by naming convention.
+        // If mesh.userData.invisible is true, it's a user-set property.
+
+        if (invisible || (mesh.userData && mesh.userData.invisible)) {
+            // If manual invisible property and NOT editor mode (LevelLoader usually for play)
+            // We assume LevelLoader is used for play mode or background loading.
+            // If we want to support Editor visibility, we need context.
+            // For now, LevelLoader seems to be used for the "Environment" / "Level" which is usually static.
+            // But let's respect the flag.
+
             mesh.visible = false
         }
 

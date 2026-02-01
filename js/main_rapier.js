@@ -1192,7 +1192,8 @@ class Game {
                     pos: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
                     rot: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
                     logicProperties: obj.userData.logicProperties, // Create if exists
-                    uuid: obj.userData.uuid // Save UUID for references
+                    uuid: obj.userData.uuid, // Save UUID for references
+                    invisible: obj.userData.invisible // Save visibility state
                 })
             }
         })
@@ -1272,7 +1273,34 @@ class Game {
             const lastObj = this.sceneManager.scene.children[this.sceneManager.scene.children.length - 1]
             if (data.uuid && lastObj) {
                 lastObj.userData.uuid = data.uuid
-                // Also restore trigger state?
+
+                // Restore Invisible Property
+                if (data.invisible) {
+                    lastObj.userData.invisible = true
+
+                    // Visibilty Logic
+                    // If Editor: Keep Visible but Transparent (Already handled by standard material? No, need to apply)
+                    // If Play: Hide
+
+                    if (this.gameMode === 'editor') {
+                        // Editor Feedback
+                        if (lastObj.material) {
+                            lastObj.material.transparent = true
+                            lastObj.material.opacity = 0.3
+                        }
+                        if (lastObj.isGroup) {
+                            lastObj.children.forEach(c => {
+                                if (c.material) {
+                                    c.material.transparent = true
+                                    c.material.opacity = 0.3
+                                }
+                            })
+                        }
+                    } else {
+                        // Game Mode: Invisible
+                        lastObj.visible = false
+                    }
+                }
             }
         })
         console.log("Map Loaded:", jsonData.objects.length, "objects")
