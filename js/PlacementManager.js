@@ -396,6 +396,12 @@ export class PlacementManager {
 
             // --- Determine Size (Smart Sizing) ---
             let realSize = this.getRealSize(item, rotationIndex)
+
+            // Override size for interaction_button globally in this scope
+            if (item.type === 'interaction_button') {
+                realSize = new THREE.Vector3(0.6, 0.1, 0.6)
+            }
+
             const gridSize = this.gridSize || 1
             let targetPos = hit.point.clone()
 
@@ -406,8 +412,7 @@ export class PlacementManager {
 
                 if (item.type === 'interaction_button' && hit.face) {
                     // --- BUTTON SURFACE LOGIC (GRID) ---
-                    // Button specific size (Visual 0.6 x 0.1 x 0.6)
-                    realSize = new THREE.Vector3(0.6, 0.1, 0.6)
+                    // Size is already set above
 
                     // Align to Normal
                     const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
@@ -489,40 +494,68 @@ export class PlacementManager {
                     targetPos.copy(finalPos)
 
                 } else {
-                    // --- GROUND / GLOBAL LOGIC ---
-                    const globalY = isAerialHit ? this.aerialCollider.position.y : hit.point.y;
+                    // --- GROUND / GLOBAL LOGIC (STATIC MAP & FALLBACK) ---
 
-                    // X/Z Snap with Dual-Snap for Thin Walls
-                    ['x', 'z'].forEach(ax => {
-                        let val = hit.point[ax]
-                        const s = realSize[ax]
+                    // Special Handling for Buttons on Static Geometry (Walls/Floors)
+                    if (item.type === 'interaction_button' && hit.face) {
+                        // Align to Normal
+                        const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
+                        const quaternion = new THREE.Quaternion()
+                        quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
 
-                        // Check for "Thin" object (e.g. Wall thickness ~0.5)
-                        // Precision check: 0.5 is typical. Let's say < 0.9 and > 0.1
-                        if (Math.abs(s - 0.5) < 0.1) {
-                            // DUAL SNAP LOGIC
-                            // We want to snap to Grid +/- 0.25
-                            // 1. Find nearest Grid Line
-                            const baseGrid = Math.round(val / gridSize) * gridSize
+                        this.lastValidQuaternion = quaternion.clone()
+                        this.placementGhost.quaternion.copy(quaternion)
 
-                            // 2. Determine side (Inner/Outer) based on cursor relative to line
-                            if (val >= baseGrid) {
-                                targetPos[ax] = baseGrid + 0.25
+                        // Snap Logic on Surface
+                        // Keep axis parallel to normal (flush)
+                        // Snap axes perpendicular to normal
+                        const axes = ['x', 'y', 'z']
+                        axes.forEach(ax => {
+                            if (Math.abs(normal[ax]) > 0.5) {
+                                // Parallel to normal -> flush but OFFSET by half height
+                                targetPos[ax] = hit.point[ax] + normal[ax] * (realSize.y / 2)
                             } else {
-                                targetPos[ax] = baseGrid - 0.25
+                                // Perpendicular -> Snap to Grid Center
+                                const offset = gridSize / 2
+                                targetPos[ax] = Math.round((hit.point[ax] - offset) / gridSize) * gridSize + offset
                             }
-                        } else {
-                            // Standard Center Snapping
-                            const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
-                            targetPos[ax] = Math.round((val - offset) / gridSize) * gridSize + offset
-                        }
-                    })
-
-                    // Y Snap
-                    if (isAerialHit || !hit.face || Math.abs(hit.face.normal.y) > 0.5 || !isMapObject) {
-                        targetPos.y = globalY + realSize.y / 2
+                        })
                     } else {
-                        targetPos.y = Math.round(hit.point.y)
+                        // STANDARD LOGIC
+                        const globalY = isAerialHit ? this.aerialCollider.position.y : hit.point.y;
+
+                        // X/Z Snap with Dual-Snap for Thin Walls
+                        ['x', 'z'].forEach(ax => {
+                            let val = hit.point[ax]
+                            const s = realSize[ax]
+
+                            // Check for "Thin" object (e.g. Wall thickness ~0.5)
+                            // Precision check: 0.5 is typical. Let's say < 0.9 and > 0.1
+                            if (Math.abs(s - 0.5) < 0.1) {
+                                // DUAL SNAP LOGIC
+                                // We want to snap to Grid +/- 0.25
+                                // 1. Find nearest Grid Line
+                                const baseGrid = Math.round(val / gridSize) * gridSize
+
+                                // 2. Determine side (Inner/Outer) based on cursor relative to line
+                                if (val >= baseGrid) {
+                                    targetPos[ax] = baseGrid + 0.25
+                                } else {
+                                    targetPos[ax] = baseGrid - 0.25
+                                }
+                            } else {
+                                // Standard Center Snapping
+                                const offset = (Math.abs(s % 2) > 0.01) ? (gridSize / 2) : 0
+                                targetPos[ax] = Math.round((val - offset) / gridSize) * gridSize + offset
+                            }
+                        })
+
+                        // Y Snap
+                        if (isAerialHit || !hit.face || Math.abs(hit.face.normal.y) > 0.5 || !isMapObject) {
+                            targetPos.y = globalY + realSize.y / 2
+                        } else {
+                            targetPos.y = Math.round(hit.point.y)
+                        }
                     }
                 }
             } else {
@@ -642,6 +675,15 @@ export class PlacementManager {
                 isValid = false
             }
 
+            // Return Base Position (Bottom Center) for Spawner
+            const basePos = targetPos.clone()
+            basePos.y -= realSize.y / 2
+
+            // ALWAYS update lastValidPosition with the SNAPPED position
+            // regardless of collision validity.
+            // This ensures placement happens where the ghost is shown.
+            this.lastValidPosition = basePos
+
             // Visual Feedback
             if (isValid) {
                 if (item.constructor.name === "MapObjectItem") {
@@ -652,17 +694,15 @@ export class PlacementManager {
                     this.ghostBaseMat.color.setHex(color)
                     this.ghostArrowMat.color.setHex(0xFFFFFF)
                 }
-
-                // Return Base Position (Bottom Center) for Spawner
-                const basePos = targetPos.clone()
-                basePos.y -= realSize.y / 2
-
-                this.lastValidPosition = basePos
                 return basePos
             } else {
                 this.ghostBaseMat.color.setHex(0xFF0000)
                 this.ghostArrowMat.color.setHex(0xFF0000)
-                this.lastValidPosition = null
+                // Do NOT clear lastValidPosition here.
+                // We return null to indicate INVALID, but we keep the pos stored just in case user forces it?
+                // Actually, if we return null, the caller might use null.
+                // But `getCurrentTarget` uses `this.lastValidPosition`.
+                // So as long as we set `this.lastValidPosition`, `getCurrentTarget` will return it.
                 return null
             }
 
