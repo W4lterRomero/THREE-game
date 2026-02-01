@@ -1167,7 +1167,8 @@ export class ConstructionMenu {
         this.currentDraftItem.opacity = opacity
 
         // Visual feedback on preview border transparency?
-        this.editorPreview.style.opacity = opacity
+        // User requested NO invisible image. So we keep it opaque or maybe just hint it.
+        // this.editorPreview.style.opacity = opacity 
     }
 
     updateDraftTexture(texturePath) {

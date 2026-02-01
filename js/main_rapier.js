@@ -242,6 +242,10 @@ class Game {
                     if (source.logicProperties) {
                         newItem.logicProperties = { ...source.logicProperties }
                     }
+                    // Copy Opacity
+                    if (source.opacity !== undefined) {
+                        newItem.opacity = source.opacity
+                    }
 
                     this.inventoryManager.setItem(slotIndex, newItem)
                     console.log("Equipped", newItem.name, "to slot", slotIndex + 1)
