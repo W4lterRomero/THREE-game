@@ -224,10 +224,40 @@ export class ObjectInspector {
             this.opacitySlider.max = "1"
             this.opacitySlider.step = "0.1"
             this.opacitySlider.style.width = "60px"
-            this.opacitySlider.addEventListener('input', (e) => this.updateTransparency(parseFloat(e.target.value)))
+            this.opacitySlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value)
+                this.updateTransparency(val)
+                this.opacityNumber.value = Math.round(val * 100)
+            })
 
             opacityContainer.appendChild(opacityLabel)
             opacityContainer.appendChild(this.opacitySlider)
+
+            // Percentage Input
+            this.opacityNumber = document.createElement('input')
+            this.opacityNumber.type = "number"
+            this.opacityNumber.min = "0"
+            this.opacityNumber.max = "100"
+            this.opacityNumber.style.width = "40px"
+            this.opacityNumber.style.marginLeft = "5px"
+            this.opacityNumber.style.background = "#333"
+            this.opacityNumber.style.color = "white"
+            this.opacityNumber.style.border = "none"
+            this.opacityNumber.style.fontSize = "12px"
+            this.opacityNumber.value = "100"
+
+            this.opacityNumber.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value)
+                if (isNaN(val)) val = 100
+                if (val < 0) val = 0
+                if (val > 100) val = 100
+
+                const normalized = val / 100.0
+                this.updateTransparency(normalized)
+                this.opacitySlider.value = normalized
+            })
+
+            opacityContainer.appendChild(this.opacityNumber)
             row.appendChild(opacityContainer)
 
             section.appendChild(row)
@@ -435,6 +465,7 @@ export class ObjectInspector {
             // Default to 1.0 if not set
             const op = (object.userData.opacity !== undefined) ? object.userData.opacity : 1.0
             this.opacitySlider.value = op
+            if (this.opacityNumber) this.opacityNumber.value = Math.round(op * 100)
         }
 
         // Invisible

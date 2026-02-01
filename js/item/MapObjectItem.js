@@ -220,7 +220,11 @@ export class MapObjectItem extends Item {
             const steps = StairsUtils.calculateSteps(this.scale)
 
             const group = new THREE.Group()
-            const material = new THREE.MeshStandardMaterial({ color: this.color })
+            const material = new THREE.MeshStandardMaterial({
+                color: this.color,
+                transparent: (this.opacity !== undefined && this.opacity < 1.0),
+                opacity: (this.opacity !== undefined) ? this.opacity : 1.0
+            })
             const stepGeo = new THREE.BoxGeometry(steps[0].size.x, steps[0].size.y, steps[0].size.z)
 
             steps.forEach(step => {
@@ -359,7 +363,11 @@ export class MapObjectItem extends Item {
         } else {
             // BOX (Wall/Pillar)
             const geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
-            const material = new THREE.MeshStandardMaterial({ color: this.color })
+            const material = new THREE.MeshStandardMaterial({
+                color: this.color,
+                transparent: (this.opacity !== undefined && this.opacity < 1.0),
+                opacity: (this.opacity !== undefined) ? this.opacity : 1.0
+            })
             object3D = new THREE.Mesh(geometry, material)
             object3D.castShadow = true
             object3D.receiveShadow = true
@@ -462,6 +470,7 @@ export class MapObjectItem extends Item {
         object3D.userData.uuid = THREE.MathUtils.generateUUID()
         object3D.userData.originalUUID = object3D.userData.uuid // Keep original if needed
         object3D.userData.color = this.color
+        object3D.userData.opacity = (this.opacity !== undefined) ? this.opacity : 1.0 // Store opacity
         object3D.userData.originalScale = this.scale
         object3D.userData.originalRotY = object3D.rotation.y // Store initial rotation for logic fallback
         object3D.userData.texturePath = this.texturePath // Store for serialization

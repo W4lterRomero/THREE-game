@@ -835,6 +835,41 @@ export class ConstructionMenu {
         pickerRow.appendChild(this.colorPicker)
         controlsContainer.appendChild(pickerRow)
 
+        // Opacity Control Row
+        const opacityRow = document.createElement('div')
+        opacityRow.style.display = "flex"
+        opacityRow.style.alignItems = "center"
+        opacityRow.style.justifyContent = "space-between"
+
+        const opacityLabel = document.createElement('span')
+        opacityLabel.textContent = "Opacidad (%):"
+
+        this.opacityInput = document.createElement('input')
+        this.opacityInput.type = "number"
+        this.opacityInput.min = "0"
+        this.opacityInput.max = "100"
+        this.opacityInput.value = "100"
+        this.opacityInput.style.width = "50px"
+        this.opacityInput.style.background = "#333"
+        this.opacityInput.style.color = "white"
+        this.opacityInput.style.border = "1px solid #555"
+        this.opacityInput.style.borderRadius = "4px"
+        this.opacityInput.style.padding = "4px"
+
+        this.opacityInput.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value)
+            if (isNaN(val)) val = 100
+            if (val < 0) val = 0
+            if (val > 100) val = 100
+
+            // Update Draft Item Opacity (0.0 - 1.0)
+            this.updateDraftOpacity(val / 100.0)
+        })
+
+        opacityRow.appendChild(opacityLabel)
+        opacityRow.appendChild(this.opacityInput)
+        controlsContainer.appendChild(opacityRow)
+
         // Palette
         this.paletteContainer = document.createElement('div')
         this.paletteContainer.style.cssText = `
@@ -1090,19 +1125,49 @@ export class ConstructionMenu {
         // Create a new MapObjectItem that acts as our "Modified" version
         // We pass the color directly
         this.currentDraftItem = new MapObjectItem(id, name, type, "", color, scale, texturePath)
+
+        // Init Image
+        if (this.editorImg) {
+            this.editorImg.src = this.currentDraftItem.iconPath
+        }
     }
 
-    updateDraftColor(colorHex) {
+    updateDraftColor(hexColor) {
         if (!this.currentDraftItem) return
 
-        // Update Color
-        this.currentDraftItem.color = parseInt(colorHex.replace('#', '0x'))
+        // Update model logic
+        this.currentDraftItem.color = parseInt(hexColor.replace('#', '0x'))
 
         // Regenerate Icon
         this.currentDraftItem.iconPath = this.currentDraftItem.generateIcon()
 
         // Update Preview
-        this.editorImg.src = this.currentDraftItem.iconPath
+        if (this.editorImg) {
+            this.editorImg.src = this.currentDraftItem.iconPath
+        }
+
+        // Also update preview border to match?
+        this.editorPreview.style.borderColor = hexColor
+    }
+
+    updateDraftOpacity(opacity) {
+        if (!this.currentDraftItem) return
+
+        // Store opacity in userData-like structure or directly on item if supported
+        // MapObjectItem might need to hold 'opacity'. 
+        // Let's check MapObjectItem structure. It has logicProperties but maybe not generic properties?
+        // Let's add it to logicProperties for now or extend usage.
+        // Actually, MapObjectItem is a template. modifying it modifies the referenced item in Library?
+        // NO. `currentDraftItem` is likely a clone or reference.
+        // `selectItem` creates `currentDraftItem`.
+
+        // Ensure property exists
+        if (!this.currentDraftItem.opacity) this.currentDraftItem.opacity = 1.0
+
+        this.currentDraftItem.opacity = opacity
+
+        // Visual feedback on preview border transparency?
+        this.editorPreview.style.opacity = opacity
     }
 
     updateDraftTexture(texturePath) {
