@@ -9,6 +9,60 @@ export class InteractiveCollisionLogic {
         logicSystem.createInput(container, object, 'triggerOnTouch', props.triggerOnTouch || false, 'boolean', 'Evento al Tocar')
         logicSystem.createInput(container, object, 'triggerOnEnter', props.triggerOnEnter || false, 'boolean', 'Evento al Entrar (Centro)')
 
+        // --- Visuals ---
+        const visualContainer = document.createElement('div')
+        visualContainer.style.cssText = "border-top: 1px solid #444; margin-top: 10px; padding-top: 5px;"
+        visualContainer.innerHTML = "<div style='color:#aaa; font-size:12px; margin-bottom:5px;'>Visuales</div>"
+
+        // Border Color
+        const colorRow = document.createElement('div')
+        colorRow.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;"
+        const colorLabel = document.createElement('label'); colorLabel.textContent = "Color Borde"; colorLabel.style.color = "#ccc"
+        const colorInput = document.createElement('input'); colorInput.type = 'color';
+        colorInput.value = props.borderColor || '#00FFFF' // Default Cyan
+        colorInput.onchange = (e) => {
+            props.borderColor = e.target.value
+            // Immediate Update
+            const wire = object.children.find(c => c.isLineSegments)
+            if (wire && wire.material) {
+                wire.material.color.set(e.target.value)
+            }
+        }
+        colorRow.appendChild(colorLabel); colorRow.appendChild(colorInput)
+        visualContainer.appendChild(colorRow)
+
+        // Border Visible
+        logicSystem.createInput(visualContainer, object, 'borderVisible', props.borderVisible !== false, 'boolean', 'Mostrar Borde')
+        // Hook into the just created input to add immediate update?
+        // createInput doesn't return the element effortlessly or allow callback easily without refactor.
+        // We can manually add a listener or just let the loop handle it? 
+        // Loop is expensive/delayed. Let's find the input we just made? 
+        // LogicSystem.createInput appends to container.
+        const lastInput = visualContainer.lastElementChild.querySelector('input')
+        if (lastInput) {
+            lastInput.addEventListener('change', (e) => {
+                const wire = object.children.find(c => c.isLineSegments)
+                if (wire) wire.visible = e.target.checked
+            })
+        }
+
+        container.appendChild(visualContainer)
+
+        // --- Navigation ---
+        const navBtn = document.createElement('button')
+        navBtn.textContent = "Ir al Objeto"
+        navBtn.style.cssText = "width: 100%; margin-top: 10px; background: #444; color: white; border: 1px solid #666; padding: 5px; cursor: pointer;"
+        navBtn.onclick = () => {
+            if (logicSystem.game.character) {
+                // Teleport player
+                const pos = object.position.clone()
+                pos.y += 2 // Avoid stuck
+                logicSystem.game.character.setPosition(pos)
+                console.log("Teleported to", pos)
+            }
+        }
+        container.appendChild(navBtn)
+
         // --- Dimensions (Read Only here? Or Editable?) ---
         // User said "open a vertical tool bar ... to edit proportions" when PLACING.
         // But maybe also editable here?

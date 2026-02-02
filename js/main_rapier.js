@@ -1686,14 +1686,24 @@ class Game {
             if (obj.userData.mapObjectType === 'interactive_collision') {
                 const props = obj.userData.logicProperties
 
+                // 0. Visual Updates (Lazy check)
+                if (props.borderColor || props.borderVisible !== undefined) {
+                    const wire = obj.children.find(c => c.isLineSegments)
+                    if (wire) {
+                        if (props.borderColor && wire.material) wire.material.color.set(props.borderColor)
+                        if (props.borderVisible !== undefined) wire.visible = props.borderVisible
+                    }
+                }
+
                 // 1. Handle Traversable (Physics)
                 if (obj.userData.rigidBody) {
-                    const isSensor = props.isTraversable
+                    const isSensor = (props.isTraversable === true)
                     const n = obj.userData.rigidBody.numColliders()
                     for (let i = 0; i < n; i++) {
                         const col = obj.userData.rigidBody.collider(i)
                         if (col.isSensor() !== isSensor) {
                             col.setSensor(isSensor)
+                            console.log(`Updated sensor: ${isSensor}`) // Debug
                         }
                     }
                 }
