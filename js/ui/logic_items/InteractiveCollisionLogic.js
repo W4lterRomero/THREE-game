@@ -5,7 +5,40 @@ export class InteractiveCollisionLogic {
 
     static setupUI(container, object, props, logicSystem) {
         // --- Properties ---
-        logicSystem.createInput(container, object, 'isTraversable', props.isTraversable !== false, 'boolean', 'Atravesable (Fantasma)')
+
+        // Manual implementation for "isTraversable" to ensure Physics Update
+        const travRow = document.createElement('div')
+        travRow.style.cssText = `display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom:5px;`
+
+        const travLabel = document.createElement('label')
+        travLabel.textContent = 'Atravesable (Fantasma)'
+        travLabel.style.color = "#aaa"; travLabel.style.fontSize = "14px"
+
+        const travInput = document.createElement('input')
+        travInput.type = "checkbox"
+        travInput.checked = props.isTraversable === true
+        travInput.style.width = "auto"
+
+        travInput.onchange = (e) => {
+            const val = e.target.checked
+            props.isTraversable = val
+            object.userData.logicProperties.isTraversable = val // redundant? props IS reference to userData.logicProperties usually.
+
+            // Immediate Physics Update
+            if (object.userData.rigidBody) {
+                const n = object.userData.rigidBody.numColliders()
+                for (let i = 0; i < n; i++) {
+                    const col = object.userData.rigidBody.collider(i)
+                    col.setSensor(val)
+                    console.log(`[UI] Set Sensor to ${val} for`, object.userData.uuid)
+                }
+            }
+        }
+
+        travRow.appendChild(travLabel)
+        travRow.appendChild(travInput)
+        container.appendChild(travRow)
+
         logicSystem.createInput(container, object, 'triggerOnTouch', props.triggerOnTouch || false, 'boolean', 'Evento al Tocar')
         logicSystem.createInput(container, object, 'triggerOnEnter', props.triggerOnEnter || false, 'boolean', 'Evento al Entrar (Centro)')
 

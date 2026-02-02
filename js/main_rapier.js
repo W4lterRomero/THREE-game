@@ -1701,9 +1701,10 @@ class Game {
                     const n = obj.userData.rigidBody.numColliders()
                     for (let i = 0; i < n; i++) {
                         const col = obj.userData.rigidBody.collider(i)
+                        // Force update if mismatch
                         if (col.isSensor() !== isSensor) {
                             col.setSensor(isSensor)
-                            console.log(`Updated sensor: ${isSensor}`) // Debug
+                            console.log(`[Physics] Updated collider ${i} for ${obj.userData.uuid} to sensor: ${isSensor}`)
                         }
                     }
                 }

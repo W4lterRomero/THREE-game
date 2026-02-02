@@ -435,7 +435,8 @@ export class CharacterRapier {
         // 3. EXECUTE MOVEMENT
         this.characterController.computeColliderMovement(
             this.collider,
-            desiredTranslation
+            desiredTranslation,
+            RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
         )
 
         // 4. Apply result to RigidBody
@@ -499,7 +500,8 @@ export class CharacterRapier {
         // Apply
         this.characterController.computeColliderMovement(
             this.collider,
-            desiredTranslation
+            desiredTranslation,
+            RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
         )
         let corrected = this.characterController.computedMovement()
         let newPos = this.rigidBody.translation()
