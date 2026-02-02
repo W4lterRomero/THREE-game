@@ -1265,7 +1265,7 @@ class Game {
 
             // Restore Opacity
             if (data.opacity !== undefined) {
-                tempItem.userData.opacity = data.opacity
+                tempItem.opacity = data.opacity
             }
 
             // Manual Spawn to support fine rotation if needed
