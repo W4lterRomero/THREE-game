@@ -101,8 +101,59 @@ export class PlacementManager {
         // Grid Aéreo
         this.initAerialGrid()
 
+        // Logic Toolbar (Interactive Collision)
+        this.currentCollisionSize = { x: 2, y: 2, z: 2 }
+        this.initLogicToolbar()
+
         // Ocultar por defecto
         this.placementGhost.visible = false
+    }
+
+    initLogicToolbar() {
+        this.logicToolbar = document.createElement('div')
+        this.logicToolbar.id = 'placement-logic-toolbar'
+        this.logicToolbar.style.cssText = `
+            position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px;
+            display: none; flex-direction: column; gap: 10px; color: white;
+            border: 1px solid #444; z-index: 2000; font-family: sans-serif;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        `
+        const title = document.createElement('div')
+        title.textContent = "Dimensiones"
+        title.style.fontWeight = "bold"; title.style.marginBottom = "5px"; title.style.textAlign = "center"; title.style.color = "#00FFFF"
+        this.logicToolbar.appendChild(title)
+
+        const axes = ['x', 'y', 'z']
+        this.toolbarInputs = {}
+
+        axes.forEach(axis => {
+            const row = document.createElement('div')
+            row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
+            const lbl = document.createElement('label'); lbl.textContent = axis.toUpperCase()
+            const inp = document.createElement('input'); inp.type = 'number'; inp.step = 0.5; inp.value = 2;
+            inp.style.width = "60px"; inp.style.background = "#222"; inp.style.color = "white"; inp.style.border = "1px solid #555"; inp.style.padding = "4px";
+
+            inp.onchange = (e) => {
+                let val = parseFloat(e.target.value)
+                if (isNaN(val) || val < 0.1) val = 0.1
+                this.currentCollisionSize[axis] = val
+                e.target.value = val // Snap back logic
+            }
+            // Prevent event propagation to game inputs
+            inp.onkeydown = (e) => e.stopPropagation()
+
+            row.appendChild(lbl); row.appendChild(inp);
+            this.logicToolbar.appendChild(row)
+            this.toolbarInputs[axis] = inp
+        })
+
+        const hint = document.createElement('div')
+        hint.textContent = "Edita para redimensionar"
+        hint.style.fontSize = "10px"; hint.style.color = "#aaa"; hint.style.textAlign = "center"
+        this.logicToolbar.appendChild(hint)
+
+        document.body.appendChild(this.logicToolbar)
     }
 
     initAerialGrid() {
@@ -213,7 +264,9 @@ export class PlacementManager {
      */
     getRealSize(item, rotationIndex) {
         let size = new THREE.Vector3(1, 1, 1) // Default
-        if (item.constructor.name === "MapObjectItem") {
+        if (item.type === 'interactive_collision') {
+            size.set(this.currentCollisionSize.x, this.currentCollisionSize.y, this.currentCollisionSize.z)
+        } else if (item.constructor.name === "MapObjectItem") {
             size.set(item.scale.x || 1, item.scale.y || 1, item.scale.z || 1)
         } else if (item.id.includes("pad")) {
             size.set(3, 0.2, 3)
@@ -280,11 +333,19 @@ export class PlacementManager {
         this.currentItem = item
         this.rotationIndex = rotationIndex
 
+        // Toolbar Visibility Logic
+        if (item && item.type === 'interactive_collision') {
+            this.logicToolbar.style.display = 'flex'
+        } else {
+            this.logicToolbar.style.display = 'none'
+        }
+
         // Si no hay item o no es de construcción, ocultar
         if (!item || (!item.isImpulsePad && !item.type)) {
             this.placementGhost.visible = false
             this.currentHit = null
             if (this.aerialVisual) this.aerialVisual.visible = false
+            this.logicToolbar.style.display = 'none' // Ensure hidden
             return
         }
 

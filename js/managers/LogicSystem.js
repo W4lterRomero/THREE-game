@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import { LogicToolbar } from "../ui/LogicToolbar.js"
 import { LogicSequenceEditor } from "../ui/LogicSequenceEditor.js"
+import { InteractiveCollisionLogic } from "../ui/logic_items/InteractiveCollisionLogic.js"
 
 export class LogicSystem {
     constructor(game) {
@@ -45,11 +46,12 @@ export class LogicSystem {
                 // Check for inherent logic types or applied logic properties
                 const isSpawn = child.userData.mapObjectType === 'spawn_point'
                 const isButton = child.userData.mapObjectType === 'interaction_button'
+                const isCollision = child.userData.mapObjectType === 'interactive_collision'
                 const hasWaypoints = child.userData.logicProperties &&
                     child.userData.logicProperties.waypoints // Allow empty array
 
                 // Add your own logic flags here
-                if (isSpawn || isButton || hasWaypoints) {
+                if (isSpawn || isButton || isCollision || hasWaypoints) {
                     logicObjects.push(child)
                 }
             }
@@ -98,6 +100,11 @@ export class LogicSystem {
         // 3. Interaction Button Logic
         if (object.userData.mapObjectType === 'interaction_button') {
             this.renderButtonUI(container, object, props)
+        }
+
+        // 4. Interactive Collision Logic
+        if (object.userData.mapObjectType === 'interactive_collision') {
+            InteractiveCollisionLogic.setupUI(container, object, props, this)
         }
     }
 

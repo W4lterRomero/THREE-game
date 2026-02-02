@@ -105,6 +105,23 @@ export class ConstructionMenu {
             targetUuid: null
         }
         this.logicItems.push(button)
+
+        // Interactive Collision
+        const collision = new MapObjectItem(
+            "interactive_collision",
+            "Colisión Interactiva",
+            "interactive_collision",
+            "",
+            0x0088FF,
+            { x: 2, y: 2, z: 2 } // 2x2x2 predetermined
+        )
+        // Default Properties handled in MapObjectItem logic, but good to init here too if needed
+        collision.logicProperties = {
+            isTraversable: false,
+            triggerOnTouch: false,
+            triggerOnEnter: false
+        }
+        this.logicItems.push(collision)
     }
 
     setupUI() {

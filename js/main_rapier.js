@@ -545,6 +545,7 @@ class Game {
 
         // Movement Logic Update
         this.updateMovementLogic(dt)
+        this.updateCollisionLogic(dt)
         this.updateButtonInteraction(dt) // Process Buttons
 
         // Weapon Auto-Fire Logic
@@ -1157,8 +1158,10 @@ class Game {
                     this.moveGhost.visible = false
                     console.log("Farming Zone Moved")
                 } else {
-                    this.useCurrentItem()
+                    this.useCurrentItem(false)
                 }
+            } else if (e.button === 2) { // Right Click
+                this.useCurrentItem(true)
             }
         })
     }
@@ -1313,7 +1316,7 @@ class Game {
         console.log("Map Loaded:", jsonData.objects.length, "objects")
     }
 
-    useCurrentItem() {
+    useCurrentItem(isRightClick = false) {
         const item = this.inventoryManager.getCurrentItem()
         if (!item) return
 
@@ -1410,7 +1413,8 @@ class Game {
             direction: direction,
             registerProjectile: (proj) => {
                 this.projectiles.push(proj)
-            }
+            },
+            isRightClick: isRightClick
         }
 
         const consumed = item.use(context)
@@ -1573,27 +1577,8 @@ class Game {
         }
     }
 
-    triggerButton(buttonObj) {
-        console.log("Button Triggered!", buttonObj.userData.uuid)
-
-        // Visual Feedback: Animate Button Mesh
-        if (buttonObj.children) {
-            const btnMesh = buttonObj.children.find(c => c.userData.isButtonMesh)
-            if (btnMesh) {
-                // Animate interact (Press down)
-                const originalY = 0.05
-                btnMesh.position.y = 0.02
-                setTimeout(() => {
-                    btnMesh.position.y = originalY
-                }, 200)
-            }
-        }
-
-        // Logic
-        const props = buttonObj.userData.logicProperties
-        if (props.oneShot) props.triggered = true
-
-        const signalId = buttonObj.userData.uuid
+    emitSignal(signalId) {
+        console.log("Emitting Signal:", signalId)
 
         // Find objects listening to this signal
         if (this.sceneManager && this.sceneManager.scene) {
@@ -1641,19 +1626,13 @@ class Game {
                 }
 
                 // 2. Legacy / Direct Target Support (Keep for backward compat or simple toggle)
-                // If the button EXPLICITLY targets this object (Old system)
-                if (props.targetUuid === obj.userData.uuid) {
-                    e   // Toggle "Active" on the object itself (Legacy global properties)
-                    // Or toggle the first sequence?
-                    if (obj.userData.logicProperties) {
-                        // If using sequences, toggle the first one?
-                        if (obj.userData.logicProperties.sequences && obj.userData.logicProperties.sequences.length > 0) {
-                            const seq = obj.userData.logicProperties.sequences[0]
-                            seq.active = !seq.active
-                        } else if (obj.userData.logicProperties.active !== undefined) {
-                            // Legacy
-                            obj.userData.logicProperties.active = !obj.userData.logicProperties.active
-                        }
+                if (obj.userData.logicProperties && obj.userData.logicProperties.targetUuid === signalId) {
+                    if (obj.userData.logicProperties.sequences && obj.userData.logicProperties.sequences.length > 0) {
+                        const seq = obj.userData.logicProperties.sequences[0]
+                        seq.active = !seq.active
+                    } else if (obj.userData.logicProperties.active !== undefined) {
+                        // Legacy
+                        obj.userData.logicProperties.active = !obj.userData.logicProperties.active
                     }
                 }
 
@@ -1669,6 +1648,76 @@ class Game {
                 }
             })
         }
+    }
+
+    triggerButton(buttonObj) {
+        console.log("Button Triggered!", buttonObj.userData.uuid)
+
+        // Visual Feedback: Animate Button Mesh
+        if (buttonObj.children) {
+            const btnMesh = buttonObj.children.find(c => c.userData.isButtonMesh)
+            if (btnMesh) {
+                // Animate interact (Press down)
+                const originalY = 0.05
+                btnMesh.position.y = 0.02
+                setTimeout(() => {
+                    btnMesh.position.y = originalY
+                }, 200)
+            }
+        }
+
+        // Logic
+        const props = buttonObj.userData.logicProperties
+        if (props.oneShot) props.triggered = true
+
+        this.emitSignal(buttonObj.userData.uuid)
+    }
+
+    updateCollisionLogic(dt) {
+        if (!this.character) return
+        const charPos = this.character.getPosition()
+        // Simple Box for character
+        const charBox = new THREE.Box3().setFromCenterAndSize(
+            charPos.clone().add(new THREE.Vector3(0, 1, 0)),
+            new THREE.Vector3(0.8, 1.8, 0.8)
+        )
+
+        this.sceneManager.scene.children.forEach(obj => {
+            if (obj.userData.mapObjectType === 'interactive_collision') {
+                const props = obj.userData.logicProperties
+
+                // 1. Handle Traversable (Physics)
+                if (obj.userData.rigidBody) {
+                    const isSensor = props.isTraversable
+                    const n = obj.userData.rigidBody.numColliders()
+                    for (let i = 0; i < n; i++) {
+                        const col = obj.userData.rigidBody.collider(i)
+                        if (col.isSensor() !== isSensor) {
+                            col.setSensor(isSensor)
+                        }
+                    }
+                }
+
+                // 2. Overlap Check
+                const objBox = new THREE.Box3().setFromObject(obj)
+                const intersects = charBox.intersectsBox(objBox)
+
+                // State Tracking
+                if (props._isInside === undefined) props._isInside = false
+
+                if (intersects && !props._isInside) {
+                    // ENTER EVENT
+                    props._isInside = true
+                    if (props.triggerOnEnter || props.triggerOnTouch) {
+                        console.log("Interactive Collision Triggered:", obj.userData.uuid)
+                        this.emitSignal(obj.userData.uuid)
+                    }
+                } else if (!intersects && props._isInside) {
+                    // EXIT EVENT
+                    props._isInside = false
+                }
+            }
+        })
     }
 
     updateMovementLogic(dt) {

@@ -111,6 +111,22 @@ export class MapObjectItem extends Item {
             ctx.textAlign = "center"
             ctx.fillText("F", 32, 38)
 
+        } else if (this.type === 'interactive_collision') {
+            // Blue Box with Logic Symbol
+            ctx.fillStyle = "rgba(0, 136, 255, 0.5)"
+            ctx.strokeStyle = "#00FFFF"
+            ctx.lineWidth = 2
+
+            ctx.fillRect(16, 16, 32, 32)
+            ctx.strokeRect(16, 16, 32, 32)
+
+            // Logic Symbol (Lightning? or Box)
+            ctx.fillStyle = "white"
+            ctx.font = "bold 20px Arial"
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.fillText("⚡", 32, 32)
+
         } else {
             // Wall / Default (Landscape Rect)
             ctx.fillRect(8, 20, 48, 24)
@@ -122,6 +138,43 @@ export class MapObjectItem extends Item {
 
     use(context) {
         // Context contains placementManager, scene, camera, etc.
+
+        if (this.type === 'interactive_collision') {
+            // Right Click: ATTACH LOGIC
+            if (context.isRightClick) {
+                const raycaster = new THREE.Raycaster()
+                raycaster.set(context.origin, context.direction)
+                const intersects = raycaster.intersectObjects(context.scene.children, true)
+                const hit = intersects.find(h => h.object.userData && h.object.userData.isEditableMapObject)
+
+                if (hit) {
+                    const target = hit.object
+
+                    // Apply Logic
+                    if (!target.userData.logicProperties) target.userData.logicProperties = {}
+
+                    // Set Type so LogicSystem picks it up
+                    // We preserve original visual, just tag it.
+                    target.userData.originalMapObjectType = target.userData.mapObjectType
+                    target.userData.mapObjectType = 'interactive_collision'
+
+                    // Set Defaults if missing
+                    if (target.userData.logicProperties.isTraversable === undefined) target.userData.logicProperties.isTraversable = false
+                    if (target.userData.logicProperties.triggerOnTouch === undefined) target.userData.logicProperties.triggerOnTouch = false
+                    if (target.userData.logicProperties.triggerOnEnter === undefined) target.userData.logicProperties.triggerOnEnter = false
+
+                    alert(`Lógica de Colisión Interactiva aplicada a: ${target.userData.name || 'Objeto'}`)
+                    return true
+                }
+                return false
+            }
+
+            // Left Click: UPDATE SCALE FROM TOOLBAR
+            if (context.placementManager && context.placementManager.currentCollisionSize) {
+                this.scale = { ...context.placementManager.currentCollisionSize }
+                // Proceed to spawn (fall through)
+            }
+        }
 
         if (this.type === 'movement_controller') {
             // TOOL BEHAVIOR: Apply logic to existing object
@@ -359,6 +412,35 @@ export class MapObjectItem extends Item {
             if (this.logicProperties.holdTime === undefined) this.logicProperties.holdTime = 0
             if (this.logicProperties.oneShot === undefined) this.logicProperties.oneShot = false
             if (this.logicProperties.triggered === undefined) this.logicProperties.triggered = false
+
+        } else if (this.type === 'interactive_collision') {
+            // INTERACTIVE COLLISION (Transparent Box)
+            const geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x0088FF, // Blueish
+                transparent: true,
+                opacity: 0.3,
+                wireframe: false
+            })
+            object3D = new THREE.Mesh(geometry, material)
+
+            // Wireframe helper
+            const wiregeo = new THREE.EdgesGeometry(geometry)
+            const wiremat = new THREE.LineBasicMaterial({ color: 0x00FFFF })
+            const wire = new THREE.LineSegments(wiregeo, wiremat)
+            object3D.add(wire)
+
+            const col = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            // Sensor by default? Or solid? User said "Colision predeterminada ... si se puede atravesar".
+            // So default is SOLID collision, but traversable property makes it sensor.
+            // LogicSystem/Physics update will handle traversable switching. For now default solid.
+            collidersDesc.push(col)
+
+            // Initialize Logic Props
+            if (!this.logicProperties) this.logicProperties = {}
+            if (this.logicProperties.isTraversable === undefined) this.logicProperties.isTraversable = false
+            if (this.logicProperties.triggerOnTouch === undefined) this.logicProperties.triggerOnTouch = false
+            if (this.logicProperties.triggerOnEnter === undefined) this.logicProperties.triggerOnEnter = false
 
         } else {
             // BOX (Wall/Pillar)
