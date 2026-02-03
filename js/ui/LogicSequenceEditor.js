@@ -170,14 +170,14 @@ export class LogicSequenceEditor {
             })
 
             const addTrigBtn = document.createElement('button')
-            addTrigBtn.textContent = "+ Agregar Botón Disparador"
-            addTrigBtn.style.cssText = "width:1000%; background:#333; border: 1px dashed #555; color:#aaa; font-size:10px; padding:4px; cursor:pointer;"
+            addTrigBtn.textContent = "+ Agregar Señal Disparador"
+            addTrigBtn.style.cssText = "width:100%; background:#333; border: 1px dashed #555; color:#aaa; font-size:10px; padding:4px; cursor:pointer;"
             addTrigBtn.onclick = () => {
-                this.showButtonSelector((selectedBtn) => {
-                    const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
-                        ? selectedBtn.userData.logicProperties.name
-                        : "Botón"
-                    seq.triggerSignals.push({ id: selectedBtn.userData.uuid, name: name })
+                this.showSignalSelector((selectedObj, type) => {
+                    const name = selectedObj.userData.logicProperties && selectedObj.userData.logicProperties.name
+                        ? selectedObj.userData.logicProperties.name
+                        : (type === 'button' ? "Botón" : "Colisión")
+                    seq.triggerSignals.push({ id: selectedObj.userData.uuid, name: name })
                     this.render()
                 })
             }
@@ -213,21 +213,20 @@ export class LogicSequenceEditor {
         addWpBtn.onclick = () => this.addWaypoint(seq)
         btnWrapper.appendChild(addWpBtn)
 
-        // Add Signal Wait Button
         const addSigBtn = document.createElement('button')
-        addSigBtn.textContent = "+ Señal de Botón"
+        addSigBtn.textContent = "+ Agregar Señal"
         addSigBtn.className = 'lse-add-btn'
         addSigBtn.style.background = "#cc7700"
         addSigBtn.style.marginBottom = "0"
         addSigBtn.style.flex = "1"
-        addSigBtn.onclick = () => this.showButtonSelector((selectedBtn) => {
-            const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
-                ? selectedBtn.userData.logicProperties.name
-                : "Botón"
+        addSigBtn.onclick = () => this.showSignalSelector((selectedObj, type) => {
+            const name = selectedObj.userData.logicProperties && selectedObj.userData.logicProperties.name
+                ? selectedObj.userData.logicProperties.name
+                : (type === 'button' ? "Botón" : "Colisión")
 
             seq.waypoints.push({
                 type: 'wait_signal',
-                signalIds: [{ id: selectedBtn.userData.uuid, name: name }]
+                signalIds: [{ id: selectedObj.userData.uuid, name: name }]
             })
             this.render()
             this.logicSystem.updateVisualization()
@@ -253,22 +252,22 @@ export class LogicSequenceEditor {
                 let buttonsHtml = ""
                 wp.signalIds.forEach((btnData, btnIdx) => {
                     buttonsHtml += `
-                        <div style="display:flex; justify-content:space-between; background:#333; padding:2px 5px; margin-bottom:2px; border-radius:3px;">
-                            <span>${btnData.name}</span>
-                            <span class="remove-btn-trigger" data-step-idx="${idx}" data-btn-idx="${btnIdx}" style="cursor:pointer; color:#f44;">x</span>
-                        </div>
-                    `
+                            <div style="display:flex; justify-content:space-between; background:#333; padding:2px 5px; margin-bottom:2px; border-radius:3px;">
+                                <span>${btnData.name}</span>
+                                <span class="remove-btn-trigger" data-step-idx="${idx}" data-btn-idx="${btnIdx}" style="cursor:pointer; color:#f44;">x</span>
+                            </div>
+                        `
                 })
 
                 item.innerHTML = `
-                    <div class="lse-item-header">
-                        <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal(es)</span>
-                    </div>
-                    <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
-                        ${buttonsHtml}
-                        <button class="add-btn-trigger" data-step-idx="${idx}" style="background:#444; border:none; color:#aaa; cursor:pointer; width:80%; font-size:10px; margin-top:5px; padding:4px;">+ Agregar Botón</button>
-                    </div>
-                `
+                        <div class="lse-item-header">
+                            <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal(es)</span>
+                        </div>
+                        <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
+                            ${buttonsHtml}
+                            <button class="add-btn-trigger" data-step-idx="${idx}" style="background:#444; border:none; color:#aaa; cursor:pointer; width:80%; font-size:10px; margin-top:5px; padding:4px;">+ Agregar Señal</button>
+                        </div>
+                    `
 
                 // Add Event Listeners for dynamic buttons
                 const removeBtns = item.querySelectorAll('.remove-btn-trigger')
@@ -284,11 +283,11 @@ export class LogicSequenceEditor {
 
                 const addBtn = item.querySelector('.add-btn-trigger')
                 addBtn.onclick = () => {
-                    this.showButtonSelector((selectedBtn) => {
-                        const name = selectedBtn.userData.logicProperties && selectedBtn.userData.logicProperties.name
-                            ? selectedBtn.userData.logicProperties.name
-                            : "Botón"
-                        wp.signalIds.push({ id: selectedBtn.userData.uuid, name: name })
+                    this.showSignalSelector((selectedObj, type) => {
+                        const name = selectedObj.userData.logicProperties && selectedObj.userData.logicProperties.name
+                            ? selectedObj.userData.logicProperties.name
+                            : (type === 'button' ? "Botón" : "Colisión")
+                        wp.signalIds.push({ id: selectedObj.userData.uuid, name: name })
                         this.render()
                     })
                 }
@@ -370,7 +369,7 @@ export class LogicSequenceEditor {
         this.logicSystem.updateVisualization()
     }
 
-    showButtonSelector(onSelectCallback) {
+    showSignalSelector(onSelectCallback) {
         // Create a modal list of buttons on top of existing UI
         const overlay = document.createElement('div')
         overlay.style.cssText = `
@@ -382,60 +381,99 @@ export class LogicSequenceEditor {
         const panel = document.createElement('div')
         panel.style.cssText = `
             background: #222; border: 2px solid #444; border-radius: 8px;
-            width: 300px; max-height: 80%; padding: 20px;
+            width: 400px; height: 500px; padding: 20px;
             display: flex; flex-direction: column; gap: 10px;
         `
 
         const title = document.createElement('h3')
-        title.textContent = "Selecciona un Botón"
+        title.textContent = "Selecciona una Señal"
         title.style.margin = "0 0 10px 0"
         title.style.textAlign = "center"
         title.style.color = "white"
         panel.appendChild(title)
 
-        const list = document.createElement('div')
-        list.style.cssText = "overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 5px;"
+        // Tabs
+        const tabContainer = document.createElement('div')
+        tabContainer.style.cssText = "display: flex; gap: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px;"
 
-        // Find buttons using LogicSystem's helper or manually
-        // We need Scene reference
-        const buttons = []
-        if (this.game.sceneManager && this.game.sceneManager.scene) {
-            this.game.sceneManager.scene.traverse(obj => {
-                if (obj.userData && obj.userData.mapObjectType === 'interaction_button') {
-                    buttons.push(obj)
-                }
-            })
-        }
+        const tabBtns = document.createElement('div')
+        tabBtns.textContent = "Botones"
+        tabBtns.style.cssText = "cursor: pointer; color: white; font-weight: bold; border-bottom: 2px solid white; padding-bottom: 2px; flex: 1; text-align: center;"
 
-        if (buttons.length === 0) {
-            list.innerHTML = "<div style='color:#666; text-align:center;'>No hay botones en la escena.</div>"
-        } else {
-            buttons.forEach(btn => {
-                const row = document.createElement('button')
-                // Name or ID
-                const name = btn.userData.logicProperties && btn.userData.logicProperties.name
-                    ? btn.userData.logicProperties.name
-                    : "Botón Sin Nombre"
-                const uuid = btn.userData.uuid.substring(0, 5)
+        const tabCols = document.createElement('div')
+        tabCols.textContent = "Colisiones Interactivas"
+        tabCols.style.cssText = "cursor: pointer; color: #888; padding-bottom: 2px; flex: 1; text-align: center;"
 
-                row.textContent = `${name} (${uuid})`
-                row.style.cssText = `
-                    background: #333; color: white; border: 1px solid #444;
-                    padding: 8px; text-align: left; cursor: pointer; border-radius: 4px;
-                `
-                row.onmouseover = () => row.style.background = "#444"
-                row.onmouseout = () => row.style.background = "#333"
+        tabContainer.appendChild(tabBtns)
+        tabContainer.appendChild(tabCols)
+        panel.appendChild(tabContainer)
 
-                row.onclick = () => {
-                    if (onSelectCallback) {
-                        onSelectCallback(btn)
+        const listContainer = document.createElement('div')
+        listContainer.style.cssText = "overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 5px;"
+
+        // Helper to populate list
+        const populateList = (type) => {
+            listContainer.innerHTML = ""
+
+            const items = []
+            if (this.game.sceneManager && this.game.sceneManager.scene) {
+                this.game.sceneManager.scene.traverse(obj => {
+                    if (obj.userData) {
+                        if (type === 'button' && obj.userData.mapObjectType === 'interaction_button') {
+                            items.push(obj)
+                        } else if (type === 'collision' && obj.userData.mapObjectType === 'interactive_collision') {
+                            items.push(obj)
+                        }
                     }
-                    document.body.removeChild(overlay)
-                }
-                list.appendChild(row)
-            })
+                })
+            }
+
+            if (items.length === 0) {
+                listContainer.innerHTML = "<div style='color:#666; text-align:center;'>No hay objetos de este tipo en la escena.</div>"
+            } else {
+                items.forEach(obj => {
+                    const row = document.createElement('div')
+                    const name = obj.userData.logicProperties && obj.userData.logicProperties.name
+                        ? obj.userData.logicProperties.name
+                        : (type === 'button' ? "Botón Sin Nombre" : "Colisión Sin Nombre")
+                    const uuid = obj.userData.uuid.substring(0, 5)
+
+                    row.textContent = `${name} (${uuid})`
+                    row.style.cssText = `
+                        background: #333; color: white; border: 1px solid #444;
+                        padding: 8px; text-align: left; cursor: pointer; border-radius: 4px;
+                        transition: background 0.2s;
+                     `
+                    row.onmouseover = () => row.style.background = "#444"
+                    row.onmouseout = () => row.style.background = "#333"
+
+                    row.onclick = () => {
+                        if (onSelectCallback) {
+                            onSelectCallback(obj, type)
+                        }
+                        document.body.removeChild(overlay)
+                    }
+                    listContainer.appendChild(row)
+                })
+            }
         }
-        panel.appendChild(list)
+
+        // Init with buttons
+        populateList('button')
+
+        // Tab Events
+        tabBtns.onclick = () => {
+            tabBtns.style.fontWeight = "bold"; tabBtns.style.color = "white"; tabBtns.style.borderBottom = "2px solid white";
+            tabCols.style.fontWeight = "normal"; tabCols.style.color = "#888"; tabCols.style.borderBottom = "none";
+            populateList('button')
+        }
+        tabCols.onclick = () => {
+            tabCols.style.fontWeight = "bold"; tabCols.style.color = "white"; tabCols.style.borderBottom = "2px solid white";
+            tabBtns.style.fontWeight = "normal"; tabBtns.style.color = "#888"; tabBtns.style.borderBottom = "none";
+            populateList('collision')
+        }
+
+        panel.appendChild(listContainer)
 
         const cancelBtn = document.createElement('button')
         cancelBtn.textContent = "Cancelar"
