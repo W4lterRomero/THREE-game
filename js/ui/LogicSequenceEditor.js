@@ -239,6 +239,58 @@ export class LogicSequenceEditor {
         seq.waypoints.forEach((wp, idx) => {
             const item = document.createElement('div')
             item.className = 'lse-item'
+            item.draggable = true // Enable Drag
+
+            // --- Drag and Drop Logic ---
+            item.ondragstart = (e) => {
+                this.draggedItemIndex = idx
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/plain', idx)
+                item.classList.add('lse-dragging')
+            }
+
+            item.ondragover = (e) => {
+                e.preventDefault() // Necessary to allow dropping
+                e.dataTransfer.dropEffect = 'move'
+                item.classList.add('lse-drag-over')
+            }
+
+            item.ondragleave = (e) => {
+                item.classList.remove('lse-drag-over')
+            }
+
+            item.ondrop = (e) => {
+                e.preventDefault()
+                item.classList.remove('lse-drag-over')
+                const fromIdx = parseInt(e.dataTransfer.getData('text/plain'))
+                const toIdx = idx
+
+                if (fromIdx !== toIdx) {
+                    // Reorder Array
+                    const movedItem = seq.waypoints.splice(fromIdx, 1)[0]
+                    seq.waypoints.splice(toIdx, 0, movedItem)
+
+                    this.render()
+                    this.logicSystem.updateVisualization()
+                }
+            }
+
+            item.ondragend = (e) => {
+                item.classList.remove('lse-dragging')
+                // Cleanup any leftover styles
+                this.timeline.querySelectorAll('.lse-item').forEach(el => el.classList.remove('lse-drag-over'))
+            }
+
+            // Add simple CSS for drag feedback if not already present
+            if (!document.getElementById('lse-drag-styles')) {
+                const style = document.createElement('style')
+                style.id = 'lse-drag-styles'
+                style.innerHTML = `
+                        .lse-dragging { opacity: 0.5; border: 2px dashed #aaa !important; }
+                        .lse-drag-over { border-top: 2px solid #00FF00 !important; box-shadow: 0 -2px 5px rgba(0,255,0,0.2); }
+                    `
+                document.head.appendChild(style)
+            }
 
             if (wp.type === 'wait_signal') {
                 item.style.borderLeftColor = "#cc7700"
@@ -260,8 +312,9 @@ export class LogicSequenceEditor {
                 })
 
                 item.innerHTML = `
-                        <div class="lse-item-header">
+                        <div class="lse-item-header" style="cursor: grab;">
                             <strong>Paso #${idx + 1}</strong> <span style="color:#ffa500;">Esperar Señal(es)</span>
+                            <span style="float:right; color:#666;">☰</span>
                         </div>
                         <div style="font-size:13px; color:#ddd; margin-bottom:5px;">
                             ${buttonsHtml}
@@ -292,24 +345,13 @@ export class LogicSequenceEditor {
                     })
                 }
 
-
-                // Delete Step Btn
-                const delBtn = document.createElement('button')
-                delBtn.textContent = "🗑"
-                delBtn.style.cssText = "float:right; background:none; border:none; cursor:pointer; font-size:14px; margin-top:-24px;"
-                delBtn.onclick = () => {
-                    seq.waypoints.splice(idx, 1)
-                    this.render()
-                    this.logicSystem.updateVisualization()
-                }
-                item.appendChild(delBtn)
-
             } else {
                 // Standard Waypoint
                 // Header: #1 -> 2.5s Delay -> ...
                 const header = document.createElement('div')
                 header.className = 'lse-item-header'
-                header.innerHTML = `<strong>Paso #${idx + 1}</strong> <span style='font-family:monospace; color:#aaa;'>[${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span>`
+                header.style.cursor = "grab"
+                header.innerHTML = `<strong>Paso #${idx + 1}</strong> <span style='font-family:monospace; color:#aaa;'>[${wp.x.toFixed(1)}, ${wp.y.toFixed(1)}, ${wp.z.toFixed(1)}]</span> <span style="float:right; color:#666;">☰</span>`
                 item.appendChild(header)
 
                 // Actions
@@ -336,19 +378,46 @@ export class LogicSequenceEditor {
                 tpLabel.querySelector('input').onchange = (e) => wp.teleport = e.target.checked
                 actions.appendChild(tpLabel)
 
-                // Delete
-                const delBtn = document.createElement('button')
-                delBtn.textContent = "🗑"
-                delBtn.style.cssText = "margin-left:auto; background:none; border:none; cursor:pointer; font-size:14px;"
-                delBtn.onclick = () => {
+                item.appendChild(actions)
+            }
+
+            // --- Shared Buttons for All Step Types (Duplicate & Delete) ---
+            const btnContainer = document.createElement('div')
+            btnContainer.style.cssText = "display: flex; gap: 5px; justify-content: flex-end; margin-top: 5px; border-top: 1px solid #333; padding-top: 5px;"
+
+            // Duplicate Button
+            const dupBtn = document.createElement('button')
+            dupBtn.textContent = "❐" // Duplicate Icon
+            dupBtn.title = "Duplicar Paso"
+            dupBtn.style.cssText = "background: #444; border: none; color: white; cursor: pointer; border-radius: 3px; padding: 2px 6px;"
+            dupBtn.onclick = (e) => {
+                e.stopPropagation() // Prevent drag triggers if any
+                // Deep Clone
+                const clone = JSON.parse(JSON.stringify(wp))
+                // If it's a move waypoint, maybe offset slightly so user sees it? 
+                // No, usually exact duplicate is expected behavior in a pure logic editor.
+                seq.waypoints.splice(idx + 1, 0, clone)
+                this.render()
+                this.logicSystem.updateVisualization()
+            }
+
+            // Delete Button
+            const delBtn = document.createElement('button')
+            delBtn.textContent = "🗑"
+            delBtn.style.cssText = "background: #622; border: none; color: white; cursor: pointer; border-radius: 3px; padding: 2px 6px;"
+            delBtn.onclick = (e) => {
+                e.stopPropagation()
+                if (confirm("¿Eliminar este paso?")) {
                     seq.waypoints.splice(idx, 1)
                     this.render()
                     this.logicSystem.updateVisualization()
                 }
-                actions.appendChild(delBtn)
-
-                item.appendChild(actions)
             }
+
+            btnContainer.appendChild(dupBtn)
+            btnContainer.appendChild(delBtn)
+            item.appendChild(btnContainer)
+
             this.timeline.appendChild(item)
         })
     }
