@@ -80,20 +80,19 @@ export class LogicSequenceEditor {
     close() {
         if (this.container) this.container.style.display = 'none'
 
-        // Refresh the main panel in LogicSystem to show updates (e.g. name change)
-        if (this.logicSystem.editingObject === this.currentObject) {
-            // Re-render the main panel
-            // We need a way to trigger refresh. LogicSystem.renderPanel needs container. 
-            // Ideally we callback or LogicSystem handles "onEditorClose"
-            // For now, we update visualization at least.
-            this.logicSystem.updateVisualization()
+        // Capture obj before clearing
+        const obj = this.currentObject
 
-            // If we want to refresh the sidebar UI in construction menu:
-            // We unfortunately don't have direct ref to that specific container div unless passed.
-            // But we can rely on user re-opening or maybe we force a refresh if logicSystem allows.
-            if (this.logicSystem.currentPanelContainer) {
-                this.logicSystem.renderPanel(this.logicSystem.currentPanelContainer, this.currentObject)
-            }
+        // CLEAR references so LogicSystem doesn't think we are still editing
+        this.currentObject = null
+        this.currentSeqIndex = -1
+
+        // We want to update visualization to HIDE the partial lines
+        this.logicSystem.updateVisualization()
+
+        // Refresh the main panel in LogicSystem if we were editing the same object
+        if (this.logicSystem.editingObject === obj && this.logicSystem.currentPanelContainer) {
+            this.logicSystem.renderPanel(this.logicSystem.currentPanelContainer, obj)
         }
     }
 
