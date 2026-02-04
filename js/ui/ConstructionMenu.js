@@ -1,5 +1,6 @@
 import { MapObjectItem } from "../item/MapObjectItem.js"
 import { LogicSystem } from "../managers/LogicSystem.js"
+import { GameConfigPanel } from "./GameConfigPanel.js"
 import * as THREE from "three"
 
 export class ConstructionMenu {
@@ -15,6 +16,8 @@ export class ConstructionMenu {
         this.libraryItems = []
         this.generateLibrary()
         this.generateLogicLibrary() // Logic Items
+
+        this.gameConfigPanel = new GameConfigPanel(this.game, this.logicSystem)
 
         this.setupUI()
     }
@@ -181,6 +184,13 @@ export class ConstructionMenu {
         this.tabSettings.style.borderBottom = "none"
         this.tabSettings.onclick = () => this.switchTab('settings')
 
+        this.tabGameConfig = document.createElement('div')
+        this.tabGameConfig.textContent = "Config Partida"
+        this.tabGameConfig.style.cursor = "pointer"
+        this.tabGameConfig.style.color = "#888" // Inactive look
+        this.tabGameConfig.style.borderBottom = "none"
+        this.tabGameConfig.onclick = () => this.switchTab('gameConfig')
+
         this.tabSaveLoad = document.createElement('div')
         this.tabSaveLoad.textContent = "Guardar / Cargar"
         this.tabSaveLoad.style.cursor = "pointer"
@@ -190,6 +200,7 @@ export class ConstructionMenu {
 
         header.appendChild(this.tabLibrary)
         header.appendChild(this.tabLogic)
+        header.appendChild(this.tabGameConfig)
         header.appendChild(this.tabSettings)
         header.appendChild(this.tabSaveLoad)
         this.container.appendChild(header)
@@ -370,9 +381,17 @@ export class ConstructionMenu {
         `
         this.renderSaveLoad(this.contentSaveLoad)
 
+        // Game Config Content
+        this.contentGameConfig = document.createElement('div')
+        this.contentGameConfig.style.cssText = `
+            flex: 1; display: none; /* Hidden */
+        `
+        this.gameConfigPanel.createUI(this.contentGameConfig)
+
         this.container.appendChild(this.contentLibrary)
         this.container.appendChild(this.contentLogic)
         this.container.appendChild(this.contentSettings)
+        this.container.appendChild(this.contentGameConfig)
         this.container.appendChild(this.contentSaveLoad)
 
 
@@ -391,6 +410,7 @@ export class ConstructionMenu {
         this.contentLibrary.style.display = 'none'
         this.contentLogic.style.display = 'none'
         this.contentSettings.style.display = 'none'
+        this.contentGameConfig.style.display = 'none'
         this.contentSaveLoad.style.display = 'none'
 
         this.tabLibrary.style.fontWeight = "normal"
@@ -408,6 +428,10 @@ export class ConstructionMenu {
         this.tabSaveLoad.style.fontWeight = "normal"
         this.tabSaveLoad.style.color = "#888"
         this.tabSaveLoad.style.borderBottom = "none"
+
+        this.tabGameConfig.style.fontWeight = "normal"
+        this.tabGameConfig.style.color = "#888"
+        this.tabGameConfig.style.borderBottom = "none"
 
         // Activate Selected
         if (tabName === 'library') {
@@ -428,6 +452,13 @@ export class ConstructionMenu {
             this.tabSettings.style.fontWeight = "bold"
             this.tabSettings.style.color = "white"
             this.tabSettings.style.borderBottom = "2px solid white"
+
+        } else if (tabName === 'gameConfig') {
+            this.contentGameConfig.style.display = 'flex'
+            this.tabGameConfig.style.fontWeight = "bold"
+            this.tabGameConfig.style.color = "white"
+            this.tabGameConfig.style.borderBottom = "2px solid white"
+            this.gameConfigPanel.render()
 
         } else if (tabName === 'saveload') {
             this.contentSaveLoad.style.display = 'flex'

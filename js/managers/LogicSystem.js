@@ -30,6 +30,15 @@ export class LogicSystem {
         if (this.game.sceneManager && this.game.sceneManager.scene) {
             this.game.sceneManager.scene.add(this.pathVisualizer)
         }
+
+        // Game Config Runtime State
+        this.gameConfig = { sequences: [] } // Config Data
+        this.configRuntime = {
+            isPlaying: false,
+            currentIndex: 0,
+            timer: 0,
+            hasStarted: false
+        }
     }
 
     /**
@@ -390,7 +399,13 @@ export class LogicSystem {
     }
 
     update(dt) {
+        // Run Game Config Logic if NOT editing map
+        if (!this.isEditingMap && this.game.gameMode !== 'editor') {
+            this.updateGameLogic(dt)
+        }
+
         if (!this.isEditingMap || !this.editingObject) return
+
 
         // Handle Active Tool Logic
         if (this.toolbar.activeTool === 'waypoint') {
@@ -529,6 +544,100 @@ export class LogicSystem {
         row.appendChild(label)
         row.appendChild(input)
         container.appendChild(row)
+    }
+
+    updateGameLogic(dt) {
+        // Start logic
+        if (!this.configRuntime.hasStarted && this.gameConfig.sequences.length > 0) {
+            this.configRuntime.hasStarted = true
+            this.configRuntime.isPlaying = true
+            this.configRuntime.currentIndex = 0
+            this.configRuntime.timer = 0
+            console.log("Game Sequence Started")
+        }
+
+        if (!this.configRuntime.isPlaying) return
+
+        const seq = this.gameConfig.sequences
+        if (this.configRuntime.currentIndex >= seq.length) {
+            this.configRuntime.isPlaying = false // Done
+            console.log("Game Sequence Finished")
+            return
+        }
+
+        const block = seq[this.configRuntime.currentIndex]
+
+        // --- EXECUTE BLOCK ---
+        if (block.type === 'start_signal' || block.type === 'emit_signal') {
+            const signalName = block.signalName || "signal"
+            console.log("Broadcasting Signal:", signalName)
+            this.broadcastSignal(signalName)
+            this.configRuntime.currentIndex++
+            this.configRuntime.timer = 0
+
+        } else if (block.type === 'time_wait') {
+            this.configRuntime.timer += dt
+            if (this.configRuntime.timer >= block.duration) {
+                console.log("Time Wait Finished")
+                this.configRuntime.currentIndex++
+                this.configRuntime.timer = 0
+            }
+
+        } else if (block.type === 'end_game') {
+            console.log("Game Over Triggered by Logic")
+            this.configRuntime.isPlaying = false
+            alert("¡Fin de la Partida!")
+            // Reset?
+            // this.configRuntime.currentIndex = 0
+
+        } else if (block.type === 'loop_game') {
+            console.log("Looping Game Sequence")
+            this.configRuntime.currentIndex = 0
+            this.configRuntime.timer = 0
+        }
+    }
+
+    broadcastSignal(signalName) {
+        if (!this.game.sceneManager || !this.game.sceneManager.scene) return
+
+        // Find all objects compliant with signal reception
+        // For now, let's assume objects with 'logicProperties.triggerSignal' matching this name should react?
+        // Or buttons?
+        // Let's implement a generic 'receiveSignal' on valid objects.
+
+        this.game.sceneManager.scene.traverse(obj => {
+            if (obj.userData && obj.userData.logicProperties) {
+                // 1. Check if object waits for this signal (Sequence Editor 'wait_signal')
+                // Note: LogicSequenceEditor logic handles its own checking usually? 
+                // No, Sequence logic needs to be told "Signal X happened".
+
+                // Let's update the LogicRuntime of objects to know a signal happened?
+                // Or simply trigger if they have a matching trigger.
+
+                // TRIGGER: If object sequence triggerType is 'signal' and signal matches
+                if (obj.userData.logicProperties.sequences) {
+                    obj.userData.logicProperties.sequences.forEach(seq => {
+                        if (seq.triggerType === 'signal' && seq.triggerSignals) {
+                            const match = seq.triggerSignals.find(s => s.name === signalName || s.id === signalName) // Name based matching for Global Signals
+                            if (match) {
+                                // Trigger Sequence!
+                                this.activateObjectSequence(obj, seq)
+                            }
+                        }
+                    })
+                }
+            }
+        })
+    }
+
+    activateObjectSequence(obj, seq) {
+        // Simple activation wrapper
+        seq.active = true // This might restart it if handled in update
+        // We need a way to run it if it's not running
+        // For now, let's assume the Object Logic in main loop checks for 'active'.
+        // But main loop uses `sequences[0]`.
+        // We should improve Object Logic to handle multiple active sequences eventually.
+        // For now, just set the main one if it matches.
     }
 
     getHumanReadableName(type) {
