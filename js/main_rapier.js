@@ -1209,7 +1209,11 @@ class Game {
         return {
             gameVersion: "1.0",
             timestamp: Date.now(),
-            objects: objects
+            objects: objects,
+            // Save Global Logic Config
+            gameConfig: (this.constructionMenu && this.constructionMenu.logicSystem)
+                ? this.constructionMenu.logicSystem.gameConfig
+                : null
         }
     }
 
@@ -1227,6 +1231,17 @@ class Game {
         // if we don't clear. BUT, reloading page is standard for "Open Map".
         // Let's implement ADDITIVE load for now (Merging), or simply suggest refresh.
         // Or simple hack: Only remove visual for now, let's assume we are empty.
+
+        // Load Global Logic Config
+        if (jsonData.gameConfig && this.constructionMenu && this.constructionMenu.logicSystem) {
+            this.constructionMenu.logicSystem.gameConfig = jsonData.gameConfig
+            console.log("Global Game Config Loaded", jsonData.gameConfig)
+
+            // Refresh UI if open
+            if (this.constructionMenu.gameConfigPanel) {
+                this.constructionMenu.gameConfigPanel.render()
+            }
+        }
 
         // Iterate backwards
         for (let i = this.sceneManager.scene.children.length - 1; i >= 0; i--) {

@@ -8,7 +8,7 @@ export class GameConfigPanel {
         // Ensure LogicSystem has Config Data
         if (!this.logicSystem.gameConfig) {
             this.logicSystem.gameConfig = {
-                sequences: [] // [{ type: 'start_signal', signal: 'start' }, { type: 'time', duration: 10 }]
+                sequences: [] // [{ type: 'emit_signal', signal: 'start' }, { type: 'time', duration: 10 }]
             }
         }
     }
@@ -25,7 +25,7 @@ export class GameConfigPanel {
         header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px;"
 
         const title = document.createElement('h3')
-        title.textContent = "Configuración de Partida (Game Loop)"
+        title.textContent = "Configuración de Partida"
         title.style.margin = "0"
         header.appendChild(title)
 
@@ -46,9 +46,9 @@ export class GameConfigPanel {
         const toolbar = document.createElement('div')
         toolbar.style.cssText = "display: flex; gap: 10px; flex-wrap: wrap;"
 
-        this.createAddBtn(toolbar, "+ Señal", "#00aa00", () => this.addBlock('start_signal'))
-        this.createAddBtn(toolbar, "+ Tiempo (Espera)", "#4444ff", () => this.addBlock('time_wait'))
-        this.createAddBtn(toolbar, "+ Emisor Señal", "#cc7700", () => this.addBlock('emit_signal'))
+        this.createAddBtn(toolbar, "+ Señal", "#00aa00", () => this.addBlock('emit_signal'))
+        this.createAddBtn(toolbar, "+ Tiempo", "#4444ff", () => this.addBlock('time_wait'))
+        // Loop and End are still useful structure blocks
         this.createAddBtn(toolbar, "+ Fin Partida", "#aa0000", () => this.addBlock('end_game'))
         this.createAddBtn(toolbar, "+ Loop (Reiniciar)", "#880088", () => this.addBlock('loop_game'))
 
@@ -72,7 +72,7 @@ export class GameConfigPanel {
         btn.textContent = text
         btn.style.cssText = `
             background: ${color}; color: white; border: none; padding: 8px 12px; 
-            border-radius: 4px; cursor: pointer; font-weight: bold; flex: 1;
+            border-radius: 4px; cursor: pointer; font-weight: bold; flex: 1; min-width: 100px;
         `
         btn.onclick = onClick
         container.appendChild(btn)
@@ -81,12 +81,10 @@ export class GameConfigPanel {
     addBlock(type) {
         const block = { type: type }
         // Init Defaults
-        if (type === 'start_signal') {
-            block.signalName = "game_start"
+        if (type === 'emit_signal') {
+            block.signalName = "game_event"
         } else if (type === 'time_wait') {
             block.duration = 5.0
-        } else if (type === 'emit_signal') {
-            block.signalName = "my_signal"
         }
 
         this.logicSystem.gameConfig.sequences.push(block)
@@ -112,9 +110,8 @@ export class GameConfigPanel {
             `
 
             // Color Coding
-            if (block.type === 'start_signal') item.style.borderLeftColor = "#00aa00"
+            if (block.type === 'start_signal' || block.type === 'emit_signal') item.style.borderLeftColor = "#00aa00"
             if (block.type === 'time_wait') item.style.borderLeftColor = "#4444ff"
-            if (block.type === 'emit_signal') item.style.borderLeftColor = "#cc7700"
             if (block.type === 'end_game') item.style.borderLeftColor = "#aa0000"
             if (block.type === 'loop_game') item.style.borderLeftColor = "#880088"
 
@@ -128,20 +125,43 @@ export class GameConfigPanel {
             // Content based on Type
             const content = document.createElement('div')
             content.style.flex = "1"
+            content.style.display = "flex"
+            content.style.alignItems = "center"
+            content.style.gap = "10px"
 
-            if (block.type === 'start_signal') {
-                content.innerHTML = `<strong>Inicio:</strong> Emitir señal `
+            // Unified Signal Handler
+            if (block.type === 'start_signal' || block.type === 'emit_signal') {
+                content.innerHTML = `<strong>Señal:</strong> `
                 const input = this.createTextInput(block.signalName, (val) => block.signalName = val)
                 content.appendChild(input)
+
             } else if (block.type === 'time_wait') {
-                content.innerHTML = `<strong>Esperar:</strong> `
-                const input = this.createNumberInput(block.duration, (val) => block.duration = val)
-                content.appendChild(input)
-                content.appendChild(document.createTextNode(' segundos'))
-            } else if (block.type === 'emit_signal') {
-                content.innerHTML = `<strong>Emitir:</strong> Señal `
-                const input = this.createTextInput(block.signalName, (val) => block.signalName = val)
-                content.appendChild(input)
+                content.innerHTML = `<strong>Tiempo:</strong> `
+
+                // Duration Decomposition
+                const totalSeconds = block.duration || 0
+                const h = Math.floor(totalSeconds / 3600)
+                const m = Math.floor((totalSeconds % 3600) / 60)
+                const s = Math.floor(totalSeconds % 60)
+
+                const updateDuration = (newH, newM, newS) => {
+                    block.duration = (newH * 3600) + (newM * 60) + newS
+                }
+
+                // H Input
+                const hInput = this.createNumberInput(h, (val) => updateDuration(val, m, s), "H", 40)
+                content.appendChild(hInput)
+                content.appendChild(document.createTextNode(':'))
+
+                // M Input
+                const mInput = this.createNumberInput(m, (val) => updateDuration(h, val, s), "M", 40)
+                content.appendChild(mInput)
+                content.appendChild(document.createTextNode(':'))
+
+                // S Input
+                const sInput = this.createNumberInput(s, (val) => updateDuration(h, m, val), "S", 40)
+                content.appendChild(sInput)
+
             } else if (block.type === 'end_game') {
                 content.innerHTML = `<strong>Fin de Partida</strong>`
             } else if (block.type === 'loop_game') {
@@ -198,18 +218,19 @@ export class GameConfigPanel {
         const input = document.createElement('input')
         input.type = 'text'
         input.value = val
-        input.style.cssText = "background: #222; border: 1px solid #555; color: white; padding: 2px 5px; width: 150px; margin-left: 5px;"
+        input.style.cssText = "background: #222; border: 1px solid #555; color: white; padding: 2px 5px; width: 120px;"
         input.onchange = (e) => onChange(e.target.value)
         return input
     }
 
-    createNumberInput(val, onChange) {
+    createNumberInput(val, onChange, placeholder, width = 60) {
         const input = document.createElement('input')
         input.type = 'number'
         input.value = val
-        input.step = "0.1"
-        input.style.cssText = "background: #222; border: 1px solid #555; color: white; padding: 2px 5px; width: 60px; margin-left: 5px;"
-        input.onchange = (e) => onChange(parseFloat(e.target.value))
+        input.min = 0
+        input.placeholder = placeholder
+        input.style.cssText = `background: #222; border: 1px solid #555; color: white; padding: 2px 5px; width: ${width}px; text-align: center;`
+        input.onchange = (e) => onChange(parseFloat(e.target.value) || 0)
         return input
     }
 
