@@ -561,7 +561,7 @@ export class GameConfigPanel {
         header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #555; padding-bottom: 10px;"
 
         const title = document.createElement('h3')
-        title.textContent = "Editor de Señales Cronológico"
+        title.textContent = isSelectionMode ? "Bloque de secuencias de la partida" : "Editor de Señales Cronológico"
         title.style.margin = "0"
         title.style.color = "#fff"
 
@@ -616,6 +616,12 @@ export class GameConfigPanel {
 
         rowStart.appendChild(lblStart)
         rowStart.appendChild(inputStart)
+
+        if (isSelectionMode) {
+            const sigName = block.signalStart || "inicio"
+            rowStart.appendChild(createActionBtn(sigName))
+        }
+
         timeline.appendChild(rowStart)
 
         // 2. Intervals Section (Dynamic)
@@ -731,7 +737,7 @@ export class GameConfigPanel {
 
         // 3. End Signal (Fixed Bottom)
         const rowEnd = document.createElement('div')
-        rowEnd.style.cssText = "background: #331111; paddeing: 10px; border-radius: 6px; border-left: 4px solid #f44; display: flex; align-items: center; gap: 10px;"
+        rowEnd.style.cssText = "background: #331111; padding: 10px; border-radius: 6px; border-left: 4px solid #f44; display: flex; align-items: center; gap: 10px;"
 
         rowEnd.innerHTML = `<strong style="color:#f44; width: 60px;">T: FIN</strong>`
         const lblEnd = document.createElement('span')
