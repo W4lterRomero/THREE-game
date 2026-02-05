@@ -5,6 +5,9 @@ export class GameConfigPanel {
         this.logicSystem = logicSystem
         this.container = null
 
+        // Register itself for callbacks
+        this.logicSystem.configPanel = this
+
         // Ensure LogicSystem has Config Data
         if (!this.logicSystem.gameConfig) {
             this.logicSystem.gameConfig = {
@@ -18,7 +21,23 @@ export class GameConfigPanel {
         this.container.style.cssText = `
             width: 100%; height: 100%;
             display: flex; flex-direction: column; gap: 10px;
+            position: relative;
         `
+
+        // Inject Styles for Scrollbar
+        const style = document.createElement('style')
+        style.innerHTML = `
+            .game-config-scroll::-webkit-scrollbar { width: 8px; }
+            .game-config-scroll::-webkit-scrollbar-track { background: #111; border-radius: 4px; }
+            .game-config-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+            .game-config-scroll::-webkit-scrollbar-thumb:hover { background: #666; }
+            .active-logic-block { 
+                border: 2px solid #00FFFF !important; 
+                box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+                transition: all 0.2s;
+            }
+        `
+        this.container.appendChild(style)
 
         // Header
         const header = document.createElement('div')
@@ -54,8 +73,12 @@ export class GameConfigPanel {
 
         this.container.appendChild(toolbar)
 
+        // Simulation Controls
+        this.createSimulationControls(this.container)
+
         // Sequence List Area
         this.sequenceList = document.createElement('div')
+        this.sequenceList.className = "game-config-scroll" // Apply scroll class
         this.sequenceList.style.cssText = `
             flex: 1; overflow-y: auto; 
             background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
@@ -65,6 +88,61 @@ export class GameConfigPanel {
 
         parentContainer.appendChild(this.container)
         this.render()
+    }
+
+    createSimulationControls(container) {
+        const simCtn = document.createElement('div')
+        simCtn.style.cssText = "display: flex; gap: 5px; background: #222; padding: 8px; border-radius: 6px; align-items: center; border: 1px solid #444;"
+
+        const label = document.createElement('span')
+        label.textContent = "Simulación:"
+        label.style.cssText = "font-size: 11px; color: #aaa; margin-right: 5px;"
+        simCtn.appendChild(label)
+
+        // Helper
+        const createCtrlBtn = (icon, title, color, onClick) => {
+            const btn = document.createElement('button')
+            btn.innerHTML = icon
+            btn.title = title
+            btn.style.cssText = `
+                background: #333; color: ${color}; border: 1px solid #555; 
+                width: 30px; height: 30px; border-radius: 4px; cursor: pointer;
+                display: flex; align-items: center; justify-content: center; font-size: 14px;
+            `
+            btn.onclick = onClick
+            btn.onmouseover = () => btn.style.background = "#444"
+            btn.onmouseout = () => btn.style.background = "#333"
+            simCtn.appendChild(btn)
+            return btn
+        }
+
+        createCtrlBtn("▶", "Iniciar Simulación", "#0f0", () => this.logicSystem.playConfig())
+        createCtrlBtn("⏸", "Pausar", "#fa0", () => this.logicSystem.pauseConfig())
+        createCtrlBtn("⏹", "Detener / Reiniciar", "#f44", () => this.logicSystem.stopConfig())
+
+        // Separator
+        const sep = document.createElement('div')
+        sep.style.cssText = "width: 1px; height: 20px; background: #555; margin: 0 5px;"
+        simCtn.appendChild(sep)
+
+        createCtrlBtn("⏮", "Bloque Anterior", "#fff", () => this.logicSystem.stepConfig(-1))
+        createCtrlBtn("⏭", "Bloque Siguiente", "#fff", () => this.logicSystem.stepConfig(1))
+
+        container.appendChild(simCtn)
+    }
+
+    highlightBlock(index) {
+        if (!this.sequenceList) return
+        const children = Array.from(this.sequenceList.children)
+
+        children.forEach((child, idx) => {
+            if (idx === index) {
+                child.classList.add('active-logic-block')
+                child.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            } else {
+                child.classList.remove('active-logic-block')
+            }
+        })
     }
 
     createAddBtn(container, text, color, onClick) {
@@ -85,6 +163,8 @@ export class GameConfigPanel {
             block.signalName = "game_event"
         } else if (type === 'time_wait') {
             block.duration = 5.0
+            block.showTimer = false
+            block.timerStyle = 'style1'
         }
 
         this.logicSystem.gameConfig.sequences.push(block)
@@ -136,7 +216,15 @@ export class GameConfigPanel {
                 content.appendChild(input)
 
             } else if (block.type === 'time_wait') {
-                content.innerHTML = `<strong>Tiempo:</strong> `
+                content.style.flexDirection = "column"
+                content.style.alignItems = "flex-start"
+
+                // --- Row 1: Time Inputs ---
+                const timeRow = document.createElement('div')
+                timeRow.style.display = "flex"
+                timeRow.style.alignItems = "center"
+                timeRow.style.gap = "5px"
+                timeRow.innerHTML = `<strong>Duración:</strong> `
 
                 // Duration Decomposition
                 const totalSeconds = block.duration || 0
@@ -148,19 +236,103 @@ export class GameConfigPanel {
                     block.duration = (newH * 3600) + (newM * 60) + newS
                 }
 
+                // Helper for Labeled Input
+                const createLabeledInput = (val, cb, label) => {
+                    const wrapper = document.createElement('div')
+                    wrapper.style.display = "flex"
+                    wrapper.style.flexDirection = "column"
+                    wrapper.style.alignItems = "center"
+
+                    const input = this.createNumberInput(val, cb, "", 40)
+
+                    const lbl = document.createElement('span')
+                    lbl.textContent = label
+                    lbl.style.fontSize = "10px"
+                    lbl.style.color = "#888"
+
+                    wrapper.appendChild(input)
+                    wrapper.appendChild(lbl)
+                    return wrapper
+                }
+
                 // H Input
-                const hInput = this.createNumberInput(h, (val) => updateDuration(val, m, s), "H", 40)
-                content.appendChild(hInput)
-                content.appendChild(document.createTextNode(':'))
+                timeRow.appendChild(createLabeledInput(h, (val) => updateDuration(val, m, s), "Hora"))
+                timeRow.appendChild(document.createTextNode(':'))
 
                 // M Input
-                const mInput = this.createNumberInput(m, (val) => updateDuration(h, val, s), "M", 40)
-                content.appendChild(mInput)
-                content.appendChild(document.createTextNode(':'))
+                timeRow.appendChild(createLabeledInput(m, (val) => updateDuration(h, val, s), "Minuto"))
+                timeRow.appendChild(document.createTextNode(':'))
 
                 // S Input
-                const sInput = this.createNumberInput(s, (val) => updateDuration(h, m, val), "S", 40)
-                content.appendChild(sInput)
+                timeRow.appendChild(createLabeledInput(s, (val) => updateDuration(h, m, val), "Segundo"))
+
+                content.appendChild(timeRow)
+
+                // --- Row 2: HUD Options ---
+                const optionsRow = document.createElement('div')
+                optionsRow.style.display = "flex"
+                optionsRow.style.gap = "15px"
+                optionsRow.style.alignItems = "center"
+                optionsRow.style.marginTop = "5px"
+
+                // Checkbox
+                const chkLabel = document.createElement('label')
+                chkLabel.style.display = "flex"
+                chkLabel.style.alignItems = "center"
+                chkLabel.style.gap = "5px"
+                chkLabel.style.fontSize = "12px"
+                chkLabel.style.color = "#ddd"
+                chkLabel.style.cursor = "pointer"
+
+                const chk = document.createElement('input')
+                chk.type = "checkbox"
+                chk.checked = block.showTimer || false
+                chk.onchange = (e) => {
+                    block.showTimer = e.target.checked
+                    this.render() // Re-render to show/hide style select potentially
+                }
+                chkLabel.appendChild(chk)
+                chkLabel.appendChild(document.createTextNode("Mostrar en Juego"))
+                optionsRow.appendChild(chkLabel)
+
+                // Style Select (Only if checked)
+                if (block.showTimer) {
+                    const selLabel = document.createElement('label')
+                    selLabel.style.display = "flex"
+                    selLabel.style.alignItems = "center"
+                    selLabel.style.gap = "5px"
+                    selLabel.style.fontSize = "12px"
+                    selLabel.style.color = "#ddd"
+
+                    selLabel.appendChild(document.createTextNode("Estilo:"))
+
+                    const sel = document.createElement('select')
+                    sel.style.background = "#222"
+                    sel.style.color = "white"
+                    sel.style.border = "1px solid #555"
+                    sel.style.fontSize = "11px"
+                    sel.style.padding = "2px"
+
+                    const styles = [
+                        { id: 'style1', name: 'Digital Neon' },
+                        { id: 'style2', name: 'Minimalista' },
+                        { id: 'style3', name: 'Caja Deportiva' }
+                    ]
+
+                    styles.forEach(st => {
+                        const opt = document.createElement('option')
+                        opt.value = st.id
+                        opt.textContent = st.name
+                        if (block.timerStyle === st.id) opt.selected = true
+                        sel.appendChild(opt)
+                    })
+
+                    sel.onchange = (e) => block.timerStyle = e.target.value
+                    selLabel.appendChild(sel)
+                    optionsRow.appendChild(selLabel)
+                }
+
+                content.appendChild(optionsRow)
 
             } else if (block.type === 'end_game') {
                 content.innerHTML = `<strong>Fin de Partida</strong>`

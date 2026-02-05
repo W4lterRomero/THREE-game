@@ -399,8 +399,10 @@ export class LogicSystem {
     }
 
     update(dt) {
-        // Run Game Config Logic if NOT editing map
-        if (!this.isEditingMap && this.game.gameMode !== 'editor') {
+        // Run Game Config Logic:
+        // 1. If NOT editing map and game mode is NOT editor (Normal Play)
+        // 2. OR If configRuntime.isPlaying is true (Simulation Mode in Editor)
+        if ((!this.isEditingMap && this.game.gameMode !== 'editor') || this.configRuntime.isPlaying) {
             this.updateGameLogic(dt)
         }
 
@@ -546,14 +548,63 @@ export class LogicSystem {
         container.appendChild(row)
     }
 
+    // --- SIMULATION CONTROLS ---
+
+    playConfig() {
+        if (this.gameConfig.sequences.length === 0) return
+        if (!this.configRuntime.hasStarted) {
+            // First Start
+            this.configRuntime.hasStarted = true
+            this.configRuntime.currentIndex = 0
+            this.configRuntime.timer = 0
+            console.log("Simulation Started")
+        }
+        this.configRuntime.isPlaying = true
+        this.configRuntime.isPaused = false
+    }
+
+    pauseConfig() {
+        if (this.configRuntime.isPlaying) {
+            this.configRuntime.isPlaying = false // Stop update loop logic
+            this.configRuntime.isPaused = true // Mark as paused (not stopped)
+            console.log("Simulation Paused")
+        }
+    }
+
+    stopConfig() {
+        this.configRuntime.isPlaying = false
+        this.configRuntime.hasStarted = false
+        this.configRuntime.currentIndex = 0
+        this.configRuntime.timer = 0
+        this.hideTimerHUD()
+        if (this.configPanel) this.configPanel.highlightBlock(-1) // Clear
+        console.log("Simulation Stopped")
+    }
+
+    stepConfig(dir) {
+        if (this.gameConfig.sequences.length === 0) return
+
+        let newIdx = this.configRuntime.currentIndex + dir
+        if (newIdx < 0) newIdx = 0
+        if (newIdx > this.gameConfig.sequences.length) newIdx = this.gameConfig.sequences.length // allow going past end to "finish"
+
+        this.configRuntime.currentIndex = newIdx
+        this.configRuntime.timer = 0 // Reset timer for new block
+
+        // If stepped while stopped, should we update UI?
+        if (this.configPanel) this.configPanel.highlightBlock(this.configRuntime.currentIndex)
+    }
+
     updateGameLogic(dt) {
         // Start logic
         if (!this.configRuntime.hasStarted && this.gameConfig.sequences.length > 0) {
-            this.configRuntime.hasStarted = true
-            this.configRuntime.isPlaying = true
-            this.configRuntime.currentIndex = 0
-            this.configRuntime.timer = 0
-            console.log("Game Sequence Started")
+            // Check if auto-start? For now explicit Play needed usually
+            // but if updateGameLogic is called it means we are playing
+        }
+
+        // Highlight UI even if paused/stopped if index exists (Visualization)
+        if (this.configPanel) {
+            this.configPanel.highlightBlock(this.configRuntime.currentIndex)
         }
 
         if (!this.configRuntime.isPlaying) return
@@ -577,15 +628,25 @@ export class LogicSystem {
 
         } else if (block.type === 'time_wait') {
             this.configRuntime.timer += dt
+            const remaining = Math.max(0, block.duration - this.configRuntime.timer)
+
+            if (block.showTimer) {
+                this.updateTimerHUD(remaining, block.timerStyle)
+            } else {
+                this.hideTimerHUD()
+            }
+
             if (this.configRuntime.timer >= block.duration) {
                 console.log("Time Wait Finished")
                 this.configRuntime.currentIndex++
                 this.configRuntime.timer = 0
+                this.hideTimerHUD() // Clean up when done
             }
 
         } else if (block.type === 'end_game') {
             console.log("Game Over Triggered by Logic")
             this.configRuntime.isPlaying = false
+            this.hideTimerHUD()
             alert("¡Fin de la Partida!")
             // Reset?
             // this.configRuntime.currentIndex = 0
@@ -594,7 +655,77 @@ export class LogicSystem {
             console.log("Looping Game Sequence")
             this.configRuntime.currentIndex = 0
             this.configRuntime.timer = 0
+            this.hideTimerHUD()
         }
+    }
+
+    updateTimerHUD(timeSeconds, style) {
+        let hud = document.getElementById('game-timer-hud')
+        if (!hud) {
+            hud = document.createElement('div')
+            hud.id = 'game-timer-hud'
+            document.body.appendChild(hud)
+        }
+
+        // Format H:M:S or M:S depending on duration?
+        // User asked for labeled H M S in config, but display should be HH:MM:SS usually.
+        const h = Math.floor(timeSeconds / 3600)
+        const m = Math.floor((timeSeconds % 3600) / 60)
+        const s = Math.floor(timeSeconds % 60)
+
+        const pad = (n) => n.toString().padStart(2, '0')
+        // Only show H if > 0? optional. Let's show consistent HH:MM:SS or MM:SS
+        const text = (h > 0 ? `${pad(h)}:` : '') + `${pad(m)}:${pad(s)}`
+
+        hud.textContent = text
+        hud.style.display = 'flex' // Ensure visible
+
+        // Base Styles (Top Center)
+        hud.style.position = 'absolute'
+        hud.style.top = '20px'
+        hud.style.left = '50%'
+        hud.style.transform = 'translateX(-50%)'
+        hud.style.zIndex = '1000'
+        hud.style.pointerEvents = 'none' // Don't block clicks
+
+        // Apply Designs
+        if (style === 'style1') { // Digital Neon
+            hud.style.fontFamily = "'Courier New', monospace"
+            hud.style.fontSize = "40px"
+            hud.style.fontWeight = "bold"
+            hud.style.color = "#0ff"
+            hud.style.textShadow = "0 0 10px #0ff, 0 0 20px #0ff"
+            hud.style.background = "rgba(0,0,0,0.5)"
+            hud.style.padding = "5px 20px"
+            hud.style.borderRadius = "8px"
+            hud.style.border = "2px solid #0ff"
+
+        } else if (style === 'style2') { // Minimalist
+            hud.style.fontFamily = "'Helvetica Neue', Helvetica, Arial, sans-serif"
+            hud.style.fontSize = "60px"
+            hud.style.fontWeight = "100" // Thin
+            hud.style.color = "white"
+            hud.style.textShadow = "1px 1px 4px rgba(0,0,0,0.5)"
+            hud.style.background = "transparent"
+            hud.style.padding = "0"
+            hud.style.border = "none"
+
+        } else if (style === 'style3') { // Sports Box
+            hud.style.fontFamily = "Impact, sans-serif"
+            hud.style.fontSize = "32px"
+            hud.style.color = "#ffdd00" // Gold/Yellow
+            hud.style.background = "linear-gradient(to bottom, #333, #111)"
+            hud.style.padding = "10px 30px"
+            hud.style.borderRadius = "4px"
+            hud.style.border = "2px solid #555"
+            hud.style.borderBottom = "4px solid #333"
+            hud.style.boxShadow = "0 4px 6px rgba(0,0,0,0.4)"
+        }
+    }
+
+    hideTimerHUD() {
+        const hud = document.getElementById('game-timer-hud')
+        if (hud) hud.style.display = 'none'
     }
 
     broadcastSignal(signalName) {
