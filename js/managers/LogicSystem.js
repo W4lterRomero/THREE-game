@@ -144,8 +144,27 @@ export class LogicSystem {
             this.configRuntime.timer = 0
 
         } else if (block.type === 'time_wait') {
+            const prevTime = this.configRuntime.timer
             this.configRuntime.timer += dt
-            const remaining = Math.max(0, block.duration - this.configRuntime.timer)
+            const currTime = this.configRuntime.timer
+
+            // --- 1. Start Signal ---
+            if (prevTime === 0 && block.signalStart) {
+                console.log("Broadcasting Start Signal:", block.signalStart)
+                this.broadcastSignal(block.signalStart)
+            }
+
+            // --- 2. Interval Signals ---
+            if (block.intervalSignals) {
+                block.intervalSignals.forEach(sig => {
+                    if (prevTime < sig.time && currTime >= sig.time) {
+                        console.log("Broadcasting Interval Signal:", sig.signal)
+                        this.broadcastSignal(sig.signal)
+                    }
+                })
+            }
+
+            const remaining = Math.max(0, block.duration - currTime)
 
             if (block.showTimer) {
                 this.hud.updateTimer(remaining, block.timerStyle, block.timerPosition)
@@ -153,12 +172,20 @@ export class LogicSystem {
                 this.hud.hideTimer()
             }
 
-            if (this.configRuntime.timer >= block.duration) {
+            // --- 3. End Signal & Finish ---
+            if (currTime >= block.duration) {
                 console.log("Time Wait Finished")
+
+                if (block.signalEnd) {
+                    console.log("Broadcasting End Signal:", block.signalEnd)
+                    this.broadcastSignal(block.signalEnd)
+                }
+
                 this.configRuntime.currentIndex++
                 this.configRuntime.timer = 0
                 this.hud.hideTimer() // Clean up when done
             }
+
 
         } else if (block.type === 'end_game') {
             console.log("Game Over Triggered by Logic")
