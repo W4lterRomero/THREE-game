@@ -501,6 +501,43 @@ export class GameConfigPanel {
         return input
     }
 
+    createTimeInputGroup(initialTime, onChange) {
+        const container = document.createElement('div')
+        container.style.cssText = "display: flex; align-items: center; gap: 2px;"
+
+        // Decompose Time
+        let h = Math.floor(initialTime / 3600)
+        let m = Math.floor((initialTime % 3600) / 60)
+        let s = Math.floor(initialTime % 60)
+
+        const updateTime = () => {
+            const total = (h * 3600) + (m * 60) + s
+            onChange(total)
+        }
+
+        const createInput = (val, setVal, placeholder) => {
+            const inp = document.createElement('input')
+            inp.type = 'number'
+            inp.value = val
+            inp.min = 0
+            inp.placeholder = placeholder
+            inp.style.cssText = "background: #222; border: 1px solid #555; color: white; width: 40px; text-align: center; padding: 2px;"
+            inp.onchange = (e) => {
+                setVal(parseFloat(e.target.value) || 0)
+                updateTime()
+            }
+            return inp
+        }
+
+        container.appendChild(createInput(h, (v) => h = v, "H"))
+        container.appendChild(document.createTextNode(":"))
+        container.appendChild(createInput(m, (v) => m = v, "M"))
+        container.appendChild(document.createTextNode(":"))
+        container.appendChild(createInput(s, (v) => s = v, "S"))
+
+        return container
+    }
+
     openSignalConfig(block) {
         // UI Overlay
         const overlay = document.createElement('div')
@@ -512,114 +549,172 @@ export class GameConfigPanel {
 
         const panel = document.createElement('div')
         panel.style.cssText = `
-            background: #222; border: 1px solid #444; border-radius: 8px;
-            width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif;
+            background: #222; border: 1px solid #444; border-radius: 12px;
+            width: 700px; max-height: 80vh; padding: 25px; display: flex; flex-direction: column; gap: 15px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.6); font-family: sans-serif;
         `
         overlay.appendChild(panel)
 
-        // Header
-        const header = document.createElement('h3')
-        header.textContent = "Configuración de Señales"
-        header.style.cssText = "margin: 0; color: #fff; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px;"
+        // Header & Info
+        const header = document.createElement('div')
+        header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #555; padding-bottom: 10px;"
+
+        const title = document.createElement('h3')
+        title.textContent = "Editor de Señales Cronológico"
+        title.style.margin = "0"
+        title.style.color = "#fff"
+
+        // Duration Info
+        const totalSeconds = block.duration || 0
+        const h = Math.floor(totalSeconds / 3600)
+        const m = Math.floor((totalSeconds % 3600) / 60)
+        const s = Math.floor(totalSeconds % 60)
+        const durationInfo = document.createElement('div')
+        durationInfo.innerHTML = `<span style="color:#aaa;">Duración del Bloque:</span> <span style="color:#0ff; font-family:monospace; font-size:14px;">${h}h ${m}m ${s}s</span>`
+
+        header.appendChild(title)
+        header.appendChild(durationInfo)
         panel.appendChild(header)
 
-        // --- Fixed Signals ---
-        const fixedSection = document.createElement('div')
-        fixedSection.style.cssText = "display: flex; flex-direction: column; gap: 10px;"
 
-        // Start Signal
+        // --- Signal Timeline Container ---
+        const timeline = document.createElement('div')
+        timeline.style.cssText = `
+            flex: 1; overflow-y: auto; background: #181818; 
+            border: 1px solid #333; border-radius: 8px; padding: 10px;
+            display: flex; flex-direction: column; gap: 10px;
+        `
+
+        // 1. Start Signal (Fixed Top)
         const rowStart = document.createElement('div')
-        rowStart.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
-        rowStart.innerHTML = `<span style="color:#0f0;">► Señal Inicio:</span>`
+        rowStart.style.cssText = "background: #113311; padding: 10px; border-radius: 6px; border-left: 4px solid #0f0; display: flex; align-items: center; gap: 10px;"
+
+        rowStart.innerHTML = `<strong style="color:#0f0; width: 60px;">T: 0s</strong>`
+        const lblStart = document.createElement('span')
+        lblStart.textContent = "INICIO DEL BLOQUE"
+        lblStart.style.cssText = "flex:1; color: #888; font-size: 12px; font-style: italic;"
+
         const inputStart = this.createTextInput(block.signalStart || "", (val) => block.signalStart = val)
-        inputStart.placeholder = "Nombre senal..."
+        inputStart.placeholder = "Nombre señal inicio..."
+        inputStart.style.width = "200px"
+
+        rowStart.appendChild(lblStart)
         rowStart.appendChild(inputStart)
-        fixedSection.appendChild(rowStart)
+        timeline.appendChild(rowStart)
 
-        // End Signal
-        const rowEnd = document.createElement('div')
-        rowEnd.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
-        rowEnd.innerHTML = `<span style="color:#f44;">■ Señal Final:</span>`
-        const inputEnd = this.createTextInput(block.signalEnd || "", (val) => block.signalEnd = val)
-        inputEnd.placeholder = "Nombre senal..."
-        rowEnd.appendChild(inputEnd)
-        fixedSection.appendChild(rowEnd)
-
-        panel.appendChild(fixedSection)
-
-        // Separator
-        const sep = document.createElement('hr')
-        sep.style.cssText = "border: 0; border-top: 1px solid #444; width: 100%; margin: 5px 0;"
-        panel.appendChild(sep)
-
-        // --- Interval Signals ---
-        const intHeader = document.createElement('div')
-        intHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
-        intHeader.innerHTML = `<strong style="color:#ddd;">Señales por Intervalo</strong>`
-
-        const addBtn = document.createElement('button')
-        addBtn.textContent = "+ Agregar"
-        addBtn.style.cssText = "background: #333; color: #fff; border: 1px solid #555; padding: 2px 8px; cursor: pointer;"
-
-        // Interval List Container
-        const listContainer = document.createElement('div')
-        listContainer.style.cssText = "display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; background: #1a1a1a; padding: 5px; border-radius: 4px;"
-
+        // 2. Intervals Section (Dynamic)
         const renderIntervals = () => {
-            listContainer.innerHTML = ""
+            // Sort intervals by time
             if (!block.intervalSignals) block.intervalSignals = []
+            block.intervalSignals.sort((a, b) => a.time - b.time)
+
+            // Remove old interval rows (keep start/end fixed, complicated loop, better to rebuild timeline middle)
+            // Strategy: Clear timeline content EXCEPT start/end is tricky? 
+            // Better Strategy: Re-render the whole inner timeline content.
+
+            // Re-render helper
+            timeline.innerHTML = ""
+            timeline.appendChild(rowStart) // Re-attach Start
 
             block.intervalSignals.forEach((intSig, idx) => {
                 const row = document.createElement('div')
-                row.style.cssText = "display: flex; gap: 5px; align-items: center;"
+                row.style.cssText = "background: #2a2a2a; padding: 8px; border-radius: 6px; border-left: 4px solid #aaa; display: flex; align-items: center; gap: 10px;"
 
-                // Time
-                const tIn = this.createNumberInput(intSig.time, (v) => intSig.time = v, "Seg", 50)
-                // Signal
+                // Time Group
+                const timeGroup = this.createTimeInputGroup(intSig.time, (newTime) => {
+                    intSig.time = newTime
+                    // We need to re-sort and re-render if time changes order, 
+                    // but doing it instantly while typing is annoying. 
+                    // Let's just update value. Visual re-sort happens on reopen or manual refresh?
+                    // Let's force re-sort only on blur or explicit action? 
+                    // For now, keep it simple.
+                })
+
+                // Mode Selector
+                const modeSel = document.createElement('select')
+                modeSel.style.cssText = "background: #222; color: #ddd; border: 1px solid #555; font-size: 11px; width: 130px;"
+                const modes = ["Activar al transcurrir", "Activar en el momento"]
+                modes.forEach(m => {
+                    const opt = document.createElement('option')
+                    opt.value = m
+                    opt.textContent = m
+                    if (intSig.mode === m) opt.selected = true
+                    modeSel.appendChild(opt)
+                })
+                modeSel.onchange = (e) => intSig.mode = e.target.value
+
+                // Signal Name
                 const sIn = this.createTextInput(intSig.signal, (v) => intSig.signal = v)
-                sIn.placeholder = "Señal..."
+                sIn.placeholder = "Nombre señal..."
                 sIn.style.flex = "1"
 
                 // Delete
                 const del = document.createElement('button')
-                del.textContent = "✕"
-                del.style.cssText = "color: #f44; background: none; border: none; cursor: pointer;"
+                del.textContent = "🗑"
+                del.style.cssText = "background: #422; color: #fcc; border: none; padding: 5px; border-radius: 4px; cursor: pointer;"
                 del.onclick = () => {
                     block.intervalSignals.splice(idx, 1)
                     renderIntervals()
                 }
 
-                row.innerHTML = `<span style="color:#888; font-size:12px;">T:</span>`
-                row.appendChild(tIn)
+                row.appendChild(timeGroup)
+                row.appendChild(modeSel)
                 row.appendChild(sIn)
                 row.appendChild(del)
-                listContainer.appendChild(row)
+                timeline.appendChild(row)
             })
+
+            timeline.appendChild(createAddButtonRow())
+            timeline.appendChild(rowEnd) // Re-attach End
         }
 
-        addBtn.onclick = () => {
-            if (!block.intervalSignals) block.intervalSignals = []
-            block.intervalSignals.push({ time: 1.0, signal: "logic_event" })
-            renderIntervals()
+        // Add Button Row
+        const createAddButtonRow = () => {
+            const row = document.createElement('div')
+            row.style.textAlign = "center"
+            row.style.padding = "10px"
+            const btn = document.createElement('button')
+            btn.innerHTML = "+ Agregar Señal Intermedia"
+            btn.style.cssText = "background: #333; color: white; border: 1px dashed #666; width: 100%; padding: 8px; cursor: pointer;"
+            btn.onmouseenter = () => btn.style.background = "#444"
+            btn.onmouseleave = () => btn.style.background = "#333"
+            btn.onclick = () => {
+                block.intervalSignals.push({ time: Math.floor((block.duration || 0) / 2), signal: "signal_event", mode: "Activar al transcurrir" })
+                renderIntervals()
+            }
+            row.appendChild(btn)
+            return row
         }
 
-        intHeader.appendChild(addBtn)
-        panel.appendChild(intHeader)
+        // 3. End Signal (Fixed Bottom)
+        const rowEnd = document.createElement('div')
+        rowEnd.style.cssText = "background: #331111; padding: 10px; border-radius: 6px; border-left: 4px solid #f44; display: flex; align-items: center; gap: 10px;"
 
+        rowEnd.innerHTML = `<strong style="color:#f44; width: 60px;">T: FIN</strong>`
+        const lblEnd = document.createElement('span')
+        lblEnd.textContent = "FINAL DEL BLOQUE"
+        lblEnd.style.cssText = "flex:1; color: #888; font-size: 12px; font-style: italic;"
+
+        const inputEnd = this.createTextInput(block.signalEnd || "", (val) => block.signalEnd = val)
+        inputEnd.placeholder = "Nombre señal final..."
+        inputEnd.style.width = "200px"
+
+        rowEnd.appendChild(lblEnd)
+        rowEnd.appendChild(inputEnd)
+
+        // Initial Render
         renderIntervals()
-        panel.appendChild(listContainer)
+        panel.appendChild(timeline)
 
-        // Footer / Close
+        // Footer
         const footer = document.createElement('div')
-        footer.style.cssText = "display: flex; justify-content: flex-end; margin-top: 10px;"
-
+        footer.style.textAlign = "right"
         const closeBtn = document.createElement('button')
-        closeBtn.textContent = "Cerrar / Guardar"
-        closeBtn.style.cssText = "background: #44f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;"
+        closeBtn.textContent = "Guardar y Cerrar"
+        closeBtn.style.cssText = "background: #44f; color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer;"
         closeBtn.onclick = () => {
             document.body.removeChild(overlay)
-            this.render() // Update main panel UI
+            this.render()
         }
         footer.appendChild(closeBtn)
         panel.appendChild(footer)
