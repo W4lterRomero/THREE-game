@@ -337,85 +337,19 @@ export class GameConfigPanel {
 
                 content.appendChild(timeRow)
 
-                // --- Signal Config Section ---
-                const signalSection = document.createElement('div')
-                signalSection.style.cssText = "border-top: 1px solid #444; margin-top: 8px; padding-top: 8px; width: 100%; display: flex; flex-direction: column; gap: 5px;"
+                // --- Signal Config Button ---
+                const signalBtn = document.createElement('button')
+                signalBtn.innerHTML = "Editar Señales"
+                signalBtn.style.cssText = `
+                    margin-top: 5px; width: 100%; background: #333; color: #ddd; 
+                    border: 1px dashed #555; padding: 4px; border-radius: 4px; 
+                    cursor: pointer; font-size: 11px;
+                `
+                signalBtn.onmouseenter = () => signalBtn.style.background = "#444"
+                signalBtn.onmouseleave = () => signalBtn.style.background = "#333"
+                signalBtn.onclick = () => this.openSignalConfig(block)
 
-                // Start Signal
-                const rowStart = document.createElement('div')
-                rowStart.style.display = "flex"
-                rowStart.style.alignItems = "center"
-                rowStart.style.gap = "5px"
-                rowStart.innerHTML = `<span style="color:#0f0; font-size:10px;">► Inicio:</span>`
-                const inputStart = this.createTextInput(block.signalStart || "", (val) => block.signalStart = val)
-                inputStart.placeholder = "Señal al Iniciar"
-                inputStart.style.width = "100px"
-                rowStart.appendChild(inputStart)
-                signalSection.appendChild(rowStart)
-
-                // End Signal
-                const rowEnd = document.createElement('div')
-                rowEnd.style.display = "flex"
-                rowEnd.style.alignItems = "center"
-                rowEnd.style.gap = "5px"
-                rowEnd.innerHTML = `<span style="color:#f44; font-size:10px;">■ Fin:</span>`
-                const inputEnd = this.createTextInput(block.signalEnd || "", (val) => block.signalEnd = val)
-                inputEnd.placeholder = "Señal al Terminar"
-                inputEnd.style.width = "100px"
-                rowEnd.appendChild(inputEnd)
-                signalSection.appendChild(rowEnd)
-
-                // Interval Signals
-                const intervalHeader = document.createElement('div')
-                intervalHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-top: 5px;"
-                intervalHeader.innerHTML = `<span style="color:#aaa; font-size:10px;">Intervalos:</span>`
-
-                const addIntBtn = document.createElement('button')
-                addIntBtn.textContent = "+"
-                addIntBtn.style.cssText = "background: #333; color: #fff; border: 1px solid #555; padding: 0 5px; font-size: 10px; cursor: pointer;"
-                addIntBtn.onclick = () => {
-                    if (!block.intervalSignals) block.intervalSignals = []
-                    block.intervalSignals.push({ time: 1.0, signal: "new_signal" })
-                    this.render()
-                }
-                intervalHeader.appendChild(addIntBtn)
-                signalSection.appendChild(intervalHeader)
-
-                // List Intervals
-                if (block.intervalSignals && block.intervalSignals.length > 0) {
-                    const intList = document.createElement('div')
-                    intList.style.cssText = "display: flex; flex-direction: column; gap: 2px; padding-left: 5px;"
-
-                    block.intervalSignals.forEach((intSig, iIdx) => {
-                        const iRow = document.createElement('div')
-                        iRow.style.cssText = "display: flex; gap: 5px; align-items: center;"
-
-                        // Time Input
-                        const tInput = this.createNumberInput(intSig.time, (v) => intSig.time = v, "T(s)", 40)
-
-                        // Signal Input
-                        const sInput = this.createTextInput(intSig.signal, (v) => intSig.signal = v)
-                        sInput.style.width = "80px"
-
-                        // Delete
-                        const dBtn = document.createElement('button')
-                        dBtn.textContent = "x"
-                        dBtn.style.cssText = "background:none; border:none; color:#f44; cursor:pointer; font-size:10px;"
-                        dBtn.onclick = () => {
-                            block.intervalSignals.splice(iIdx, 1)
-                            this.render()
-                        }
-
-                        iRow.appendChild(document.createTextNode("@"))
-                        iRow.appendChild(tInput)
-                        iRow.appendChild(sInput)
-                        iRow.appendChild(dBtn)
-                        intList.appendChild(iRow)
-                    })
-                    signalSection.appendChild(intList)
-                }
-
-                content.appendChild(signalSection)
+                content.appendChild(signalBtn)
 
                 // --- Row 2: HUD Options ---
                 const optionsRow = document.createElement('div')
@@ -565,6 +499,132 @@ export class GameConfigPanel {
         input.style.cssText = `background: #222; border: 1px solid #555; color: white; padding: 2px 5px; width: ${width}px; text-align: center;`
         input.onchange = (e) => onChange(parseFloat(e.target.value) || 0)
         return input
+    }
+
+    openSignalConfig(block) {
+        // UI Overlay
+        const overlay = document.createElement('div')
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 6000;
+            display: flex; align-items: center; justify-content: center;
+        `
+
+        const panel = document.createElement('div')
+        panel.style.cssText = `
+            background: #222; border: 1px solid #444; border-radius: 8px;
+            width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif;
+        `
+        overlay.appendChild(panel)
+
+        // Header
+        const header = document.createElement('h3')
+        header.textContent = "Configuración de Señales"
+        header.style.cssText = "margin: 0; color: #fff; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px;"
+        panel.appendChild(header)
+
+        // --- Fixed Signals ---
+        const fixedSection = document.createElement('div')
+        fixedSection.style.cssText = "display: flex; flex-direction: column; gap: 10px;"
+
+        // Start Signal
+        const rowStart = document.createElement('div')
+        rowStart.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
+        rowStart.innerHTML = `<span style="color:#0f0;">► Señal Inicio:</span>`
+        const inputStart = this.createTextInput(block.signalStart || "", (val) => block.signalStart = val)
+        inputStart.placeholder = "Nombre senal..."
+        rowStart.appendChild(inputStart)
+        fixedSection.appendChild(rowStart)
+
+        // End Signal
+        const rowEnd = document.createElement('div')
+        rowEnd.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
+        rowEnd.innerHTML = `<span style="color:#f44;">■ Señal Final:</span>`
+        const inputEnd = this.createTextInput(block.signalEnd || "", (val) => block.signalEnd = val)
+        inputEnd.placeholder = "Nombre senal..."
+        rowEnd.appendChild(inputEnd)
+        fixedSection.appendChild(rowEnd)
+
+        panel.appendChild(fixedSection)
+
+        // Separator
+        const sep = document.createElement('hr')
+        sep.style.cssText = "border: 0; border-top: 1px solid #444; width: 100%; margin: 5px 0;"
+        panel.appendChild(sep)
+
+        // --- Interval Signals ---
+        const intHeader = document.createElement('div')
+        intHeader.style.cssText = "display: flex; justify-content: space-between; align-items: center;"
+        intHeader.innerHTML = `<strong style="color:#ddd;">Señales por Intervalo</strong>`
+
+        const addBtn = document.createElement('button')
+        addBtn.textContent = "+ Agregar"
+        addBtn.style.cssText = "background: #333; color: #fff; border: 1px solid #555; padding: 2px 8px; cursor: pointer;"
+
+        // Interval List Container
+        const listContainer = document.createElement('div')
+        listContainer.style.cssText = "display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; background: #1a1a1a; padding: 5px; border-radius: 4px;"
+
+        const renderIntervals = () => {
+            listContainer.innerHTML = ""
+            if (!block.intervalSignals) block.intervalSignals = []
+
+            block.intervalSignals.forEach((intSig, idx) => {
+                const row = document.createElement('div')
+                row.style.cssText = "display: flex; gap: 5px; align-items: center;"
+
+                // Time
+                const tIn = this.createNumberInput(intSig.time, (v) => intSig.time = v, "Seg", 50)
+                // Signal
+                const sIn = this.createTextInput(intSig.signal, (v) => intSig.signal = v)
+                sIn.placeholder = "Señal..."
+                sIn.style.flex = "1"
+
+                // Delete
+                const del = document.createElement('button')
+                del.textContent = "✕"
+                del.style.cssText = "color: #f44; background: none; border: none; cursor: pointer;"
+                del.onclick = () => {
+                    block.intervalSignals.splice(idx, 1)
+                    renderIntervals()
+                }
+
+                row.innerHTML = `<span style="color:#888; font-size:12px;">T:</span>`
+                row.appendChild(tIn)
+                row.appendChild(sIn)
+                row.appendChild(del)
+                listContainer.appendChild(row)
+            })
+        }
+
+        addBtn.onclick = () => {
+            if (!block.intervalSignals) block.intervalSignals = []
+            block.intervalSignals.push({ time: 1.0, signal: "logic_event" })
+            renderIntervals()
+        }
+
+        intHeader.appendChild(addBtn)
+        panel.appendChild(intHeader)
+
+        renderIntervals()
+        panel.appendChild(listContainer)
+
+        // Footer / Close
+        const footer = document.createElement('div')
+        footer.style.cssText = "display: flex; justify-content: flex-end; margin-top: 10px;"
+
+        const closeBtn = document.createElement('button')
+        closeBtn.textContent = "Cerrar / Guardar"
+        closeBtn.style.cssText = "background: #44f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;"
+        closeBtn.onclick = () => {
+            document.body.removeChild(overlay)
+            this.render() // Update main panel UI
+        }
+        footer.appendChild(closeBtn)
+        panel.appendChild(footer)
+
+        document.body.appendChild(overlay)
     }
 
     styleActionBtn(btn, isDestructive = false) {
