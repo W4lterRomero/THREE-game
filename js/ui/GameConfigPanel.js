@@ -538,7 +538,8 @@ export class GameConfigPanel {
         return container
     }
 
-    openSignalConfig(block) {
+    openSignalConfig(block, onSelectCallback = null) {
+        const isSelectionMode = !!onSelectCallback
         // UI Overlay
         const overlay = document.createElement('div')
         overlay.style.cssText = `
@@ -586,6 +587,20 @@ export class GameConfigPanel {
             display: flex; flex-direction: column; gap: 10px;
         `
 
+        // Helper: Signal Action Button (Select or Edit)
+        const createActionBtn = (signalName) => {
+            if (!isSelectionMode) return null
+            const btn = document.createElement('button')
+            btn.innerHTML = "✔"
+            btn.title = "Seleccionar esta señal"
+            btn.style.cssText = "background: #2a2; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;"
+            btn.onclick = () => {
+                onSelectCallback(signalName)
+                document.body.removeChild(overlay)
+            }
+            return btn
+        }
+
         // 1. Start Signal (Fixed Top)
         const rowStart = document.createElement('div')
         rowStart.style.cssText = "background: #113311; padding: 10px; border-radius: 6px; border-left: 4px solid #0f0; display: flex; align-items: center; gap: 10px;"
@@ -629,10 +644,14 @@ export class GameConfigPanel {
 
                 // Time Group
                 const timeGroup = this.createTimeInputGroup(intSig.time, (newTime) => {
+                    if (isSelectionMode) return; // No edit
                     intSig.time = newTime
-                    // Force refresh to update validation state immediately
                     renderIntervals()
                 })
+                // Disable inputs manually if selection mode
+                if (isSelectionMode) {
+                    Array.from(timeGroup.querySelectorAll('input')).forEach(i => i.disabled = true)
+                }
 
                 // Mode Selector
                 const modeSel = document.createElement('select')
@@ -646,12 +665,14 @@ export class GameConfigPanel {
                     modeSel.appendChild(opt)
                 })
                 modeSel.onchange = (e) => intSig.mode = e.target.value
+                if (isSelectionMode) modeSel.disabled = true;
 
                 // Signal Name
                 const sIn = this.createTextInput(intSig.signal, (v) => intSig.signal = v)
                 sIn.placeholder = "Nombre señal..."
                 sIn.style.flex = "1"
                 if (isOutOfRange) sIn.style.color = "#cc0"
+                if (isSelectionMode) sIn.disabled = true;
 
                 // Delete
                 const del = document.createElement('button')
@@ -661,6 +682,7 @@ export class GameConfigPanel {
                     block.intervalSignals.splice(idx, 1)
                     renderIntervals()
                 }
+                if (isSelectionMode) del.style.display = "none"
 
                 // Range Warning Icon
                 if (isOutOfRange) {
@@ -674,11 +696,18 @@ export class GameConfigPanel {
                 row.appendChild(timeGroup)
                 row.appendChild(modeSel)
                 row.appendChild(sIn)
-                row.appendChild(del)
+                if (!isSelectionMode) row.appendChild(del)
+
+                if (isSelectionMode && intSig.signal) {
+                    row.appendChild(createActionBtn(intSig.signal))
+                }
+
                 timeline.appendChild(row)
             })
 
-            timeline.appendChild(createAddButtonRow())
+            if (!isSelectionMode) {
+                timeline.appendChild(createAddButtonRow())
+            }
             timeline.appendChild(rowEnd) // Re-attach End
         }
 
@@ -712,9 +741,14 @@ export class GameConfigPanel {
         const inputEnd = this.createTextInput(block.signalEnd || "", (val) => block.signalEnd = val)
         inputEnd.placeholder = "Nombre señal final..."
         inputEnd.style.width = "200px"
+        if (isSelectionMode) inputEnd.disabled = true;
 
         rowEnd.appendChild(lblEnd)
         rowEnd.appendChild(inputEnd)
+
+        if (isSelectionMode && block.signalEnd) {
+            rowEnd.appendChild(createActionBtn(block.signalEnd))
+        }
 
         // Initial Render
         renderIntervals()
@@ -724,11 +758,12 @@ export class GameConfigPanel {
         const footer = document.createElement('div')
         footer.style.textAlign = "right"
         const closeBtn = document.createElement('button')
-        closeBtn.textContent = "Guardar y Cerrar"
+        // Changes text if selecting or editing
+        closeBtn.textContent = isSelectionMode ? "Cancelar / Cerrar" : "Guardar y Cerrar"
         closeBtn.style.cssText = "background: #44f; color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 4px; cursor: pointer;"
         closeBtn.onclick = () => {
             document.body.removeChild(overlay)
-            this.render()
+            if (!isSelectionMode) this.render()
         }
         footer.appendChild(closeBtn)
         panel.appendChild(footer)

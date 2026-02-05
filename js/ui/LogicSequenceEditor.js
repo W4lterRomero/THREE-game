@@ -472,8 +472,13 @@ export class LogicSequenceEditor {
         tabCols.textContent = "Colisiones Interactivas"
         tabCols.style.cssText = "cursor: pointer; color: #888; padding-bottom: 2px; flex: 1; text-align: center;"
 
+        const tabGlobal = document.createElement('div')
+        tabGlobal.textContent = "Señales Globales"
+        tabGlobal.style.cssText = "cursor: pointer; color: #888; padding-bottom: 2px; flex: 1; text-align: center;"
+
         tabContainer.appendChild(tabBtns)
         tabContainer.appendChild(tabCols)
+        tabContainer.appendChild(tabGlobal)
         panel.appendChild(tabContainer)
 
         const listContainer = document.createElement('div')
@@ -483,7 +488,69 @@ export class LogicSequenceEditor {
         const populateList = (type) => {
             listContainer.innerHTML = ""
 
-            const items = []
+            let items = []
+
+            if (type === 'global') {
+                // Fetch from Game Config
+                const seqs = this.logicSystem.gameConfig.sequences || []
+
+                if (seqs.length === 0) {
+                    listContainer.innerHTML = "<div style='color:#666; text-align:center;'>No hay bloques de lógica globales configurados.</div>"
+                    return
+                }
+
+                seqs.forEach((block, idx) => {
+                    const row = document.createElement('div')
+                    row.style.cssText = `
+                        background: #333; color: white; border: 1px solid #444;
+                        padding: 8px; text-align: left; cursor: pointer; border-radius: 4px;
+                        transition: background 0.2s; display: flex; align-items: center; justify-content: space-between;
+                     `
+                    row.onmouseover = () => row.style.background = "#444"
+                    row.onmouseout = () => row.style.background = "#333"
+
+                    if (block.type === 'emit_signal') {
+                        row.textContent = `📢 Emite: "${block.signalName}"`
+                        row.onclick = () => {
+                            // Mock object for signal selector since it expects object structure usually or handle specially
+                            // We need to return an object with userData.uuid or similar if standard, BUT
+                            // the caller expects (selectedObj, type).
+                            // We'll pass a dummy object structure that mimics what wait_signal step expects.
+                            const dummyObj = { userData: { uuid: block.signalName, logicProperties: { name: "Señal Global" } } }
+                            // Actually, wait_signal uses signalIds array. user wants to LISTEN to this signal.
+                            // So the ID should be the signal name itself?
+                            // Usually ID is UUID of object emitting. But for global signals, the signal NAME is the key.
+                            // Let's pass the signal name as ID.
+                            onSelectCallback({ userData: { uuid: block.signalName, logicProperties: { name: block.signalName } } }, 'global')
+                            document.body.removeChild(overlay)
+                        }
+                        listContainer.appendChild(row)
+
+                    } else if (block.type === 'time_wait') {
+                        // Time Block Group
+                        row.innerHTML = `<span>⏳ Bloque Tiempo (${block.duration || 0}s)</span> <span style="font-size:10px; color:#aaa;">▶ Ver Señales</span>`
+                        row.onclick = () => {
+                            if (this.logicSystem.configPanel) {
+                                // Close our selector overlay first? Or keep it? User might cancel.
+                                // Let's close it to avoid clutter, assuming selection will reopen or finish.
+                                document.body.removeChild(overlay)
+
+                                this.logicSystem.configPanel.openSignalConfig(block, (selectedSignal) => {
+                                    // Callback from the Chronological Panel
+                                    onSelectCallback({ userData: { uuid: selectedSignal, logicProperties: { name: selectedSignal } } }, 'global')
+                                    // Sequence Editor will update.
+                                })
+                            } else {
+                                alert("Panel de Configuración no disponible.")
+                            }
+                        }
+                        listContainer.appendChild(row)
+                    }
+                })
+                return
+            }
+
+            // Normal Objects
             if (this.game.sceneManager && this.game.sceneManager.scene) {
                 this.game.sceneManager.scene.traverse(obj => {
                     if (obj.userData) {
@@ -530,16 +597,16 @@ export class LogicSequenceEditor {
         populateList('button')
 
         // Tab Events
-        tabBtns.onclick = () => {
-            tabBtns.style.fontWeight = "bold"; tabBtns.style.color = "white"; tabBtns.style.borderBottom = "2px solid white";
-            tabCols.style.fontWeight = "normal"; tabCols.style.color = "#888"; tabCols.style.borderBottom = "none";
-            populateList('button')
+        const updateTabs = (active) => {
+            [tabBtns, tabCols, tabGlobal].forEach(t => {
+                t.style.fontWeight = "normal"; t.style.color = "#888"; t.style.borderBottom = "none";
+            })
+            active.style.fontWeight = "bold"; active.style.color = "white"; active.style.borderBottom = "2px solid white";
         }
-        tabCols.onclick = () => {
-            tabCols.style.fontWeight = "bold"; tabCols.style.color = "white"; tabCols.style.borderBottom = "2px solid white";
-            tabBtns.style.fontWeight = "normal"; tabBtns.style.color = "#888"; tabBtns.style.borderBottom = "none";
-            populateList('collision')
-        }
+
+        tabBtns.onclick = () => { updateTabs(tabBtns); populateList('button') }
+        tabCols.onclick = () => { updateTabs(tabCols); populateList('collision') }
+        tabGlobal.onclick = () => { updateTabs(tabGlobal); populateList('global') }
 
         panel.appendChild(listContainer)
 
