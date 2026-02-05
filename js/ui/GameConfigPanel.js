@@ -579,6 +579,7 @@ export class GameConfigPanel {
 
         // --- Signal Timeline Container ---
         const timeline = document.createElement('div')
+        timeline.className = "game-config-scroll"
         timeline.style.cssText = `
             flex: 1; overflow-y: auto; background: #181818; 
             border: 1px solid #333; border-radius: 8px; padding: 10px;
@@ -618,21 +619,24 @@ export class GameConfigPanel {
 
             block.intervalSignals.forEach((intSig, idx) => {
                 const row = document.createElement('div')
-                row.style.cssText = "background: #2a2a2a; padding: 8px; border-radius: 6px; border-left: 4px solid #aaa; display: flex; align-items: center; gap: 10px;"
+
+                // Validation
+                const isOutOfRange = intSig.time > (block.duration || 0)
+                const borderColor = isOutOfRange ? "#cc0" : "#aaa"
+                const bgColor = isOutOfRange ? "#332" : "#2a2a2a"
+
+                row.style.cssText = `background: ${bgColor}; padding: 8px; border-radius: 6px; border-left: 4px solid ${borderColor}; display: flex; align-items: center; gap: 10px;`
 
                 // Time Group
                 const timeGroup = this.createTimeInputGroup(intSig.time, (newTime) => {
                     intSig.time = newTime
-                    // We need to re-sort and re-render if time changes order, 
-                    // but doing it instantly while typing is annoying. 
-                    // Let's just update value. Visual re-sort happens on reopen or manual refresh?
-                    // Let's force re-sort only on blur or explicit action? 
-                    // For now, keep it simple.
+                    // Force refresh to update validation state immediately
+                    renderIntervals()
                 })
 
                 // Mode Selector
                 const modeSel = document.createElement('select')
-                modeSel.style.cssText = "background: #222; color: #ddd; border: 1px solid #555; font-size: 11px; width: 130px;"
+                modeSel.style.cssText = `background: #222; color: ${isOutOfRange ? '#cc0' : '#ddd'}; border: 1px solid #555; font-size: 11px; width: 130px;`
                 const modes = ["Activar al transcurrir", "Activar en el momento"]
                 modes.forEach(m => {
                     const opt = document.createElement('option')
@@ -647,6 +651,7 @@ export class GameConfigPanel {
                 const sIn = this.createTextInput(intSig.signal, (v) => intSig.signal = v)
                 sIn.placeholder = "Nombre señal..."
                 sIn.style.flex = "1"
+                if (isOutOfRange) sIn.style.color = "#cc0"
 
                 // Delete
                 const del = document.createElement('button')
@@ -655,6 +660,15 @@ export class GameConfigPanel {
                 del.onclick = () => {
                     block.intervalSignals.splice(idx, 1)
                     renderIntervals()
+                }
+
+                // Range Warning Icon
+                if (isOutOfRange) {
+                    const warn = document.createElement('span')
+                    warn.textContent = "⚠"
+                    warn.title = "Fuera del rango de duración"
+                    warn.style.cssText = "color: #cc0; cursor: help; font-size:14px;"
+                    row.appendChild(warn)
                 }
 
                 row.appendChild(timeGroup)
