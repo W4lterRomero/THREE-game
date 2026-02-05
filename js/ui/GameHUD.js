@@ -11,24 +11,16 @@ export class GameHUD {
         this.timerElement = null
     }
 
-    updateTimer(timeSeconds, style) {
+    updateTimer(timeSeconds, style, position = 'top-center') {
         if (!this.timerElement) {
             this.timerElement = document.createElement('div')
             this.timerElement.id = 'game-timer-display'
             this.container.appendChild(this.timerElement)
         }
 
-        // Format: MM:SS (or HH:MM:SS if needed, keeping it compact logic from before)
         const h = Math.floor(timeSeconds / 3600)
         const m = Math.floor((timeSeconds % 3600) / 60)
-        // Ceil seconds so it doesn't stay on "0" for a whole second before finishing
-        // Actually, floor is standard for "time passed", ceil for "time remaining"? 
-        // LogicSystem calculates remaining. Let's use Ceil for countdown feel.
         const s = Math.ceil(timeSeconds % 60)
-
-        // Adjust cascading if s=60 (edge case with ceil) usually handling in logic is better
-        // Let's stick to floor for consistent 5...4...3...0
-        // Or if user wants to see "5" when 4.9s remains. 
 
         const pad = (n) => n.toString().padStart(2, '0')
         const text = (h > 0 ? `${pad(h)}:` : '') + `${pad(m)}:${pad(s)}`
@@ -36,12 +28,14 @@ export class GameHUD {
         this.timerElement.textContent = text
         this.timerElement.style.display = 'flex'
 
-        // Reset base styles to avoid conflict
+        // Reset base styles
         this.timerElement.className = ''
         this.timerElement.style.cssText = `
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; align-items: center; justify-content: center;
+            position: absolute; display: flex; align-items: center; justify-content: center;
         `
+
+        // Apply Position
+        this.applyPosition(this.timerElement, position)
 
         // Apply Styles
         if (style === 'style1') { // Digital Neon
@@ -51,8 +45,43 @@ export class GameHUD {
         } else if (style === 'style3') { // Sports Box
             this.applySportsStyle(this.timerElement)
         } else {
-            // Default Fallback
             this.applyNeonStyle(this.timerElement)
+        }
+    }
+
+    applyPosition(el, pos) {
+        const margin = "20px"
+        switch (pos) {
+            case 'top-left':
+                el.style.top = margin; el.style.left = margin;
+                break;
+            case 'top-center':
+                el.style.top = margin; el.style.left = "50%"; el.style.transform = "translateX(-50%)";
+                break;
+            case 'top-right':
+                el.style.top = margin; el.style.right = margin;
+                break;
+            case 'middle-left':
+                el.style.top = "50%"; el.style.left = margin; el.style.transform = "translateY(-50%)";
+                break;
+            case 'center':
+                el.style.top = "50%"; el.style.left = "50%"; el.style.transform = "translate(-50%, -50%)";
+                break;
+            case 'middle-right':
+                el.style.top = "50%"; el.style.right = margin; el.style.transform = "translateY(-50%)";
+                break;
+            case 'bottom-left':
+                el.style.bottom = margin; el.style.left = margin;
+                break;
+            case 'bottom-center':
+                el.style.bottom = margin; el.style.left = "50%"; el.style.transform = "translateX(-50%)";
+                break;
+            case 'bottom-right':
+                el.style.bottom = margin; el.style.right = margin;
+                break;
+            default: // Default Top Center
+                el.style.top = margin; el.style.left = "50%"; el.style.transform = "translateX(-50%)";
+                break;
         }
     }
 

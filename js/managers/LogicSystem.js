@@ -148,7 +148,7 @@ export class LogicSystem {
             const remaining = Math.max(0, block.duration - this.configRuntime.timer)
 
             if (block.showTimer) {
-                this.hud.updateTimer(remaining, block.timerStyle)
+                this.hud.updateTimer(remaining, block.timerStyle, block.timerPosition)
             } else {
                 this.hud.hideTimer()
             }

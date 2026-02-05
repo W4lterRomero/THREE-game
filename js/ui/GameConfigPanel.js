@@ -1,9 +1,12 @@
 
+import { UIPositionSelector } from "./UIPositionSelector.js"
+
 export class GameConfigPanel {
     constructor(game, logicSystem) {
         this.game = game
         this.logicSystem = logicSystem
         this.container = null
+        this.positionSelector = new UIPositionSelector()
 
         // Register itself for callbacks
         this.logicSystem.configPanel = this
@@ -16,6 +19,269 @@ export class GameConfigPanel {
         }
     }
 
+    // ... [createUI, createSimulationControls, updatePlayState, updateTotalTime, highlightBlock, createAddBtn unchanged] ...
+
+    // But we need to update addBlock defaults and render
+
+    addBlock(type) {
+        const block = { type: type }
+        // Init Defaults
+        if (type === 'emit_signal') {
+            block.signalName = "game_event"
+        } else if (type === 'time_wait') {
+            block.duration = 5.0
+            block.showTimer = false
+            block.timerStyle = 'style1'
+            block.timerPosition = 'top-center'
+        }
+
+        this.logicSystem.gameConfig.sequences.push(block)
+        this.render()
+    }
+
+    render() {
+        this.sequenceList.innerHTML = ""
+        const seq = this.logicSystem.gameConfig.sequences
+
+        if (seq.length === 0) {
+            this.sequenceList.innerHTML = "<div style='color:#666; text-align:center; padding:20px;'>No hay bloques de lógica. Agrega uno arriba.</div>"
+            return
+        }
+
+        seq.forEach((block, idx) => {
+            const item = document.createElement('div')
+            item.className = 'game-config-block'
+            item.style.cssText = `
+                background: #333; padding: 10px; border-radius: 6px; 
+                display: flex; align-items: center; gap: 10px; position: relative;
+                border-left: 5px solid #555;
+            `
+
+            // Color Coding
+            if (block.type === 'start_signal' || block.type === 'emit_signal') item.style.borderLeftColor = "#00aa00"
+            if (block.type === 'time_wait') item.style.borderLeftColor = "#4444ff"
+            if (block.type === 'end_game') item.style.borderLeftColor = "#aa0000"
+            if (block.type === 'loop_game') item.style.borderLeftColor = "#880088"
+
+            // Index
+            const idxSpan = document.createElement('span')
+            idxSpan.textContent = `#${idx + 1}`
+            idxSpan.style.color = "#888"
+            idxSpan.style.width = "30px"
+            item.appendChild(idxSpan)
+
+            // Content based on Type
+            const content = document.createElement('div')
+            content.style.flex = "1"
+            content.style.display = "flex"
+            content.style.alignItems = "center"
+            content.style.gap = "10px"
+
+            // Unified Signal Handler
+            if (block.type === 'start_signal' || block.type === 'emit_signal') {
+                content.innerHTML = `<strong>Señal:</strong> `
+                const input = this.createTextInput(block.signalName, (val) => block.signalName = val)
+                content.appendChild(input)
+
+            } else if (block.type === 'time_wait') {
+                content.style.flexDirection = "column"
+                content.style.alignItems = "flex-start"
+
+                // --- Row 1: Time Inputs ---
+                const timeRow = document.createElement('div')
+                timeRow.style.display = "flex"
+                timeRow.style.alignItems = "center"
+                timeRow.style.gap = "5px"
+                timeRow.innerHTML = `<strong>Duración:</strong> `
+
+                // Duration Decomposition
+                const totalSeconds = block.duration || 0
+                const h = Math.floor(totalSeconds / 3600)
+                const m = Math.floor((totalSeconds % 3600) / 60)
+                const s = Math.floor(totalSeconds % 60)
+
+                const updateDuration = (newH, newM, newS) => {
+                    block.duration = (newH * 3600) + (newM * 60) + newS
+                }
+
+                // Helper for Labeled Input
+                const createLabeledInput = (val, cb, label) => {
+                    const wrapper = document.createElement('div')
+                    wrapper.style.display = "flex"
+                    wrapper.style.flexDirection = "column"
+                    wrapper.style.alignItems = "center"
+
+                    const input = this.createNumberInput(val, cb, "", 40)
+
+                    const lbl = document.createElement('span')
+                    lbl.textContent = label
+                    lbl.style.fontSize = "10px"
+                    lbl.style.color = "#888"
+
+                    wrapper.appendChild(input)
+                    wrapper.appendChild(lbl)
+                    return wrapper
+                }
+
+                // H Input
+                timeRow.appendChild(createLabeledInput(h, (val) => updateDuration(val, m, s), "Hora"))
+                timeRow.appendChild(document.createTextNode(':'))
+
+                // M Input
+                timeRow.appendChild(createLabeledInput(m, (val) => updateDuration(h, val, s), "Minuto"))
+                timeRow.appendChild(document.createTextNode(':'))
+
+                // S Input
+                timeRow.appendChild(createLabeledInput(s, (val) => updateDuration(h, m, val), "Segundo"))
+
+                content.appendChild(timeRow)
+
+                // --- Row 2: HUD Options ---
+                const optionsRow = document.createElement('div')
+                optionsRow.style.display = "flex"
+                optionsRow.style.gap = "15px"
+                optionsRow.style.alignItems = "center"
+                optionsRow.style.marginTop = "5px"
+
+                // Checkbox
+                const chkLabel = document.createElement('label')
+                chkLabel.style.display = "flex"
+                chkLabel.style.alignItems = "center"
+                chkLabel.style.gap = "5px"
+                chkLabel.style.fontSize = "12px"
+                chkLabel.style.color = "#ddd"
+                chkLabel.style.cursor = "pointer"
+
+                const chk = document.createElement('input')
+                chk.type = "checkbox"
+                chk.checked = block.showTimer || false
+                chk.onchange = (e) => {
+                    block.showTimer = e.target.checked
+                    this.render() // Re-render to show/hide style select potentially
+                }
+                chkLabel.appendChild(chk)
+                chkLabel.appendChild(document.createTextNode("Mostrar en Juego"))
+                optionsRow.appendChild(chkLabel)
+
+                // HUD Settings (Only if checked)
+                if (block.showTimer) {
+                    // Style Select
+                    const selLabel = document.createElement('label')
+                    selLabel.style.display = "flex"
+                    selLabel.style.alignItems = "center"
+                    selLabel.style.gap = "5px"
+                    selLabel.style.fontSize = "12px"
+                    selLabel.style.color = "#ddd"
+
+                    selLabel.appendChild(document.createTextNode("Estilo:"))
+
+                    const sel = document.createElement('select')
+                    sel.style.background = "#222"
+                    sel.style.color = "white"
+                    sel.style.border = "1px solid #555"
+                    sel.style.fontSize = "11px"
+                    sel.style.padding = "2px"
+
+                    const styles = [
+                        { id: 'style1', name: 'Digital Neon' },
+                        { id: 'style2', name: 'Minimalista' },
+                        { id: 'style3', name: 'Caja Deportiva' }
+                    ]
+
+                    styles.forEach(st => {
+                        const opt = document.createElement('option')
+                        opt.value = st.id
+                        opt.textContent = st.name
+                        if (block.timerStyle === st.id) opt.selected = true
+                        sel.appendChild(opt)
+                    })
+
+                    sel.onchange = (e) => block.timerStyle = e.target.value
+                    selLabel.appendChild(sel)
+                    optionsRow.appendChild(selLabel)
+
+                    // Position Button
+                    const posBtn = document.createElement('button')
+                    posBtn.textContent = `Posición: ${this.getReadablePosition(block.timerPosition)}`
+                    posBtn.style.cssText = "background: #444; color: #fff; border: 1px dashed #777; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px;"
+                    posBtn.onclick = () => {
+                        this.positionSelector.open(block.timerPosition, (newPos) => {
+                            block.timerPosition = newPos
+                            this.render()
+                        })
+                    }
+                    optionsRow.appendChild(posBtn)
+                }
+
+                content.appendChild(optionsRow)
+
+            } else if (block.type === 'end_game') {
+                content.innerHTML = `<strong>Fin de Partida</strong>`
+            } else if (block.type === 'loop_game') {
+                content.innerHTML = `<strong>Reiniciar Secuencia (Loop)</strong>`
+            }
+
+            item.appendChild(content)
+
+            // Actions (Move/Delete)
+            const actions = document.createElement('div')
+            actions.style.display = "flex"
+            actions.style.gap = "5px"
+
+            // Up
+            if (idx > 0) {
+                const upBtn = document.createElement('button')
+                upBtn.textContent = "▲"
+                upBtn.onclick = () => {
+                    [seq[idx], seq[idx - 1]] = [seq[idx - 1], seq[idx]]
+                    this.render()
+                }
+                this.styleActionBtn(upBtn)
+                actions.appendChild(upBtn)
+            }
+
+            // Down
+            if (idx < seq.length - 1) {
+                const downBtn = document.createElement('button')
+                downBtn.textContent = "▼"
+                downBtn.onclick = () => {
+                    [seq[idx], seq[idx + 1]] = [seq[idx + 1], seq[idx]]
+                    this.render()
+                }
+                this.styleActionBtn(downBtn)
+                actions.appendChild(downBtn)
+            }
+
+            // Delete
+            const delBtn = document.createElement('button')
+            delBtn.textContent = "✕"
+            delBtn.onclick = () => {
+                seq.splice(idx, 1)
+                this.render()
+            }
+            this.styleActionBtn(delBtn, true)
+            actions.appendChild(delBtn)
+
+            item.appendChild(actions)
+            this.sequenceList.appendChild(item)
+        })
+    }
+
+    getReadablePosition(pos) {
+        if (!pos) return "Top Center"
+        switch (pos) {
+            case 'top-left': return "↖ Arriba Izq"
+            case 'top-center': return "⬆ Arriba Centro"
+            case 'top-right': return "↗ Arriba Der"
+            case 'middle-left': return "⬅ Medio Izq"
+            case 'center': return "● Centro"
+            case 'middle-right': return "➡ Medio Der"
+            case 'bottom-left': return "↙ Abajo Izq"
+            case 'bottom-center': return "⬇ Abajo Centro"
+            case 'bottom-right': return "↘ Abajo Der"
+            default: return pos
+        }
+    }
     createUI(parentContainer) {
         this.container = document.createElement('div')
         this.container.style.cssText = `
@@ -375,6 +641,18 @@ export class GameConfigPanel {
                     sel.onchange = (e) => block.timerStyle = e.target.value
                     selLabel.appendChild(sel)
                     optionsRow.appendChild(selLabel)
+
+                    // Position Button
+                    const posBtn = document.createElement('button')
+                    posBtn.textContent = `Posición: ${this.getReadablePosition(block.timerPosition)}`
+                    posBtn.style.cssText = "background: #444; color: #fff; border: 1px dashed #777; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 4px;"
+                    posBtn.onclick = () => {
+                        this.positionSelector.open(block.timerPosition, (newPos) => {
+                            block.timerPosition = newPos
+                            this.render()
+                        })
+                    }
+                    optionsRow.appendChild(posBtn)
                 }
 
                 content.appendChild(optionsRow)
