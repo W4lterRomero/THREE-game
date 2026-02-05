@@ -510,7 +510,7 @@ export class LogicSequenceEditor {
                     row.onmouseout = () => row.style.background = "#333"
 
                     if (block.type === 'emit_signal') {
-                        row.textContent = `📢 Emite: "${block.signalName}"`
+                        row.textContent = `Señal: "${block.signalName}"`
                         row.onclick = () => {
                             // Mock object for signal selector since it expects object structure usually or handle specially
                             // We need to return an object with userData.uuid or similar if standard, BUT
@@ -528,7 +528,7 @@ export class LogicSequenceEditor {
 
                     } else if (block.type === 'time_wait') {
                         // Time Block Group
-                        row.innerHTML = `<span>⏳ Bloque Tiempo (${block.duration || 0}s)</span> <span style="font-size:10px; color:#aaa;">▶ Ver Señales</span>`
+                        row.innerHTML = `<span>Bloque de Tiempo (${block.duration || 0}s)</span> <span style="font-size:10px; color:#aaa;">▶ Ver Señales</span>`
                         row.onclick = () => {
                             if (this.logicSystem.configPanel) {
                                 // Close our selector overlay first? Or keep it? User might cancel.

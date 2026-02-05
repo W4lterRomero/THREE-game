@@ -231,8 +231,8 @@ export class GameConfigPanel {
             block.showTimer = false
             block.timerStyle = 'style1'
             block.timerPosition = 'top-center'
-            block.signalStart = ""
-            block.signalEnd = ""
+            block.signalStart = "inicio"
+            block.signalEnd = "final"
             block.intervalSignals = []
         }
 
@@ -731,7 +731,7 @@ export class GameConfigPanel {
 
         // 3. End Signal (Fixed Bottom)
         const rowEnd = document.createElement('div')
-        rowEnd.style.cssText = "background: #331111; padding: 10px; border-radius: 6px; border-left: 4px solid #f44; display: flex; align-items: center; gap: 10px;"
+        rowEnd.style.cssText = "background: #331111; paddeing: 10px; border-radius: 6px; border-left: 4px solid #f44; display: flex; align-items: center; gap: 10px;"
 
         rowEnd.innerHTML = `<strong style="color:#f44; width: 60px;">T: FIN</strong>`
         const lblEnd = document.createElement('span')
@@ -746,8 +746,9 @@ export class GameConfigPanel {
         rowEnd.appendChild(lblEnd)
         rowEnd.appendChild(inputEnd)
 
-        if (isSelectionMode && block.signalEnd) {
-            rowEnd.appendChild(createActionBtn(block.signalEnd))
+        if (isSelectionMode) {
+            const sigName = block.signalEnd || "final"
+            rowEnd.appendChild(createActionBtn(sigName))
         }
 
         // Initial Render

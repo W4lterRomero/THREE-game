@@ -1798,6 +1798,11 @@ class Game {
                         return
                     }
 
+                    if (idx >= waypoints.length || !waypoints[idx]) {
+                        state.wpIndex = 0
+                        return
+                    }
+
                     const p1 = waypoints[idx]
                     const p2 = waypoints[nextIdx]
 
