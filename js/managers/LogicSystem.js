@@ -2,6 +2,7 @@ import * as THREE from "three"
 import { LogicToolbar } from "../ui/LogicToolbar.js"
 import { LogicSequenceEditor } from "../ui/LogicSequenceEditor.js"
 import { InteractiveCollisionLogic } from "../ui/logic_items/InteractiveCollisionLogic.js"
+import { GameHUD } from "../ui/GameHUD.js"
 
 export class LogicSystem {
     constructor(game) {
@@ -10,6 +11,7 @@ export class LogicSystem {
         this.editingObject = null
         this.toolbar = new LogicToolbar(game)
         this.sequenceEditor = new LogicSequenceEditor(game, this)
+        this.hud = new GameHUD()
 
         // Toolbar Callbacks
         this.toolbar.onClose = () => this.endMapEdit()
@@ -35,9 +37,138 @@ export class LogicSystem {
         this.gameConfig = { sequences: [] } // Config Data
         this.configRuntime = {
             isPlaying: false,
+            isPaused: false,
             currentIndex: 0,
             timer: 0,
-            hasStarted: false
+            hasStarted: false,
+            totalTime: 0
+        }
+    }
+
+    // ... [scanScene, renderPanel, etc. unchanged] ...
+
+    // --- SIMULATION CONTROLS ---
+
+    playConfig() {
+        if (this.gameConfig.sequences.length === 0) return
+        if (!this.configRuntime.hasStarted) {
+            // First Start
+            this.configRuntime.hasStarted = true
+            this.configRuntime.currentIndex = 0
+            this.configRuntime.timer = 0
+            this.configRuntime.totalTime = 0
+            console.log("Simulation Started")
+        }
+        this.configRuntime.isPlaying = true
+        this.configRuntime.isPaused = false
+    }
+
+    pauseConfig() {
+        if (this.configRuntime.isPlaying) {
+            this.configRuntime.isPlaying = false // Stop update loop logic
+            this.configRuntime.isPaused = true // Mark as paused (not stopped)
+            console.log("Simulation Paused")
+        }
+    }
+
+    stopConfig() {
+        this.configRuntime.isPlaying = false
+        this.configRuntime.hasStarted = false
+        this.configRuntime.currentIndex = 0
+        this.configRuntime.timer = 0
+        this.configRuntime.totalTime = 0
+        this.hud.hideTimer()
+        if (this.configPanel) {
+            this.configPanel.highlightBlock(-1) // Clear
+            this.configPanel.updateTotalTime(0)
+        }
+        console.log("Simulation Stopped")
+    }
+
+    stepConfig(dir) {
+        if (this.gameConfig.sequences.length === 0) return
+
+        // If HUD was showing, hide it when stepping away from the block?
+        // Or keep it? Let's hide to reset state visual
+        this.hud.hideTimer()
+
+        let newIdx = this.configRuntime.currentIndex + dir
+        if (newIdx < 0) newIdx = 0
+        if (newIdx > this.gameConfig.sequences.length) newIdx = this.gameConfig.sequences.length
+
+        this.configRuntime.currentIndex = newIdx
+        this.configRuntime.timer = 0 // Reset timer for new block
+
+        if (this.configPanel) this.configPanel.highlightBlock(this.configRuntime.currentIndex)
+    }
+
+    updateGameLogic(dt) {
+        // Start logic auto-check removed in favor of explicit Play
+
+        // Highlight UI even if paused/stopped if index exists (Visualization)
+        if (this.configPanel) {
+            this.configPanel.highlightBlock(this.configRuntime.currentIndex)
+        }
+
+        if (!this.configRuntime.isPlaying) return
+
+        // Update Total Time
+        this.configRuntime.totalTime += dt
+        if (this.configPanel) {
+            this.configPanel.updateTotalTime(this.configRuntime.totalTime)
+        }
+
+        const seq = this.gameConfig.sequences
+        if (this.configRuntime.currentIndex >= seq.length) {
+            this.configRuntime.isPlaying = false // Done
+            this.configRuntime.hasStarted = false // Reset start flag so Play restarts? 
+            // Or keep it "Finished" state? Let's stop.
+            console.log("Game Sequence Finished")
+            this.stopConfig() // Auto-stop to reset UI
+            return
+        }
+
+        const block = seq[this.configRuntime.currentIndex]
+
+        // --- EXECUTE BLOCK ---
+        if (block.type === 'start_signal' || block.type === 'emit_signal') {
+            const signalName = block.signalName || "signal"
+            // Ensure we don't spam if this runs every frame? 
+            // Signals are "instant". We should execute and move on immediately.
+            console.log("Broadcasting Signal:", signalName)
+            this.broadcastSignal(signalName)
+            this.configRuntime.currentIndex++
+            this.configRuntime.timer = 0
+
+        } else if (block.type === 'time_wait') {
+            this.configRuntime.timer += dt
+            const remaining = Math.max(0, block.duration - this.configRuntime.timer)
+
+            if (block.showTimer) {
+                this.hud.updateTimer(remaining, block.timerStyle)
+            } else {
+                this.hud.hideTimer()
+            }
+
+            if (this.configRuntime.timer >= block.duration) {
+                console.log("Time Wait Finished")
+                this.configRuntime.currentIndex++
+                this.configRuntime.timer = 0
+                this.hud.hideTimer() // Clean up when done
+            }
+
+        } else if (block.type === 'end_game') {
+            console.log("Game Over Triggered by Logic")
+            this.configRuntime.isPlaying = false
+            this.hud.hideTimer()
+            alert("¡Fin de la Partida!")
+            this.stopConfig()
+
+        } else if (block.type === 'loop_game') {
+            console.log("Looping Game Sequence")
+            this.configRuntime.currentIndex = 0
+            this.configRuntime.timer = 0
+            this.hud.hideTimer()
         }
     }
 

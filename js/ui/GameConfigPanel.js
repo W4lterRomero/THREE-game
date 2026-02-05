@@ -128,7 +128,30 @@ export class GameConfigPanel {
         createCtrlBtn("⏮", "Bloque Anterior", "#fff", () => this.logicSystem.stepConfig(-1))
         createCtrlBtn("⏭", "Bloque Siguiente", "#fff", () => this.logicSystem.stepConfig(1))
 
+        // Time Display
+        const timeContainer = document.createElement('div')
+        timeContainer.style.cssText = "margin-left: auto; display: flex; align-items: center; gap: 5px;"
+
+        const timeIcon = document.createElement('span')
+        timeIcon.textContent = "⏱"
+        timeIcon.style.fontSize = "12px"
+        timeContainer.appendChild(timeIcon)
+
+        this.timeDisplay = document.createElement('span')
+        this.timeDisplay.textContent = "00:00"
+        this.timeDisplay.style.cssText = "font-family: monospace; font-size: 14px; color: #0ff;"
+        timeContainer.appendChild(this.timeDisplay)
+
+        simCtn.appendChild(timeContainer)
+
         container.appendChild(simCtn)
+    }
+
+    updateTotalTime(seconds) {
+        if (!this.timeDisplay) return
+        const m = Math.floor(seconds / 60)
+        const s = Math.floor(seconds % 60)
+        this.timeDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
     }
 
     highlightBlock(index) {

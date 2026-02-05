@@ -676,9 +676,14 @@ class Game {
 
         // Ghost Preview Update (via Manager)
         if (this.gameMode === 'editor' && this.constructionMenu) {
-            // Logic Map Edit Mode
-            if (this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.isEditingMap) {
+            // Update Logic System (Handles Map Edit AND Simulation)
+            if (this.constructionMenu.logicSystem) {
                 this.constructionMenu.logicSystem.update(dt)
+            }
+
+            // Logic Map Edit Mode Specifics (Ghost visualization)
+            if (this.constructionMenu.logicSystem && this.constructionMenu.logicSystem.isEditingMap) {
+
 
                 if (this.constructionMenu.logicSystem.toolbar.activeTool === 'waypoint') {
                     if (this.placementManager && this.character) {
