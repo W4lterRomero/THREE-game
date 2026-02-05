@@ -110,15 +110,15 @@ export class GameConfigPanel {
                 display: flex; align-items: center; justify-content: center; font-size: 14px;
             `
             btn.onclick = onClick
-            btn.onmouseover = () => btn.style.background = "#444"
-            btn.onmouseout = () => btn.style.background = "#333"
+            btn.onmouseenter = () => { if (btn.dataset.active !== "true") btn.style.background = "#444" }
+            btn.onmouseleave = () => { if (btn.dataset.active !== "true") btn.style.background = "#333" }
             simCtn.appendChild(btn)
             return btn
         }
 
-        createCtrlBtn("▶", "Iniciar Simulación", "#0f0", () => this.logicSystem.playConfig())
-        createCtrlBtn("⏸", "Pausar", "#fa0", () => this.logicSystem.pauseConfig())
-        createCtrlBtn("⏹", "Detener / Reiniciar", "#f44", () => this.logicSystem.stopConfig())
+        this.playBtn = createCtrlBtn("▶", "Iniciar Simulación", "#0f0", () => this.logicSystem.playConfig())
+        this.pauseBtn = createCtrlBtn("⏸", "Pausar", "#fa0", () => this.logicSystem.pauseConfig())
+        const stopBtn = createCtrlBtn("⏹", "Detener / Reiniciar", "#f44", () => this.logicSystem.stopConfig())
 
         // Separator
         const sep = document.createElement('div')
@@ -145,6 +145,28 @@ export class GameConfigPanel {
         simCtn.appendChild(timeContainer)
 
         container.appendChild(simCtn)
+    }
+
+    updatePlayState(isPlaying, isPaused) {
+        if (!this.playBtn || !this.pauseBtn) return
+
+        if (isPlaying && !isPaused) {
+            this.playBtn.style.background = "#050" // Active Green
+            this.playBtn.dataset.active = "true"
+            this.pauseBtn.style.background = "#333"
+            this.pauseBtn.dataset.active = "false"
+        } else if (isPaused) {
+            this.playBtn.style.background = "#333"
+            this.playBtn.dataset.active = "false"
+            this.pauseBtn.style.background = "#530" // Active Orange
+            this.pauseBtn.dataset.active = "true"
+        } else {
+            // Stopped
+            this.playBtn.style.background = "#333"
+            this.playBtn.dataset.active = "false"
+            this.pauseBtn.style.background = "#333"
+            this.pauseBtn.dataset.active = "false"
+        }
     }
 
     updateTotalTime(seconds) {
