@@ -1607,9 +1607,17 @@ class Game {
                 if (obj.userData.logicProperties && obj.userData.logicProperties.sequences) {
                     obj.userData.logicProperties.sequences.forEach(seq => {
                         const signalMatches = (targetId, targetIds) => {
+                            // 1. Array check
                             if (targetIds && Array.isArray(targetIds)) {
-                                return targetIds.some(s => s.id === signalId || s === signalId) // Handle object {id,name} or raw string
+                                return targetIds.some(s => {
+                                    // Handle object {id, name} or raw string
+                                    if (typeof s === 'object') {
+                                        return s.id === signalId || s.name === signalId
+                                    }
+                                    return s === signalId
+                                })
                             }
+                            // 2. Single Check
                             return targetId === signalId
                         }
 

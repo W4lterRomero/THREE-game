@@ -716,36 +716,12 @@ export class LogicSystem {
 
 
     broadcastSignal(signalName) {
-        if (!this.game.sceneManager || !this.game.sceneManager.scene) return
+        if (!this.game) return
 
-        // Find all objects compliant with signal reception
-        // For now, let's assume objects with 'logicProperties.triggerSignal' matching this name should react?
-        // Or buttons?
-        // Let's implement a generic 'receiveSignal' on valid objects.
-
-        this.game.sceneManager.scene.traverse(obj => {
-            if (obj.userData && obj.userData.logicProperties) {
-                // 1. Check if object waits for this signal (Sequence Editor 'wait_signal')
-                // Note: LogicSequenceEditor logic handles its own checking usually? 
-                // No, Sequence logic needs to be told "Signal X happened".
-
-                // Let's update the LogicRuntime of objects to know a signal happened?
-                // Or simply trigger if they have a matching trigger.
-
-                // TRIGGER: If object sequence triggerType is 'signal' and signal matches
-                if (obj.userData.logicProperties.sequences) {
-                    obj.userData.logicProperties.sequences.forEach(seq => {
-                        if (seq.triggerType === 'signal' && seq.triggerSignals) {
-                            const match = seq.triggerSignals.find(s => s.name === signalName || s.id === signalName) // Name based matching for Global Signals
-                            if (match) {
-                                // Trigger Sequence!
-                                this.activateObjectSequence(obj, seq)
-                            }
-                        }
-                    })
-                }
-            }
-        })
+        // Delegate to Main Game Signal System
+        if (this.game.emitSignal) {
+            this.game.emitSignal(signalName)
+        }
     }
 
     activateObjectSequence(obj, seq) {

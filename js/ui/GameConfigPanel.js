@@ -224,6 +224,7 @@ export class GameConfigPanel {
     addBlock(type) {
         const block = { type: type }
         // Init Defaults
+        block.uuid = crypto.randomUUID()
         if (type === 'emit_signal') {
             block.signalName = "game_event"
         } else if (type === 'time_wait') {
