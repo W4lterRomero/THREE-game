@@ -189,9 +189,11 @@ export class LogicSequenceEditor {
         map3dBtn.textContent = "Editar en Mapa 3D"
         map3dBtn.className = 'lse-map-btn'
         map3dBtn.onclick = () => {
+            const obj = this.currentObject
+            const idx = this.currentSeqIndex
             this.close() // Close editor
             // Trigger map edit mode for this sequence
-            this.logicSystem.startMapEdit(this.currentObject, this.currentSeqIndex)
+            this.logicSystem.startMapEdit(obj, idx)
         }
         this.sidebar.appendChild(map3dBtn)
 
