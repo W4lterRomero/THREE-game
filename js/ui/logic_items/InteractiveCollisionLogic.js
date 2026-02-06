@@ -96,11 +96,112 @@ export class InteractiveCollisionLogic {
         }
         container.appendChild(navBtn)
 
-        // --- Dimensions (Read Only here? Or Editable?) ---
-        // User said "open a vertical tool bar ... to edit proportions" when PLACING.
-        // But maybe also editable here?
-        // If we edit here, we need to resize the object AND the physics body.
+        // --- Shape ---
+        const shapeRow = document.createElement('div')
+        shapeRow.style.cssText = "margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;"
+        const shapeLabel = document.createElement('label')
+        shapeLabel.textContent = "Forma:"
+        shapeLabel.style.color = "#aaa"
+        const shapeSelect = document.createElement('select')
+        shapeSelect.style.cssText = "background: #333; color: white; border: 1px solid #555; padding: 2px;"
+        const optBox = document.createElement('option'); optBox.value = 'box'; optBox.textContent = 'Cubo';
+        const optSphere = document.createElement('option'); optSphere.value = 'sphere'; optSphere.textContent = 'Esfera';
+        shapeSelect.add(optBox); shapeSelect.add(optSphere);
 
+        // Load existing shape
+        if (object.userData.logicProperties && object.userData.logicProperties.shapeType) {
+            shapeSelect.value = object.userData.logicProperties.shapeType
+        } else if (object.userData.shapeType) {
+            shapeSelect.value = object.userData.shapeType
+        } else {
+            shapeSelect.value = 'box' // Default
+        }
+
+        const updateShapeVisibility = (boxContainer, sphereContainer, shape) => {
+            if (shape === 'sphere') {
+                boxContainer.style.display = 'none'
+                sphereContainer.style.display = 'flex'
+            } else {
+                boxContainer.style.display = 'block'
+                sphereContainer.style.display = 'none'
+            }
+        }
+
+        // Logic extraction for physics update
+        const updatePhysics = () => {
+            if (window.game && window.game.updateObjectPhysics) {
+                window.game.updateObjectPhysics(object)
+            } else if (logicSystem.game && logicSystem.game.updateObjectPhysics) { // Fallback
+                logicSystem.game.updateObjectPhysics(object)
+            }
+        }
+
+        const updateVisuals = () => {
+            const shape = object.userData.shapeType
+            if (shape === 'sphere') {
+                if (object.geometry.type !== 'SphereGeometry') {
+                    object.geometry.dispose()
+                    object.geometry = new THREE.SphereGeometry(0.5, 16, 16)
+                }
+            } else {
+                if (object.geometry.type !== 'BoxGeometry') {
+                    object.geometry.dispose()
+                    object.geometry = new THREE.BoxGeometry(1, 1, 1)
+                }
+            }
+        }
+
+        shapeSelect.onchange = (e) => {
+            if (!object.userData.logicProperties) object.userData.logicProperties = {}
+            object.userData.logicProperties.shapeType = e.target.value
+            object.userData.shapeType = e.target.value
+
+            updateShapeVisibility(dimContainer, radiusContainer, e.target.value)
+            updateVisuals()
+            updatePhysics()
+        }
+        shapeRow.appendChild(shapeLabel)
+        shapeRow.appendChild(shapeSelect)
+        container.appendChild(shapeRow)
+
+        // --- Radius (Sphere) ---
+        const radiusContainer = document.createElement('div')
+        radiusContainer.style.cssText = "margin-bottom: 10px; display: none; justify-content: space-between; align-items: center;"
+        const radLabel = document.createElement('label')
+        radLabel.textContent = "Radio:"
+        radLabel.style.color = "#aaa"
+        const radInput = document.createElement('input')
+        radInput.type = "number"
+        radInput.step = "0.1"
+        radInput.style.cssText = "width: 60px; background: #333; color: white; border: 1px solid #555;"
+
+        let currentRadius = 1.0
+        if (object.userData.logicProperties?.radius) currentRadius = object.userData.logicProperties.radius
+        else if (object.userData.radius) currentRadius = object.userData.radius
+        else if (object.scale) currentRadius = object.scale.x / 2 // Fallback
+
+        radInput.value = currentRadius
+
+        radInput.onchange = (e) => {
+            let val = parseFloat(e.target.value)
+            if (isNaN(val) || val < 0.1) val = 0.1
+
+            if (!object.userData.logicProperties) object.userData.logicProperties = {}
+            object.userData.logicProperties.radius = val
+            object.userData.radius = val
+
+            // Visual Update (Scale)
+            // Sphere geometry is radius 0.5, so scale 2 = radius 1.
+            object.scale.set(val * 2, val * 2, val * 2)
+
+            updatePhysics()
+        }
+        radiusContainer.appendChild(radLabel)
+        radiusContainer.appendChild(radInput)
+        container.appendChild(radiusContainer)
+
+
+        // --- Dimensions (Box) ---
         const dimContainer = document.createElement('div')
         dimContainer.style.cssText = "border-top: 1px solid #444; margin-top: 10px; padding-top: 5px;"
         dimContainer.innerHTML = "<div style='color:#aaa; font-size:12px; margin-bottom:5px;'>Dimensiones</div>"
@@ -119,8 +220,7 @@ export class InteractiveCollisionLogic {
             object.userData.originalScale[axis] = val
 
             // Notify System to rebuild physics?
-            // LogicSystem doesn't handle physics. PlacementManager spawns it.
-            // We'll leave it visual for now, user might repost the object.
+            updatePhysics()
         }
 
         // We can reuse logicSystem.createInput but need custom callback for scale
@@ -149,6 +249,9 @@ export class InteractiveCollisionLogic {
             dimContainer.appendChild(row)
         })
         container.appendChild(dimContainer)
+
+        // Initial Visibility
+        updateShapeVisibility(dimContainer, radiusContainer, shapeSelect.value)
 
         // --- Info ---
         const info = document.createElement('div')

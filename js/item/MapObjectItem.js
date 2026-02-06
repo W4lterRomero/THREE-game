@@ -414,8 +414,24 @@ export class MapObjectItem extends Item {
             if (this.logicProperties.triggered === undefined) this.logicProperties.triggered = false
 
         } else if (this.type === 'interactive_collision') {
-            // INTERACTIVE COLLISION (Transparent Box)
-            const geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
+            // INTERACTIVE COLLISION
+            // Check for Shape Type (passed via scale or temp property)
+            // In use(), we seem to copy currentCollisionSize to this.scale. 
+            // So this.scale might have .shapeType and .radius if spread was used.
+            const shapeType = this.scale.shapeType || 'box'
+            const radius = this.scale.radius || 1.0
+
+            let geometry;
+            let col;
+
+            if (shapeType === 'sphere') {
+                geometry = new THREE.SphereGeometry(radius, 16, 16)
+                col = RAPIER.ColliderDesc.ball(radius)
+            } else {
+                geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
+                col = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            }
+
             const material = new THREE.MeshStandardMaterial({
                 color: 0x0088FF, // Blueish
                 transparent: true,
@@ -430,10 +446,6 @@ export class MapObjectItem extends Item {
             const wire = new THREE.LineSegments(wiregeo, wiremat)
             object3D.add(wire)
 
-            const col = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
-            // Sensor by default? Or solid? User said "Colision predeterminada ... si se puede atravesar".
-            // So default is SOLID collision, but traversable property makes it sensor.
-            // LogicSystem/Physics update will handle traversable switching. For now default solid.
             collidersDesc.push(col)
 
             // Initialize Logic Props
@@ -441,6 +453,14 @@ export class MapObjectItem extends Item {
             if (this.logicProperties.isTraversable === undefined) this.logicProperties.isTraversable = false
             if (this.logicProperties.triggerOnTouch === undefined) this.logicProperties.triggerOnTouch = false
             if (this.logicProperties.triggerOnEnter === undefined) this.logicProperties.triggerOnEnter = false
+
+            // Store Shape Data for later editing
+            this.logicProperties.shapeType = shapeType
+            this.logicProperties.radius = radius
+
+            // Allow manual override in userData as well for easier access
+            object3D.userData.shapeType = shapeType
+            object3D.userData.radius = radius
 
         } else {
             // BOX (Wall/Pillar)

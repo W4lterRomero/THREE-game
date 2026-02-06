@@ -63,6 +63,12 @@ export class PlacementManager {
         // Position handled in update
         this.placementGhost.add(this.ghostBoxMesh)
 
+        // 1b. Ghost SPHERE
+        const sphereGeo = new THREE.SphereGeometry(1, 16, 16)
+        this.ghostSphereMesh = new THREE.Mesh(sphereGeo, material)
+        this.ghostSphereMesh.visible = false
+        this.placementGhost.add(this.ghostSphereMesh)
+
         // 2. Ghost RAMP (Prisma Triangular)
         const shape = new THREE.Shape();
         shape.moveTo(0, 0);
@@ -102,7 +108,8 @@ export class PlacementManager {
         this.initAerialGrid()
 
         // Logic Toolbar (Interactive Collision)
-        this.currentCollisionSize = { x: 2, y: 2, z: 2 }
+        // Defaults: shape=box, size=2x2x2, radius=1
+        this.currentCollisionSize = { x: 2, y: 2, z: 2, radius: 1.0, shapeType: 'box' }
         this.initLogicToolbar()
 
         // Ocultar por defecto
@@ -127,6 +134,37 @@ export class PlacementManager {
         const axes = ['x', 'y', 'z']
         this.toolbarInputs = {}
 
+        // --- SHAPE SELECTOR ---
+        const shapeRow = document.createElement('div')
+        shapeRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-bottom: 5px; border-bottom:1px solid #555; padding-bottom:5px;"
+
+        const shapeLbl = document.createElement('label'); shapeLbl.textContent = "FORMA"
+        const shapeSelect = document.createElement('select')
+        shapeSelect.style.cssText = "background:#222; color:white; border:1px solid #555; padding:2px;"
+
+        const optBox = document.createElement('option'); optBox.value = 'box'; optBox.textContent = 'Cubo';
+        const optSphere = document.createElement('option'); optSphere.value = 'sphere'; optSphere.textContent = 'Esfera';
+
+        shapeSelect.appendChild(optBox)
+        shapeSelect.appendChild(optSphere)
+        shapeSelect.value = 'box'
+
+        shapeSelect.onchange = (e) => {
+            this.currentCollisionSize.shapeType = e.target.value
+            this.updateToolbarVisibility()
+        }
+        // Prevent Key Propagation
+        shapeSelect.onkeydown = (e) => e.stopPropagation()
+
+        shapeRow.appendChild(shapeLbl)
+        shapeRow.appendChild(shapeSelect)
+        this.logicToolbar.appendChild(shapeRow)
+
+
+        // --- BOX INPUTS ---
+        this.boxInputsContainer = document.createElement('div')
+        this.boxInputsContainer.style.cssText = "display:flex; flex-direction:column; gap:5px;"
+
         axes.forEach(axis => {
             const row = document.createElement('div')
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
@@ -144,9 +182,32 @@ export class PlacementManager {
             inp.onkeydown = (e) => e.stopPropagation()
 
             row.appendChild(lbl); row.appendChild(inp);
-            this.logicToolbar.appendChild(row)
+            this.boxInputsContainer.appendChild(row)
             this.toolbarInputs[axis] = inp
         })
+        this.logicToolbar.appendChild(this.boxInputsContainer)
+
+        // --- SPHERE INPUTS ---
+        this.sphereInputsContainer = document.createElement('div')
+        this.sphereInputsContainer.style.cssText = "display:none; flex-direction:column; gap:5px;"
+
+        const radRow = document.createElement('div')
+        radRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
+        const radLbl = document.createElement('label'); radLbl.textContent = "RADIO"
+        const radInp = document.createElement('input'); radInp.type = 'number'; radInp.step = 0.5; radInp.value = 1.0;
+        radInp.style.width = "60px"; radInp.style.background = "#222"; radInp.style.color = "white"; radInp.style.border = "1px solid #555"; radInp.style.padding = "4px";
+
+        radInp.onchange = (e) => {
+            let val = parseFloat(e.target.value)
+            if (isNaN(val) || val < 0.1) val = 0.1
+            this.currentCollisionSize.radius = val
+            e.target.value = val
+        }
+        radInp.onkeydown = (e) => e.stopPropagation()
+
+        radRow.appendChild(radLbl); radRow.appendChild(radInp);
+        this.sphereInputsContainer.appendChild(radRow)
+        this.logicToolbar.appendChild(this.sphereInputsContainer)
 
         const hint = document.createElement('div')
         hint.textContent = "Edita para redimensionar"
@@ -154,6 +215,16 @@ export class PlacementManager {
         this.logicToolbar.appendChild(hint)
 
         document.body.appendChild(this.logicToolbar)
+    }
+
+    updateToolbarVisibility() {
+        if (this.currentCollisionSize.shapeType === 'sphere') {
+            this.boxInputsContainer.style.display = 'none'
+            this.sphereInputsContainer.style.display = 'flex'
+        } else {
+            this.boxInputsContainer.style.display = 'flex'
+            this.sphereInputsContainer.style.display = 'none'
+        }
     }
 
     initAerialGrid() {
@@ -265,7 +336,12 @@ export class PlacementManager {
     getRealSize(item, rotationIndex) {
         let size = new THREE.Vector3(1, 1, 1) // Default
         if (item.type === 'interactive_collision') {
-            size.set(this.currentCollisionSize.x, this.currentCollisionSize.y, this.currentCollisionSize.z)
+            if (this.currentCollisionSize.shapeType === 'sphere') {
+                const r = this.currentCollisionSize.radius
+                size.set(r * 2, r * 2, r * 2)
+            } else {
+                size.set(this.currentCollisionSize.x, this.currentCollisionSize.y, this.currentCollisionSize.z)
+            }
         } else if (item.constructor.name === "MapObjectItem") {
             size.set(item.scale.x || 1, item.scale.y || 1, item.scale.z || 1)
         } else if (item.id.includes("pad")) {
@@ -705,6 +781,22 @@ export class PlacementManager {
                     }
                     // Reset Y because targetPos is Center now
                     this.ghostBoxMesh.position.y = 0
+
+                    // --- INTERACTIVE COLLISION GHOST UPDATE ---
+                    if (item.type === 'interactive_collision') {
+                        if (this.currentCollisionSize.shapeType === 'sphere') {
+                            this.ghostBoxMesh.visible = false
+                            this.ghostSphereMesh.visible = true
+                            const r = this.currentCollisionSize.radius
+                            this.ghostSphereMesh.scale.set(r, r, r)
+                            this.ghostSphereMesh.position.y = 0
+                        } else {
+                            this.ghostSphereMesh.visible = false
+                        }
+                    } else {
+                        if (this.ghostSphereMesh) this.ghostSphereMesh.visible = false
+                    }
+
                 }
             } else {
                 // Pads

@@ -447,6 +447,22 @@ class Game {
                     .setTranslation(step.position.x, step.position.y, step.position.z)
                 this.world.createCollider(col, rigidBody)
             })
+            this.world.createCollider(colDesc, rigidBody)
+        } else if (objectMesh.userData.shapeType === 'sphere' || objectMesh.userData.logicProperties?.shapeType === 'sphere') {
+            // SPHERE
+            // Use radius from userData or logicProperties (logicProperties preferred as it's the source of truth for edit)
+            let r = 1.0
+            if (objectMesh.userData.logicProperties && objectMesh.userData.logicProperties.radius) {
+                r = objectMesh.userData.logicProperties.radius
+            } else if (objectMesh.userData.radius) {
+                r = objectMesh.userData.radius
+            } else {
+                // Fallback to scale estimation? (dims.x / 2)
+                r = dims.x / 2
+            }
+
+            colDesc = RAPIER.ColliderDesc.ball(r)
+            this.world.createCollider(colDesc, rigidBody)
         } else {
             // Box
             colDesc = RAPIER.ColliderDesc.cuboid(dims.x / 2, dims.y / 2, dims.z / 2)
@@ -454,6 +470,18 @@ class Game {
         }
 
 
+
+        // Restore Sensor State
+        if (objectMesh.userData.logicProperties && objectMesh.userData.logicProperties.isTraversable) {
+            const n = rigidBody.numColliders()
+            for (let i = 0; i < n; i++) {
+                rigidBody.collider(i).setSensor(true)
+            }
+        }
+    }
+
+    updateObjectPhysics(object) {
+        this.regenerateObjectPhysics(object)
     }
 
     buildEnvironment() {
