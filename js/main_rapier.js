@@ -3,7 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat"
 import { SceneManager } from "./SceneManager.js"
 import { InputManager } from "./InputManager.js"
 import { CameraController } from "./CameraController.js"
-import { CharacterRapier } from "./CharacterRapier.js"
+import { CharacterController } from "./Character/CharacterController.js"
 import { NetworkManager } from "./NetworkManager.js"
 import { ChatManager } from "./ChatManager.js"
 import { NPCRapier } from "./NPCRapier.js"
@@ -47,7 +47,7 @@ class Game {
         this.gameMode = urlParams.get('mode') || 'play'; // 'play' or 'editor'
 
         // Local Character
-        this.character = new CharacterRapier(
+        this.character = new CharacterController(
             this.sceneManager.scene,
             this.world,
             this.sceneManager.camera,
