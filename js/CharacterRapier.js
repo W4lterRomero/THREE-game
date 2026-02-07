@@ -10,6 +10,9 @@ export class CharacterRapier {
         this.cameraController = cameraController
 
         this.model = null
+        this.polygonModel = null // Polygon Model Group
+        this.currentType = 'glb' // 'glb' or 'polygon'
+
         this.mixer = null
         this.animations = {}
         this.currentAction = null
@@ -46,7 +49,157 @@ export class CharacterRapier {
         this.noClip = false
 
         this.loadModel()
+        this.createPolygonModel() // Initialize Polygon Model hidden
         this.initPhysics()
+    }
+
+    setModelType(type) {
+        console.log("setModelType called with:", type, "Current:", this.currentType)
+        if (this.currentType === type) {
+            console.log("Type matches current, skipping (unless debug force?)")
+            return
+        }
+        this.currentType = type
+
+        console.log("Switching model visibility...")
+        if (type === 'glb') {
+            if (this.model) this.model.visible = true
+            if (this.polygonModel) this.polygonModel.visible = false
+        } else {
+            if (this.model) this.model.visible = false
+            if (this.polygonModel) this.polygonModel.visible = true
+        }
+    }
+
+    createPolygonModel() {
+        this.polygonModel = new THREE.Group()
+        this.polygonModel.visible = false // Start hidden
+
+        // Materials
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.5 })
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, roughness: 0.9 })
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })
+        const shoesMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.6 })
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x4a3c31, roughness: 1.0 }) // Dark Brown
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.2 })
+
+        // --- Body ---
+        this.polyBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), shirtMat)
+        this.polyBody.position.y = 0.35 + 0.7 // Legs height approx
+        this.polyBody.castShadow = true
+        this.polygonModel.add(this.polyBody)
+
+        // --- Head ---
+        this.polyHead = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skinMat)
+        this.polyHead.position.set(0, 0.35 + 0.2, 0) // On top of body
+        this.polyBody.add(this.polyHead)
+
+        // Hair
+        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.42), hairMat)
+        hair.position.y = 0.2
+        this.polyHead.add(hair)
+
+        // Eyes
+        const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05)
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat)
+        leftEye.position.set(-0.1, 0.05, 0.2)
+        this.polyHead.add(leftEye)
+
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat)
+        rightEye.position.set(0.1, 0.05, 0.2)
+        this.polyHead.add(rightEye)
+
+        // --- Arms (Pivoted at shoulder) ---
+        // Right Arm
+        this.polyRightArm = new THREE.Group()
+        this.polyRightArm.position.set(0.35, 0.25, 0) // Shoulder pos relative to body
+        this.polyBody.add(this.polyRightArm)
+
+        const rArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skinMat)
+        rArmMesh.position.y = -0.35 // Center of arm relative to pivot
+        rArmMesh.castShadow = true
+        this.polyRightArm.add(rArmMesh)
+
+        // Sleeve
+        const rSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.22), shirtMat)
+        rSleeve.position.y = -0.1
+        this.polyRightArm.add(rSleeve)
+
+        // Left Arm
+        this.polyLeftArm = new THREE.Group()
+        this.polyLeftArm.position.set(-0.35, 0.25, 0)
+        this.polyBody.add(this.polyLeftArm)
+
+        const lArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.2), skinMat)
+        lArmMesh.position.y = -0.35
+        lArmMesh.castShadow = true
+        this.polyLeftArm.add(lArmMesh)
+
+        // Sleeve
+        const lSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.22), shirtMat)
+        lSleeve.position.y = -0.1
+        this.polyLeftArm.add(lSleeve)
+
+        // --- Legs (Pivoted at Hip) ---
+
+        // Right Leg
+        this.polyRightLeg = new THREE.Group()
+        this.polyRightLeg.position.set(0.15, 0.7, 0) // Hip height
+        this.polygonModel.add(this.polyRightLeg)
+
+        const rLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.7, 0.22), pantsMat)
+        rLegMesh.position.y = -0.35
+        rLegMesh.castShadow = true
+        this.polyRightLeg.add(rLegMesh)
+
+        // Shoes
+        const rShoe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.35), shoesMat)
+        rShoe.position.y = -0.7 + 0.075
+        rShoe.position.z = 0.05 // Slightly forward
+        rShoe.castShadow = true
+        this.polyRightLeg.add(rShoe)
+
+        // Left Leg
+        this.polyLeftLeg = new THREE.Group()
+        this.polyLeftLeg.position.set(-0.15, 0.7, 0)
+        this.polygonModel.add(this.polyLeftLeg)
+
+        const lLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.7, 0.22), pantsMat)
+        lLegMesh.position.y = -0.35
+        lLegMesh.castShadow = true
+        this.polyLeftLeg.add(lLegMesh)
+
+        // Shoes
+        const lShoe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.35), shoesMat)
+        lShoe.position.y = -0.7 + 0.075
+        lShoe.position.z = 0.05
+        lShoe.castShadow = true
+        this.polyLeftLeg.add(lShoe)
+
+
+        this.scene.add(this.polygonModel)
+    }
+
+    updatePolygonAnimation(dt, isMoving) {
+        if (!this.polygonModel) return
+
+        if (isMoving) {
+            const speed = 10
+            const angle = Math.sin(Date.now() / 1000 * speed)
+
+            // Walk Cycle
+            this.polyRightArm.rotation.x = angle
+            this.polyLeftArm.rotation.x = -angle
+
+            this.polyRightLeg.rotation.x = -angle
+            this.polyLeftLeg.rotation.x = angle
+        } else {
+            // Idle
+            this.polyRightArm.rotation.x = THREE.MathUtils.lerp(this.polyRightArm.rotation.x, 0, 0.1)
+            this.polyLeftArm.rotation.x = THREE.MathUtils.lerp(this.polyLeftArm.rotation.x, 0, 0.1)
+            this.polyRightLeg.rotation.x = THREE.MathUtils.lerp(this.polyRightLeg.rotation.x, 0, 0.1)
+            this.polyLeftLeg.rotation.x = THREE.MathUtils.lerp(this.polyLeftLeg.rotation.x, 0, 0.1)
+        }
     }
 
     setNoClip(enabled) {
@@ -188,6 +341,9 @@ export class CharacterRapier {
             this.animations["Run"] = this.mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, "Run"))
             this.switchAnimation("Idle")
 
+            // Visibility Check
+            this.model.visible = (this.currentType === 'glb')
+
             // Initial sync
             this.updateModelVisuals()
 
@@ -310,7 +466,7 @@ export class CharacterRapier {
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
             this.currentRotation += rotDiff * this.rotationSmoothness
 
-            this.switchAnimation("Run")
+            if (this.currentType === 'glb') this.switchAnimation("Run")
         } else {
             // Idle Logic with Deadzone
             if (this.cameraController && this.cameraController.isFirstPerson) {
@@ -336,7 +492,12 @@ export class CharacterRapier {
                     this.currentRotation += correction * 5.0 * dt
                 }
             }
-            this.switchAnimation("Idle")
+            if (this.currentType === 'glb') this.switchAnimation("Idle")
+        }
+
+        // Update Polygon Animations
+        if (this.currentType === 'polygon') {
+            this.updatePolygonAnimation(dt, hasInput)
         }
 
         // 2. Physics Movement Calculation
@@ -553,16 +714,26 @@ export class CharacterRapier {
     }
 
     updateModelVisuals() {
-        if (!this.model || !this.rigidBody) return
+        if (!this.rigidBody) return
 
         const pos = this.rigidBody.translation()
-        this.model.position.set(pos.x, pos.y, pos.z)
-        // Apply rotation (Calculated manually for character)
-        this.model.rotation.y = this.currentRotation
+
+        // GLB Model
+        if (this.model && this.model.visible) {
+            this.model.position.set(pos.x, pos.y, pos.z)
+            this.model.rotation.y = this.currentRotation
+        }
+
+        // Polygon Model
+        if (this.polygonModel && this.polygonModel.visible) {
+            this.polygonModel.position.set(pos.x, pos.y, pos.z)
+            this.polygonModel.rotation.y = this.currentRotation
+        }
     }
 
     getPosition() {
-        if (this.model) return this.model.position.clone()
+        if (this.model && this.model.visible) return this.model.position.clone()
+        if (this.polygonModel && this.polygonModel.visible) return this.polygonModel.position.clone()
         return new THREE.Vector3()
     }
 

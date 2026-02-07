@@ -1046,6 +1046,33 @@ class Game {
                 chSizeVal.textContent = size + "px"
             })
         }
+
+
+        // Character Model Type
+        // Character Model Type
+        const charModelType = document.getElementById("char-model-type")
+        console.log("Setup Settings Panel: charModelType element:", charModelType)
+
+        if (charModelType) {
+            // Set initial value
+            if (this.character) {
+                charModelType.value = this.character.currentType
+                console.log("Initial Character Type:", this.character.currentType)
+            } else {
+                console.warn("Character instance not found in setupSettingsPanel")
+            }
+
+            charModelType.addEventListener("change", (e) => {
+                const type = e.target.value
+                console.log("Character Model Switch Requested:", type)
+                if (this.character) {
+                    this.character.setModelType(type)
+                    console.log("Character Model switched to:", type)
+                } else {
+                    console.error("Character instance missing during switch request")
+                }
+            })
+        }
     }
     setupGameInput() {
         this.placementRotationIndex = 0
