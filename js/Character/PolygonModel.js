@@ -66,7 +66,7 @@ export class PolygonModel {
 
         // Sleeve
         const rSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.22), shirtMat)
-        rSleeve.position.y = -0.1
+        rSleeve.position.y = -0.099 // Raised slightly to fix Z-fighting
         this.polyRightArm.add(rSleeve)
 
         // Left Arm
@@ -81,7 +81,7 @@ export class PolygonModel {
 
         // Sleeve
         const lSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.22), shirtMat)
-        lSleeve.position.y = -0.1
+        lSleeve.position.y = -0.099 // Raised slightly to fix Z-fighting
         this.polyLeftArm.add(lSleeve)
 
         // --- Legs (Pivoted at Hip) ---
