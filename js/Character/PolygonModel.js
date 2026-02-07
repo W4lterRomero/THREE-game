@@ -138,7 +138,7 @@ export class PolygonModel {
 
     setRotation(rot) {
         if (this.model) {
-            this.model.rotation.y = rot
+            this.model.rotation.y = rot + Math.PI // Offset to match GLB 180 rotation in controller
         }
     }
 
