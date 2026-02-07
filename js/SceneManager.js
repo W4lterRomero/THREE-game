@@ -22,19 +22,19 @@ export class SceneManager {
     }
 
     initLights() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambientLight);
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(this.ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(10, 20, 10);
-        dirLight.castShadow = true;
-        dirLight.shadow.camera.top = 20;
-        dirLight.shadow.camera.bottom = -20;
-        dirLight.shadow.camera.left = -20;
-        dirLight.shadow.camera.right = 20;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        this.scene.add(dirLight);
+        this.dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        this.dirLight.position.set(10, 20, 10);
+        this.dirLight.castShadow = true;
+        this.dirLight.shadow.camera.top = 20;
+        this.dirLight.shadow.camera.bottom = -20;
+        this.dirLight.shadow.camera.left = -20;
+        this.dirLight.shadow.camera.right = 20;
+        this.dirLight.shadow.mapSize.width = 2048;
+        this.dirLight.shadow.mapSize.height = 2048;
+        this.scene.add(this.dirLight);
     }
 
     initFloor() {
@@ -50,6 +50,64 @@ export class SceneManager {
         grid.material.opacity = 0.2;
         grid.material.transparent = true;
         this.scene.add(grid);
+
+        // Initialize Stars (hidden by default)
+        this.createStars();
+    }
+
+    createStars() {
+        const starGeometry = new THREE.BufferGeometry();
+        const starMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.2,
+            sizeAttenuation: true,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const starVertices = [];
+        for (let i = 0; i < 2000; i++) {
+            const x = (Math.random() - 0.5) * 200;
+            const y = (Math.random() - 0.5) * 100 + 50; // Higher up
+            const z = (Math.random() - 0.5) * 200;
+            starVertices.push(x, y, z);
+        }
+
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        this.stars = new THREE.Points(starGeometry, starMaterial);
+        this.stars.visible = false;
+        this.scene.add(this.stars);
+    }
+
+    setSky(type) {
+        // ALWAYS use Day/Default lighting to preserve object colors
+        if (this.ambientLight) {
+            this.ambientLight.intensity = 0.6;
+            this.ambientLight.color.setHex(0xffffff);
+        }
+        if (this.dirLight) {
+            this.dirLight.intensity = 0.8;
+            this.dirLight.color.setHex(0xffffff);
+            this.dirLight.position.set(10, 20, 10);
+        }
+
+        if (type === 'night') {
+            this.scene.background = new THREE.Color(0x020210); // Deep Space Blue/Black
+            this.scene.fog = new THREE.FogExp2(0x020210, 0.015);
+            if (this.stars) this.stars.visible = true;
+
+        } else if (type === 'sunset') {
+            const sunsetColor = 0xffae88; // Soft peach/orange
+            this.scene.background = new THREE.Color(sunsetColor);
+            this.scene.fog = new THREE.Fog(sunsetColor, 10, 60);
+            if (this.stars) this.stars.visible = false;
+
+        } else {
+            // Day (Default)
+            this.scene.background = new THREE.Color(0x87CEEB); // Sky Blue
+            this.scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+            if (this.stars) this.stars.visible = false;
+        }
     }
 
     onWindowResize() {

@@ -578,6 +578,50 @@ export class ConstructionMenu {
         rowAerial.appendChild(checkAerial)
         rowAerial.appendChild(labelAerial)
         container.appendChild(rowAerial)
+
+        // Environment / Sky Config
+        const rowSky = document.createElement('div')
+        rowSky.style.cssText = `display: flex; flex-direction: column; gap: 5px; margin-top: 15px; border-top: 1px solid #444; padding-top: 15px;`
+
+        const labelSky = document.createElement('label')
+        labelSky.textContent = "Apariencia del Cielo (Atmósfera)"
+        labelSky.style.fontSize = "18px"
+        labelSky.style.color = "#aaa"
+
+        const selectSky = document.createElement('select')
+        selectSky.style.cssText = `
+            padding: 8px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        `
+        const options = [
+            { value: 'day', text: 'Día (Predeterminado)' },
+            { value: 'night', text: 'Noche' },
+            { value: 'sunset', text: 'Atardecer' }
+        ]
+
+        options.forEach(opt => {
+            const el = document.createElement('option')
+            el.value = opt.value
+            el.textContent = opt.text
+            selectSky.appendChild(el)
+        })
+
+        selectSky.addEventListener('change', (e) => {
+            if (this.game.sceneManager && this.game.sceneManager.setSky) {
+                this.game.sceneManager.setSky(e.target.value)
+            } else {
+                console.warn("SceneManager setSky not found")
+            }
+        })
+
+        rowSky.appendChild(labelSky)
+        rowSky.appendChild(selectSky)
+        container.appendChild(rowSky)
     }
 
     renderSaveLoad(container) {
