@@ -2,6 +2,7 @@ import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
 import { GLBModel } from "./GLBModel.js"
 import { PolygonModel } from "./PolygonModel.js"
+import { PolygonModelSkin } from "./PolygonModelSkin.js"
 
 export class CharacterController {
     constructor(scene, world, camera, cameraController) {
@@ -13,7 +14,8 @@ export class CharacterController {
         // Models
         this.glbModel = new GLBModel(scene)
         this.polygonModel = new PolygonModel(scene)
-        this.currentType = 'glb' // 'glb' or 'polygon'
+        this.polygonModelSkin = new PolygonModelSkin(scene)
+        this.currentType = 'glb' // 'glb' | 'polygon' | 'skin'
 
         this.rigidBody = null
         this.characterController = null
@@ -51,12 +53,17 @@ export class CharacterController {
         console.log("Setting Model Type:", type)
         this.currentType = type
 
+        // Reset all
+        this.glbModel.setVisible(false)
+        this.polygonModel.setVisible(false)
+        this.polygonModelSkin.setVisible(false)
+
         if (type === 'glb') {
             this.glbModel.setVisible(true)
-            this.polygonModel.setVisible(false)
-        } else {
-            this.glbModel.setVisible(false)
+        } else if (type === 'polygon') {
             this.polygonModel.setVisible(true)
+        } else if (type === 'skin') {
+            this.polygonModelSkin.setVisible(true)
         }
     }
 
@@ -205,6 +212,7 @@ export class CharacterController {
         // Update Model Animations
         this.glbModel.update(dt, hasInput)
         this.polygonModel.update(dt, hasInput)
+        this.polygonModelSkin.update(dt, hasInput)
 
         // 2. Physics Movement Calculation
         if (this.isClimbing) {
@@ -364,6 +372,9 @@ export class CharacterController {
 
         this.polygonModel.setPosition(position)
         this.polygonModel.setRotation(this.currentRotation)
+
+        this.polygonModelSkin.setPosition(position)
+        this.polygonModelSkin.setRotation(this.currentRotation)
     }
 
     getPosition() {
