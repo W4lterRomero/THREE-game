@@ -17,6 +17,7 @@ export class GLBModel {
         const loader = new GLTFLoader()
         loader.load("https://threejs.org/examples/models/gltf/Soldier.glb", (gltf) => {
             this.model = gltf.scene
+            this.model.userData.isPlayer = true
             this.scene.add(this.model)
 
             // Shadows

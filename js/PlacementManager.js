@@ -449,8 +449,12 @@ export class PlacementManager {
             if (h.distance >= 60) return false
             if (h.object.type !== "Mesh") return false
 
-            // Ignore Player
-            if (h.object.userData.isPlayer) return false
+            // Ignore Player (Recursive check)
+            let obj = h.object
+            while (obj) {
+                if (obj.userData && obj.userData.isPlayer) return false
+                obj = obj.parent
+            }
 
             // Ignore Aerial Collider if not active
             if (!this.aerialGridActive && h.object === this.aerialCollider) return false

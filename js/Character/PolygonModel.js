@@ -17,6 +17,7 @@ export class PolygonModel {
 
     createModel() {
         this.model = new THREE.Group()
+        this.model.userData.isPlayer = true
         this.model.visible = false // Start hidden
 
         // Materials

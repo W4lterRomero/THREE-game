@@ -34,6 +34,7 @@ export class PolygonModelSkin {
 
     createModel() {
         this.model = new THREE.Group()
+        this.model.userData.isPlayer = true
         this.model.visible = false
 
         // Load Skin
