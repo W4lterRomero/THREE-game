@@ -321,30 +321,50 @@ export class MapObjectItem extends Item {
             collidersDesc.push(col)
 
         } else if (this.type === 'spawn_point') {
-            // SPAWN POINT (Cylinder Pad)
-            const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 32)
+            // SPAWN POINT (Thin Platform)
+            // 2D-like platform on the ground
+            const radius = 1.0
+            const height = 0.05
+            const geometry = new THREE.CylinderGeometry(radius, radius, height, 32)
             const material = new THREE.MeshStandardMaterial({
                 color: this.color,
                 transparent: true,
-                opacity: 0.8,
+                opacity: 0.9,
                 emissive: this.color,
-                emissiveIntensity: 0.5
+                emissiveIntensity: 0.2, // Subtle glow
+                roughness: 0.8,
+                metalness: 0.2
             })
             object3D = new THREE.Mesh(geometry, material)
             object3D.receiveShadow = true
 
-            // Add a visual marker for "Forward" direction
-            const markerGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8)
-            const markerMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF })
-            const marker = new THREE.Mesh(markerGeo, markerMat)
-            marker.position.y = 0.11 // Slightly above
-            marker.position.z = -0.4 // Forward
-            object3D.add(marker)
+            // Add a visual marker for "Forward" direction (Arrow)
+            // Flat arrow on top
+            const arrowShape = new THREE.Shape();
+            arrowShape.moveTo(0, 0.6);    // Tip
+            arrowShape.lineTo(0.4, -0.2); // Right wing
+            arrowShape.lineTo(0, 0);      // Inner notch
+            arrowShape.lineTo(-0.4, -0.2);// Left wing
+            arrowShape.lineTo(0, 0.6);    // Close
 
-            // Physics (Sensor?) or just floor?
-            // Usually spawns are non-colliding or just floor. 
-            // Let's make it a thin cylinder collider so we can place it on ground but not trip over it too much.
-            const col = RAPIER.ColliderDesc.cylinder(0.1, 1)
+            const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+            const arrowMat = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+
+            // Orient arrow
+            arrow.rotation.x = -Math.PI / 2; // Lay flat
+            arrow.rotation.z = Math.PI;      // Point forward (-Z) relative to cylinder
+            arrow.position.y = (height / 2) + 0.01; // Just above surface
+
+            object3D.add(arrow)
+
+            // Physics: Thin cylinder collider
+            const col = RAPIER.ColliderDesc.cylinder(height / 2, radius)
             collidersDesc.push(col)
 
         } else if (this.type === 'movement_controller') {
@@ -483,7 +503,7 @@ export class MapObjectItem extends Item {
         // Center Y Adjust: object origin is center. 
         // We want placement on ground. So move up by Half Height.
         // BUT if loading from data (isCenterPosition), the position is ALREADY the center.
-        if (this.type !== 'interaction_button' && !isCenterPosition) {
+        if (this.type !== 'interaction_button' && this.type !== 'spawn_point' && !isCenterPosition) {
             object3D.position.y += this.scale.y / 2
         }
 

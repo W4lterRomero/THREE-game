@@ -69,6 +69,12 @@ export class PlacementManager {
         this.ghostSphereMesh.visible = false
         this.placementGhost.add(this.ghostSphereMesh)
 
+        // 1c. Ghost CYLINDER (Spawn Point)
+        const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 32)
+        this.ghostCylinderMesh = new THREE.Mesh(cylGeo, material)
+        this.ghostCylinderMesh.visible = false
+        this.placementGhost.add(this.ghostCylinderMesh)
+
         // 2. Ghost RAMP (Prisma Triangular)
         const shape = new THREE.Shape();
         shape.moveTo(0, 0);
@@ -786,6 +792,7 @@ export class PlacementManager {
                     // Reset Y because targetPos is Center now
                     this.ghostBoxMesh.position.y = 0
 
+
                     // --- INTERACTIVE COLLISION GHOST UPDATE ---
                     if (item.type === 'interactive_collision') {
                         if (this.currentCollisionSize.shapeType === 'sphere') {
@@ -797,8 +804,26 @@ export class PlacementManager {
                         } else {
                             this.ghostSphereMesh.visible = false
                         }
+                    } else if (item.type === 'spawn_point') {
+                        // SPAWN POINT GHOST (Cylinder)
+                        this.ghostBoxMesh.visible = false
+                        this.ghostSphereMesh.visible = false
+                        this.ghostCylinderMesh.visible = true
+
+                        // Spawn Point is fixed size (Diam 2, Height 0.05) or uses scale
+                        // MapObjectItem logic uses fixed radius=1 (Diam 2), height=0.05
+                        // CylinderGeo(1,1,1) -> Diam 2, Height 1.
+                        // We want Height 0.05 -> Scale Y = 0.05
+                        // We want Diam 2 -> Scale X/Z = 1.
+                        // Even though ConstructionMenu scale says x:2, z:2 (Dimensions),
+                        // The CylinderGeo is already Diam 2. So scale factor is 1.
+                        // Or generically: scale.x / 2.
+
+                        this.ghostCylinderMesh.scale.set(item.scale.x / 2, item.scale.y, item.scale.z / 2)
+                        this.ghostCylinderMesh.position.y = 0
                     } else {
-                        if (this.ghostSphereMesh) this.ghostSphereMesh.visible = false
+                        this.ghostSphereMesh.visible = false
+                        this.ghostCylinderMesh.visible = false
                     }
 
                 }

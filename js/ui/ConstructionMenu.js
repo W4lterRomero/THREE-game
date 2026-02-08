@@ -64,7 +64,7 @@ export class ConstructionMenu {
             "spawn_point",
             "",
             0x00FF00, // Green
-            { x: 1, y: 2, z: 1 } // Human size roughly
+            { x: 2, y: 0.05, z: 2 } // Thin platform (2m diam)
         )
         // Default Logic Properties
         spawn.logicProperties = {
