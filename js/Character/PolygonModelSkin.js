@@ -24,6 +24,8 @@ export class PolygonModelSkin {
         // Default Skin URL (Steve)
         this.skinUrl = "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.19.3/assets/minecraft/textures/entity/player/wide/steve.png"
 
+        this.attackWeight = 0 // For smoothing attack animation
+
         this.initLoader()
         this.createModel()
     }
@@ -340,35 +342,128 @@ export class PolygonModelSkin {
         return this.model ? this.model.position.clone() : new THREE.Vector3()
     }
 
-    update(dt, isMoving) {
+    update(dt, isMoving, isCrouching, isAttacking) {
         if (!this.model || !this.isVisible) return
 
-        if (isMoving) {
-            const speed = 10
-            const time = Date.now() / 1000 * speed
+        // --- ATTACK SMOOTHING ---
+        // Smoothly transition into and out of attack state
+        const attackLerpSpeed = 15 * dt
+        const targetWeight = isAttacking ? 1.0 : 0.0
+        this.attackWeight = THREE.MathUtils.lerp(this.attackWeight, targetWeight, attackLerpSpeed)
 
+        // Calculate Attack Swing
+        const attackSpeed = 25
+        const attackVal = Math.sin(Date.now() / 1000 * attackSpeed)
+        const swing = (attackVal + 1) / 2 // 0 to 1
+
+        // --- CROUCH ANIMATION ---
+        const pixelScale = 1 / 16 * 0.9
+        const crouchOffset = isCrouching ? 0.2 : 0
+        const legCrouchOffset = isCrouching ? 0.05 : 0 // Sink feet slightly (0.05 units)
+
+        // Target positions (Base Scale reference)
+        const targetHeadY = 1.30 - crouchOffset
+        const targetBodyY = 1.30 - (6 * pixelScale) - crouchOffset
+        const targetArmY = 1.30 - (2 * pixelScale) - crouchOffset
+
+        // Base Leg Y (From constructor: 1.30 - 12 * pixelScale)
+        const baseLegY = 1.30 - 12 * pixelScale
+        const targetLegY = baseLegY - legCrouchOffset
+
+        const lerpSpeed = 10 * dt
+
+        this.headGroup.position.y = THREE.MathUtils.lerp(this.headGroup.position.y, targetHeadY, lerpSpeed)
+        this.body.position.y = THREE.MathUtils.lerp(this.body.position.y, targetBodyY, lerpSpeed)
+
+        this.rightArmGroup.position.y = THREE.MathUtils.lerp(this.rightArmGroup.position.y, targetArmY, lerpSpeed)
+        this.leftArmGroup.position.y = THREE.MathUtils.lerp(this.leftArmGroup.position.y, targetArmY, lerpSpeed)
+
+        // Sink Legs
+        this.rightLegGroup.position.y = THREE.MathUtils.lerp(this.rightLegGroup.position.y, targetLegY, lerpSpeed)
+        this.leftLegGroup.position.y = THREE.MathUtils.lerp(this.leftLegGroup.position.y, targetLegY, lerpSpeed)
+
+        // Body Angle (Lean forward when crouching)
+        const targetBodyRotX = isCrouching ? 0.2 : 0
+        this.body.rotation.x = THREE.MathUtils.lerp(this.body.rotation.x, targetBodyRotX, lerpSpeed)
+        this.headGroup.rotation.x = THREE.MathUtils.lerp(this.headGroup.rotation.x, targetBodyRotX, lerpSpeed)
+
+
+        // --- BASE MOVEMENT ANIMATION ---
+        let baseRArmX = 0
+        let baseLArmX = 0
+        let baseRLegX = 0
+        let baseLLegX = 0
+
+        if (isMoving) {
+            const speed = isCrouching ? 5 : 10
+            const time = Date.now() / 1000 * speed
             const sinVal = Math.sin(time)
 
-            // Minecraft Walk Cycle (Simple Swing)
-            this.rightArmGroup.rotation.x = sinVal * 0.8
-            this.leftArmGroup.rotation.x = -sinVal * 0.8
+            baseRArmX = sinVal * 0.8
+            baseLArmX = -sinVal * 0.8
+            baseRLegX = -sinVal * 0.8
+            baseLLegX = sinVal * 0.8
 
-            this.rightLegGroup.rotation.x = -sinVal * 0.8
-            this.leftLegGroup.rotation.x = sinVal * 0.8
-
+            if (isCrouching) {
+                baseRArmX += 0.2
+                baseLArmX += 0.2
+            }
         } else {
             // Idle
-            const lerpFactor = 0.1
-            this.rightArmGroup.rotation.x = THREE.MathUtils.lerp(this.rightArmGroup.rotation.x, 0, lerpFactor)
-            this.leftArmGroup.rotation.x = THREE.MathUtils.lerp(this.leftArmGroup.rotation.x, 0, lerpFactor)
-
-            this.rightLegGroup.rotation.x = THREE.MathUtils.lerp(this.rightLegGroup.rotation.x, 0, lerpFactor)
-            this.leftLegGroup.rotation.x = THREE.MathUtils.lerp(this.leftLegGroup.rotation.x, 0, lerpFactor)
-
-            // Slight arm sway
             const time = Date.now() / 1000
             this.rightArmGroup.rotation.z = Math.sin(time) * 0.05 + 0.05
             this.leftArmGroup.rotation.z = -Math.sin(time) * 0.05 - 0.05
+
+            if (isCrouching) {
+                baseRArmX = 0.2
+                baseLArmX = 0.2
+            }
+        }
+
+        // Apply Leg Animations (Legs just follow walking)
+        const animLerp = 0.2
+        this.rightLegGroup.rotation.x = THREE.MathUtils.lerp(this.rightLegGroup.rotation.x, baseRLegX, animLerp)
+        this.leftLegGroup.rotation.x = THREE.MathUtils.lerp(this.leftLegGroup.rotation.x, baseLLegX, animLerp)
+
+        // --- BLENDING ATTACK ---
+        if (this.attackWeight > 0.01) {
+            // Attack Influence
+            const blend = this.attackWeight
+
+            // 1. Arm Rotations
+            // Punch Arm (Left Group = Visual Right)
+            const punchRotX = -swing * 2.5 - 0.2
+            // Recoil Arm
+            const recoilRotX = swing * 0.5 + 0.5
+
+            // 2. Body Twist (Twist Y)
+            const targetTwist = swing * 0.4
+
+            // Blend
+            const finalLArmX = THREE.MathUtils.lerp(baseLArmX, punchRotX, blend)
+            const finalRArmX = THREE.MathUtils.lerp(baseRArmX, recoilRotX, blend)
+            const finalTwist = THREE.MathUtils.lerp(0, targetTwist, blend)
+
+            this.leftArmGroup.rotation.x = finalLArmX
+            this.rightArmGroup.rotation.x = finalRArmX
+
+            // Apply Twist to upper body
+            this.body.rotation.y = finalTwist
+            this.headGroup.rotation.y = finalTwist
+            this.leftArmGroup.rotation.y = finalTwist
+            this.rightArmGroup.rotation.y = finalTwist
+
+        } else {
+            // No Attack
+            this.leftArmGroup.rotation.x = THREE.MathUtils.lerp(this.leftArmGroup.rotation.x, baseLArmX, animLerp)
+            this.rightArmGroup.rotation.x = THREE.MathUtils.lerp(this.rightArmGroup.rotation.x, baseRArmX, animLerp)
+
+            // Reset Twist
+            const resetTwist = 0
+            this.body.rotation.y = THREE.MathUtils.lerp(this.body.rotation.y, resetTwist, animLerp)
+            this.headGroup.rotation.y = THREE.MathUtils.lerp(this.headGroup.rotation.y, resetTwist, animLerp)
+            this.leftArmGroup.rotation.y = THREE.MathUtils.lerp(this.leftArmGroup.rotation.y, resetTwist, animLerp)
+            this.rightArmGroup.rotation.y = THREE.MathUtils.lerp(this.rightArmGroup.rotation.y, resetTwist, animLerp)
         }
     }
 }

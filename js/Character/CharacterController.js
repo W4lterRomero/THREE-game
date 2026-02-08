@@ -212,7 +212,7 @@ export class CharacterController {
         // Update Model Animations
         this.glbModel.update(dt, hasInput)
         this.polygonModel.update(dt, hasInput)
-        this.polygonModelSkin.update(dt, hasInput)
+        this.polygonModelSkin.update(dt, hasInput, input.keys.crouch, input.keys.attack)
 
         // 2. Physics Movement Calculation
         if (this.isClimbing) {

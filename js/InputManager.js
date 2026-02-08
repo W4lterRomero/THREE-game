@@ -6,6 +6,8 @@ export class InputManager {
             left: false,
             right: false,
             jump: false,
+            crouch: false,
+            attack: false,
         }
 
         this.isPaused = false
@@ -20,6 +22,15 @@ export class InputManager {
                 this.reset()
             }
         })
+
+        document.addEventListener("mousedown", (e) => {
+            if (this.isPaused || !this.enabled) return
+            if (e.button === 0) this.keys.attack = true
+        })
+
+        document.addEventListener("mouseup", (e) => {
+            if (e.button === 0) this.keys.attack = false
+        })
     }
 
     reset() {
@@ -28,6 +39,8 @@ export class InputManager {
         this.keys.left = false
         this.keys.right = false
         this.keys.jump = false
+        this.keys.crouch = false
+        this.keys.attack = false
     }
 
     onKeyDown(event) {
@@ -49,6 +62,9 @@ export class InputManager {
             case "Space":
                 this.keys.jump = true
                 break
+            case "ShiftLeft":
+                this.keys.crouch = true
+                break
         }
     }
 
@@ -68,6 +84,9 @@ export class InputManager {
                 break
             case "Space":
                 this.keys.jump = false
+                break
+            case "ShiftLeft":
+                this.keys.crouch = false
                 break
         }
     }
