@@ -141,8 +141,8 @@ export class PlacementManager {
         this.toolbarInputs = {}
 
         // --- SHAPE SELECTOR ---
-        const shapeRow = document.createElement('div')
-        shapeRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-bottom: 5px; border-bottom:1px solid #555; padding-bottom:5px;"
+        this.collisionShapeRow = document.createElement('div')
+        this.collisionShapeRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-bottom: 5px; border-bottom:1px solid #555; padding-bottom:5px;"
 
         const shapeLbl = document.createElement('label'); shapeLbl.textContent = "FORMA"
         const shapeSelect = document.createElement('select')
@@ -162,9 +162,9 @@ export class PlacementManager {
         // Prevent Key Propagation
         shapeSelect.onkeydown = (e) => e.stopPropagation()
 
-        shapeRow.appendChild(shapeLbl)
-        shapeRow.appendChild(shapeSelect)
-        this.logicToolbar.appendChild(shapeRow)
+        this.collisionShapeRow.appendChild(shapeLbl)
+        this.collisionShapeRow.appendChild(shapeSelect)
+        this.logicToolbar.appendChild(this.collisionShapeRow)
 
 
         // --- BOX INPUTS ---
@@ -271,19 +271,34 @@ export class PlacementManager {
         this.spawnSquareInputs = document.createElement('div')
         this.spawnSquareInputs.style.cssText = "display:none; flex-direction:column; gap:5px;";
 
+        this.spawnXYZInputs = {};
+
         ['x', 'y', 'z'].forEach(axis => {
             const row = document.createElement('div')
             row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
             const lbl = document.createElement('label'); lbl.textContent = axis.toUpperCase()
             const inp = document.createElement('input'); inp.type = 'number'; inp.step = 0.5;
             // Default Y is thin (0.1), X/Z 2
-            inp.value = (axis === 'y') ? 0.1 : 2;
+            const initialVal = (axis === 'y') ? 0.1 : 2;
+            inp.value = initialVal;
             inp.style.width = "60px"; inp.style.background = "#222"; inp.style.color = "white"; inp.style.border = "1px solid #555"; inp.style.padding = "4px";
+
+            this.spawnXYZInputs[axis] = inp
 
             inp.onchange = (e) => {
                 let val = parseFloat(e.target.value)
                 if (isNaN(val) || val < 0.1) val = 0.1
                 this.currentSpawnProperties[axis] = val
+
+                // Circle Sync Logic
+                if (this.currentSpawnProperties.shapeType === 'circle') {
+                    if (axis === 'x' || axis === 'z') {
+                        this.currentSpawnProperties.x = val
+                        this.currentSpawnProperties.z = val
+                        this.currentSpawnProperties.radius = val / 2
+                    }
+                    this.updateSpawnInputsValues()
+                }
             }
             inp.onkeydown = (e) => e.stopPropagation()
 
@@ -304,10 +319,12 @@ export class PlacementManager {
 
     updateToolbarVisibility() {
         if (this.currentCollisionSize.shapeType === 'sphere') {
+            if (this.collisionShapeRow) this.collisionShapeRow.style.display = 'flex'
             this.boxInputsContainer.style.display = 'none'
             this.sphereInputsContainer.style.display = 'flex'
             this.spawnInputsContainer.style.display = 'none'
         } else if (this.currentItem && this.currentItem.type === 'spawn_point') {
+            if (this.collisionShapeRow) this.collisionShapeRow.style.display = 'none'
             this.boxInputsContainer.style.display = 'none'
             this.sphereInputsContainer.style.display = 'none'
             this.spawnInputsContainer.style.display = 'flex'
@@ -315,12 +332,13 @@ export class PlacementManager {
             // Show/Hide sub-sections based on Spawn Shape
             if (this.currentSpawnProperties.shapeType === 'circle') {
                 this.spawnCircleInputs.style.display = 'flex'
-                this.spawnSquareInputs.style.display = 'none'
+                this.spawnSquareInputs.style.display = 'flex' // Show XYZ for Circle too
             } else {
                 this.spawnCircleInputs.style.display = 'none'
                 this.spawnSquareInputs.style.display = 'flex'
             }
         } else {
+            if (this.collisionShapeRow) this.collisionShapeRow.style.display = 'flex'
             this.boxInputsContainer.style.display = 'flex'
             this.sphereInputsContainer.style.display = 'none'
             this.spawnInputsContainer.style.display = 'none'
@@ -1197,5 +1215,14 @@ export class PlacementManager {
             return this.lastValidQuaternion
         }
         return this.rotationIndex
+    }
+
+    updateSpawnInputsValues() {
+        if (this.spawnRadInp) this.spawnRadInp.value = this.currentSpawnProperties.radius
+        if (this.spawnXYZInputs) {
+            this.spawnXYZInputs.x.value = this.currentSpawnProperties.x
+            this.spawnXYZInputs.y.value = this.currentSpawnProperties.y
+            this.spawnXYZInputs.z.value = this.currentSpawnProperties.z
+        }
     }
 }
