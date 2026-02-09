@@ -176,6 +176,27 @@ export class MapObjectItem extends Item {
             }
         }
 
+        if (this.type === 'spawn_point') {
+            if (context.placementManager && context.placementManager.currentSpawnProperties) {
+                // Clone properties
+                const props = context.placementManager.currentSpawnProperties
+
+                // Map to Scale/Props logic for spawnObject
+                // We'll store these in 'scale' or a new property 'customProperties'
+                // MapObjectItem expects 'scale' for basic dimensions.
+                // For Spawn Point, we have dual modes.
+                this.scale = { ...props } // this copies x,y,z, radius, shapeType
+
+                // If Circle: x/z should be radius*2 for rough bounding box logic if needed
+                if (props.shapeType === 'circle') {
+                    this.scale.x = props.radius * 2
+                    this.scale.z = props.radius * 2
+                    this.scale.y = 0.05 // default thin
+                }
+                // If Square: x,y,z are already set
+            }
+        }
+
         if (this.type === 'movement_controller') {
             // TOOL BEHAVIOR: Apply logic to existing object
             // Raycast from Camera (or Origin/Direction provided in context)
@@ -322,10 +343,26 @@ export class MapObjectItem extends Item {
 
         } else if (this.type === 'spawn_point') {
             // SPAWN POINT (Thin Platform)
-            // 2D-like platform on the ground
-            const radius = 1.0
-            const height = 0.05
-            const geometry = new THREE.CylinderGeometry(radius, radius, height, 32)
+            // Supports Circle (Cylinder) or Square (Box)
+            const shapeType = this.scale.shapeType || 'circle'
+
+            let geometry
+            let col
+            let height
+
+            if (shapeType === 'square') {
+                // Square/Box
+                geometry = new THREE.BoxGeometry(this.scale.x, this.scale.y, this.scale.z)
+                height = this.scale.y
+                col = RAPIER.ColliderDesc.cuboid(this.scale.x / 2, this.scale.y / 2, this.scale.z / 2)
+            } else {
+                // Default: Circle
+                const radius = (this.scale.x / 2) || 1.0 // Scale X is Diameter
+                height = this.scale.y || 0.05
+                geometry = new THREE.CylinderGeometry(radius, radius, height, 32)
+                col = RAPIER.ColliderDesc.cylinder(height / 2, radius)
+            }
+
             const material = new THREE.MeshStandardMaterial({
                 color: this.color,
                 transparent: true,
@@ -358,13 +395,11 @@ export class MapObjectItem extends Item {
 
             // Orient arrow
             arrow.rotation.x = -Math.PI / 2; // Lay flat
-            arrow.rotation.z = Math.PI;      // Point forward (-Z) relative to cylinder
+            arrow.rotation.z = Math.PI;      // Point forward (-Z) relative to cylinder/box
             arrow.position.y = (height / 2) + 0.01; // Just above surface
 
             object3D.add(arrow)
 
-            // Physics: Thin cylinder collider
-            const col = RAPIER.ColliderDesc.cylinder(height / 2, radius)
             collidersDesc.push(col)
 
         } else if (this.type === 'movement_controller') {

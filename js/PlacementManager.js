@@ -215,6 +215,85 @@ export class PlacementManager {
         this.sphereInputsContainer.appendChild(radRow)
         this.logicToolbar.appendChild(this.sphereInputsContainer)
 
+        // --- SPAWN POINT INPUTS ---
+        // Defaults
+        this.currentSpawnProperties = { shapeType: 'circle', radius: 1.0, x: 2, y: 0.1, z: 2, rotation: 0 }
+
+        this.spawnInputsContainer = document.createElement('div')
+        this.spawnInputsContainer.style.cssText = "display:none; flex-direction:column; gap:5px;"
+
+        // Shape Selector for Spawn
+        const spawnShapeRow = document.createElement('div')
+        spawnShapeRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-bottom: 5px; border-bottom:1px solid #555; padding-bottom:5px;"
+        const spawnShapeLbl = document.createElement('label'); spawnShapeLbl.textContent = "FORMA"
+        const spawnShapeSelect = document.createElement('select')
+        spawnShapeSelect.style.cssText = "background:#222; color:white; border:1px solid #555; padding:2px;"
+
+        const optCircle = document.createElement('option'); optCircle.value = 'circle'; optCircle.textContent = 'Círculo';
+        const optSquare = document.createElement('option'); optSquare.value = 'square'; optSquare.textContent = 'Cuadrado';
+
+        spawnShapeSelect.appendChild(optCircle)
+        spawnShapeSelect.appendChild(optSquare)
+        spawnShapeSelect.value = 'circle'
+
+        spawnShapeSelect.onchange = (e) => {
+            this.currentSpawnProperties.shapeType = e.target.value
+            this.updateToolbarVisibility()
+        }
+        spawnShapeSelect.onkeydown = (e) => e.stopPropagation()
+
+        spawnShapeRow.appendChild(spawnShapeLbl)
+        spawnShapeRow.appendChild(spawnShapeSelect)
+        this.spawnInputsContainer.appendChild(spawnShapeRow)
+
+        // Circle Inputs (Radius, Rotation)
+        this.spawnCircleInputs = document.createElement('div')
+        this.spawnCircleInputs.style.cssText = "display:flex; flex-direction:column; gap:5px;"
+
+        // Radius
+        const spawnRadRow = document.createElement('div')
+        spawnRadRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
+        const spawnRadLbl = document.createElement('label'); spawnRadLbl.textContent = "RADIO (R)"
+        const spawnRadInp = document.createElement('input'); spawnRadInp.type = 'number'; spawnRadInp.step = 0.5; spawnRadInp.value = 1.0;
+        spawnRadInp.style.width = "60px"; spawnRadInp.style.background = "#222"; spawnRadInp.style.color = "white"; spawnRadInp.style.border = "1px solid #555"; spawnRadInp.style.padding = "4px;"
+        spawnRadInp.onchange = (e) => {
+            let val = parseFloat(e.target.value)
+            if (isNaN(val) || val < 0.1) val = 0.1
+            this.currentSpawnProperties.radius = val
+        }
+        spawnRadInp.onkeydown = (e) => e.stopPropagation()
+        spawnRadRow.appendChild(spawnRadLbl); spawnRadRow.appendChild(spawnRadInp)
+        this.spawnCircleInputs.appendChild(spawnRadRow)
+
+        this.spawnInputsContainer.appendChild(this.spawnCircleInputs)
+
+        // Square Inputs (X, Y, Z)
+        this.spawnSquareInputs = document.createElement('div')
+        this.spawnSquareInputs.style.cssText = "display:none; flex-direction:column; gap:5px;";
+
+        ['x', 'y', 'z'].forEach(axis => {
+            const row = document.createElement('div')
+            row.style.cssText = "display:flex; justify-content:space-between; align-items:center; gap: 10px;"
+            const lbl = document.createElement('label'); lbl.textContent = axis.toUpperCase()
+            const inp = document.createElement('input'); inp.type = 'number'; inp.step = 0.5;
+            // Default Y is thin (0.1), X/Z 2
+            inp.value = (axis === 'y') ? 0.1 : 2;
+            inp.style.width = "60px"; inp.style.background = "#222"; inp.style.color = "white"; inp.style.border = "1px solid #555"; inp.style.padding = "4px";
+
+            inp.onchange = (e) => {
+                let val = parseFloat(e.target.value)
+                if (isNaN(val) || val < 0.1) val = 0.1
+                this.currentSpawnProperties[axis] = val
+            }
+            inp.onkeydown = (e) => e.stopPropagation()
+
+            row.appendChild(lbl); row.appendChild(inp);
+            this.spawnSquareInputs.appendChild(row)
+        })
+        this.spawnInputsContainer.appendChild(this.spawnSquareInputs)
+
+        this.logicToolbar.appendChild(this.spawnInputsContainer)
+
         const hint = document.createElement('div')
         hint.textContent = "Edita para redimensionar"
         hint.style.fontSize = "10px"; hint.style.color = "#aaa"; hint.style.textAlign = "center"
@@ -227,9 +306,24 @@ export class PlacementManager {
         if (this.currentCollisionSize.shapeType === 'sphere') {
             this.boxInputsContainer.style.display = 'none'
             this.sphereInputsContainer.style.display = 'flex'
+            this.spawnInputsContainer.style.display = 'none'
+        } else if (this.currentItem && this.currentItem.type === 'spawn_point') {
+            this.boxInputsContainer.style.display = 'none'
+            this.sphereInputsContainer.style.display = 'none'
+            this.spawnInputsContainer.style.display = 'flex'
+
+            // Show/Hide sub-sections based on Spawn Shape
+            if (this.currentSpawnProperties.shapeType === 'circle') {
+                this.spawnCircleInputs.style.display = 'flex'
+                this.spawnSquareInputs.style.display = 'none'
+            } else {
+                this.spawnCircleInputs.style.display = 'none'
+                this.spawnSquareInputs.style.display = 'flex'
+            }
         } else {
             this.boxInputsContainer.style.display = 'flex'
             this.sphereInputsContainer.style.display = 'none'
+            this.spawnInputsContainer.style.display = 'none'
         }
     }
 
@@ -416,8 +510,9 @@ export class PlacementManager {
         this.rotationIndex = rotationIndex
 
         // Toolbar Visibility Logic
-        if (item && item.type === 'interactive_collision') {
+        if (item && (item.type === 'interactive_collision' || item.type === 'spawn_point')) {
             this.logicToolbar.style.display = 'flex'
+            this.updateToolbarVisibility() // Ensure correct sub-menu is shown
         } else {
             this.logicToolbar.style.display = 'none'
         }
@@ -805,22 +900,39 @@ export class PlacementManager {
                             this.ghostSphereMesh.visible = false
                         }
                     } else if (item.type === 'spawn_point') {
-                        // SPAWN POINT GHOST (Cylinder)
-                        this.ghostBoxMesh.visible = false
-                        this.ghostSphereMesh.visible = false
-                        this.ghostCylinderMesh.visible = true
+                        // SPAWN POINT GHOST
+                        // Check properties
+                        if (this.currentSpawnProperties.shapeType === 'circle') {
+                            this.ghostBoxMesh.visible = false
+                            this.ghostSphereMesh.visible = false
+                            this.ghostCylinderMesh.visible = true
 
-                        // Spawn Point is fixed size (Diam 2, Height 0.05) or uses scale
-                        // MapObjectItem logic uses fixed radius=1 (Diam 2), height=0.05
-                        // CylinderGeo(1,1,1) -> Diam 2, Height 1.
-                        // We want Height 0.05 -> Scale Y = 0.05
-                        // We want Diam 2 -> Scale X/Z = 1.
-                        // Even though ConstructionMenu scale says x:2, z:2 (Dimensions),
-                        // The CylinderGeo is already Diam 2. So scale factor is 1.
-                        // Or generically: scale.x / 2.
+                            // Cylinder Geometry is Radius 1, Height 1.
+                            // We want Radius = current.radius
+                            // We want Height = 0.05 or custom? 
+                            // Circle mode implies mostly flat or default height. 
+                            // User asked for "R" for circle. Did not explicitly ask for height in circle mode, 
+                            // but "X Y Z" for both? "change from circle to square X Y Z in both modes... and R also for circle"
+                            // So Circle might need Height too? 
+                            // Let's assume Circle uses default thin height or we can add Y to circle inputs if needed.
+                            // For now, let's keep it thin 0.05 or use Y from square properties if user switches?
+                            // Providing "R" usually implies radius only. 
+                            // I'll stick to a thin disk for Circle unless I see a request for cylinder height.
+                            // Actually, let's use a fixed height for Circle to keep it as a "pad", distinct from a pillar.
+                            const r = this.currentSpawnProperties.radius
+                            const h = 0.05
+                            this.ghostCylinderMesh.scale.set(r, h, r)
+                            this.ghostCylinderMesh.position.y = 0
+                        } else {
+                            // Square Mode -> Box
+                            this.ghostCylinderMesh.visible = false
+                            this.ghostSphereMesh.visible = false
+                            this.ghostBoxMesh.visible = true
 
-                        this.ghostCylinderMesh.scale.set(item.scale.x / 2, item.scale.y, item.scale.z / 2)
-                        this.ghostCylinderMesh.position.y = 0
+                            const props = this.currentSpawnProperties
+                            this.ghostBoxMesh.scale.set(props.x, props.y, props.z)
+                            this.ghostBoxMesh.position.y = 0
+                        }
                     } else {
                         this.ghostSphereMesh.visible = false
                         this.ghostCylinderMesh.visible = false
