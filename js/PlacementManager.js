@@ -908,6 +908,9 @@ export class PlacementManager {
 
                     // --- INTERACTIVE COLLISION GHOST UPDATE ---
                     if (item.type === 'interactive_collision') {
+                        // Ensure Spawn Ghost is Hidden
+                        this.ghostCylinderMesh.visible = false
+
                         if (this.currentCollisionSize.shapeType === 'sphere') {
                             this.ghostBoxMesh.visible = false
                             this.ghostSphereMesh.visible = true
